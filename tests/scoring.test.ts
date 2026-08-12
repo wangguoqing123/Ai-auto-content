@@ -46,4 +46,26 @@ describe('deterministic scoring', () => {
     expect(scoreMaterial(practical!, config, now).status).toBe('accepted');
     expect(scoreMaterial(research!, config, now).rejectionReasons).toContain('low_level_only');
   });
+
+  it('uses English word boundaries for short keywords', () => {
+    const candidate = normalizeFeedItem(makeRawItem({
+      title: 'Network mapping and encoder changes',
+      excerpt: 'A networking mapper and encoded payload.',
+    }), makeSource(), now.toISOString(), 500);
+    expect(candidate).not.toBeNull();
+    const result = scoreRelevance(candidate!, config);
+    expect(result.tags).not.toContain('work_task');
+    expect(result.tags).not.toContain('ai_coding');
+  });
+
+  it('does not credit the same keyword in multiple groups', () => {
+    const candidate = normalizeFeedItem(makeRawItem({
+      title: 'Workflow patterns',
+      excerpt: 'One workflow.',
+    }), makeSource({ category: 'research', audience_fit: ['intermediate_user'] }), now.toISOString(), 500);
+    expect(candidate).not.toBeNull();
+    const result = scoreRelevance(candidate!, config);
+    expect(result.tags).toContain('work_task');
+    expect(result.tags).not.toContain('automation');
+  });
 });

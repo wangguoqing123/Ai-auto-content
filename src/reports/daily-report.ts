@@ -6,6 +6,9 @@ const REJECTION_LABELS: Record<string, string> = {
   low_relevance: '与 AI 小白无关或相关度不足',
   below_overall_threshold: '综合分未达到阈值',
   stale_or_unknown_publish_date: '时间过旧或发布时间缺失',
+  unknown_publish_date: '发布时间未知，已进入隔离区',
+  older_than_7_days: '发布时间超过 7 天，仅保留去重指纹',
+  item_processing_error: '单条素材处理异常，已隔离',
   unverified_source: '可信度不足',
   low_level_only: '只有底层参数或研究细节',
   invalid_feed_item: '缺少标题或链接',
@@ -56,7 +59,7 @@ export function generateDailyReport(input: DailyReportInput): string {
       || left.canonical_url.localeCompare(right.canonical_url));
   const rejectionCounts = new Map<string, number>();
 
-  for (const material of dailyMaterials.filter((item) => item.status === 'rejected')) {
+  for (const material of dailyMaterials.filter((item) => item.status !== 'accepted')) {
     for (const reason of material.rejection_reasons) {
       rejectionCounts.set(reason, (rejectionCounts.get(reason) ?? 0) + 1);
     }

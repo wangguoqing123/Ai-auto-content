@@ -1,0 +1,29 @@
+[
+  {
+    "id": "1950000000000000001",
+    "author": "fixture_author",
+    "author_followers": 12800,
+    "text": "A practical AI workflow for weekly research.",
+    "created_at": "Tue Aug 11 12:00:00 +0000 2026",
+    "likes": 321,
+    "retweets": 42,
+    "replies": 18,
+    "quotes": 7,
+    "bookmarks": 91,
+    "views": "25000",
+    "url": "https://x.com/i/status/1950000000000000001",
+    "has_media": true,
+    "media_urls": ["https://pbs.twimg.com/media/fixture.jpg"],
+    "media_posters": ["https://pbs.twimg.com/media/fixture.jpg"]
+  },
+  {
+    "id": "1950000000000000002",
+    "author": "missing_metrics",
+    "text": "Missing metrics remain unavailable.",
+    "created_at": "Tue Aug 11 13:00:00 +0000 2026",
+    "url": "https://x.com/i/status/1950000000000000002",
+    "has_media": false,
+    "media_urls": [],
+    "media_posters": []
+  }
+]

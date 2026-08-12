@@ -6,6 +6,8 @@ import { loadConfig } from '../src/config/load-config.js';
 import type { MaterialCollector } from '../src/collectors/rss-collector.js';
 import { AllSourcesFailedError, runCollectionPipeline } from '../src/pipeline.js';
 import { MaterialStorage } from '../src/storage/material-storage.js';
+import { StateStorage } from '../src/storage/state-storage.js';
+import type { RawFeedItem } from '../src/types.js';
 import type { ScoringConfig, SourceConfig } from '../src/types.js';
 import { makeRawItem, makeSource, silentLogger } from './helpers.js';
 
@@ -86,5 +88,53 @@ describe('collection pipeline', () => {
     })).rejects.toSatisfy((error: unknown) => {
       return error instanceof AllSourcesFailedError && error.result.run.status === 'failed';
     });
+  });
+
+  it('bootstraps old RSS items into fingerprints while storing only recent and quarantined items', async () => {
+    const rootDir = await tempRoot();
+    const collector: MaterialCollector = {
+      collect: async () => [
+        makeRawItem({ title: 'Recent AI workflow tutorial', link: 'https://example.com/recent', guid: 'recent', publishedAt: '2026-08-10T00:00:00.000Z' }),
+        makeRawItem({ title: 'Old AI workflow tutorial', link: 'https://example.com/old', guid: 'old', publishedAt: '2026-07-01T00:00:00.000Z' }),
+        makeRawItem({ title: 'Unknown date AI workflow tutorial', link: 'https://example.com/unknown', guid: 'unknown', publishedAt: null }),
+      ],
+    };
+    const result = await runCollectionPipeline({
+      rootDir,
+      date: '2026-08-12',
+      sources: [makeSource()],
+      scoring,
+      collector,
+      dryRun: false,
+      logger: silentLogger,
+      clock: fixedClock,
+    });
+    const materials = await new MaterialStorage(rootDir).readDate('2026-08-12');
+    const state = await new StateStorage(rootDir).load();
+    expect(materials.map((material) => material.source_item_id).sort()).toEqual(['recent', 'unknown']);
+    expect(materials.find((material) => material.source_item_id === 'unknown')?.status).toBe('quarantined');
+    expect(state.url_fingerprints).toHaveLength(3);
+    expect(result.run.items_rejected).toBe(2);
+  });
+
+  it('isolates a malformed item without terminating the pipeline', async () => {
+    const rootDir = await tempRoot();
+    const malformed = { ...makeRawItem({ link: 'https://example.com/bad' }), title: null } as unknown as RawFeedItem;
+    const collector: MaterialCollector = {
+      collect: async () => [malformed, makeRawItem({ link: 'https://example.com/good' })],
+    };
+    const result = await runCollectionPipeline({
+      rootDir,
+      date: '2026-08-12',
+      sources: [makeSource()],
+      scoring,
+      collector,
+      dryRun: true,
+      logger: silentLogger,
+      clock: fixedClock,
+    });
+    expect(result.run.status).toBe('success');
+    expect(result.run.items_new).toBe(1);
+    expect(result.run.items_rejected).toBe(1);
   });
 });

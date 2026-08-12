@@ -8,8 +8,12 @@
     "node": ">=20"
   },
   "scripts": {
-    "collect": "tsx src/index.ts",
+    "collect": "npm run collect:cloud",
+    "collect:cloud": "tsx src/index.ts",
+    "collect:browser": "tsx scripts/browser-pipeline-cli.ts",
     "collect:fixture": "tsx src/index.ts --fixture --date=2026-08-12 --dry-run",
+    "spike:opencli": "tsx scripts/opencli-live-spike.ts",
+    "opencli:install-adapters": "tsx scripts/install-opencli-adapters.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

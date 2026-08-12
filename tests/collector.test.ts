@@ -3,6 +3,8 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { collectSources } from '../src/collectors/collector-registry.js';
 import { RssCollector, type MaterialCollector } from '../src/collectors/rss-collector.js';
+import { AihotCollector } from '../src/collectors/aihot-collector.js';
+import { CloudCollector } from '../src/collectors/cloud-collector.js';
 import type { SourceConfig } from '../src/types.js';
 import { makeRawItem, makeSource, silentLogger } from './helpers.js';
 
@@ -55,5 +57,35 @@ describe('RSS and Atom collection', () => {
     expect(results.find((result) => result.source.id === 'good')?.run.status).toBe('success');
     expect(results.find((result) => result.source.id === 'bad')?.run.status).toBe('failed');
     expect(results.find((result) => result.source.id === 'good')?.items).toHaveLength(1);
+  });
+
+  it('collects AIHOT only through the stable v1 API contract', async () => {
+    const payload = JSON.parse(await readFile(path.join(process.cwd(), 'tests', 'fixtures', 'aihot-items.json'), 'utf8')) as unknown;
+    const aihot = new AihotCollector({
+      timeoutMs: 15_000,
+      retries: 0,
+      userAgent: 'aihot-skill/test',
+      fetchJson: async (url) => {
+        expect(url).toContain('https://aihot.virxact.com/api/v1/');
+        expect(url).not.toContain('/api/public/');
+        return payload;
+      },
+      logger: silentLogger,
+    });
+    const source = makeSource({
+      id: 'aihot',
+      type: 'aihot',
+      url: 'https://aihot.virxact.com/api/v1/items?mode=selected&window=24h&limit=20',
+    });
+    const items = await aihot.collect(source);
+    expect(items[0]).toMatchObject({ guid: 'fixture-aihot-1', author: 'Fixture Source' });
+  });
+
+  it('dispatches RSS and AIHOT through the cloud collector', async () => {
+    const rss = { collect: async () => [makeRawItem()] } as unknown as RssCollector;
+    const aihot = { collect: async () => [makeRawItem({ guid: 'aihot' })] } as unknown as AihotCollector;
+    const cloud = new CloudCollector(rss, aihot);
+    await expect(cloud.collect(makeSource())).resolves.toHaveLength(1);
+    await expect(cloud.collect(makeSource({ type: 'aihot' }))).resolves.toMatchObject([{ guid: 'aihot' }]);
   });
 });

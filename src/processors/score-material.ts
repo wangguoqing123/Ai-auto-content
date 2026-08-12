@@ -14,8 +14,17 @@ function clampScore(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function containsKeyword(haystack: string, keyword: string): boolean {
-  return haystack.includes(keyword.toLocaleLowerCase());
+  const normalized = keyword.normalize('NFKC').toLocaleLowerCase().trim();
+  if (!normalized) return false;
+  if (/^[a-z0-9][a-z0-9 +._/-]*$/i.test(normalized)) {
+    return new RegExp(`(^|[^a-z0-9])${escapeRegExp(normalized)}($|[^a-z0-9])`, 'i').test(haystack);
+  }
+  return haystack.includes(normalized);
 }
 
 export function scoreFreshness(publishedAt: string | null, now: Date, config: ScoringConfig): number {
@@ -38,6 +47,7 @@ export function scoreRelevance(candidate: NormalizedCandidate, config: ScoringCo
   const text = `${candidate.title} ${candidate.excerpt}`.normalize('NFKC').toLocaleLowerCase();
   let score = config.relevance.base_score;
   const tags: string[] = [];
+  const creditedKeywords = new Set<string>();
 
   for (const targetUser of candidate.source.audience_fit) {
     score += config.relevance.audience_fit_bonus[targetUser] ?? 0;
@@ -45,14 +55,24 @@ export function scoreRelevance(candidate: NormalizedCandidate, config: ScoringCo
   score += config.relevance.category_bonus[candidate.source.category] ?? 0;
 
   for (const [tag, group] of Object.entries(config.relevance.positive_keyword_groups)) {
-    if (group.keywords.some((keyword) => containsKeyword(text, keyword))) {
+    const matchedKeyword = group.keywords.find((keyword) => {
+      const normalized = keyword.normalize('NFKC').toLocaleLowerCase().trim();
+      return !creditedKeywords.has(normalized) && containsKeyword(text, keyword);
+    });
+    if (matchedKeyword) {
+      creditedKeywords.add(matchedKeyword.normalize('NFKC').toLocaleLowerCase().trim());
       score += group.weight;
       tags.push(tag);
     }
   }
 
   for (const [tag, group] of Object.entries(config.relevance.negative_keyword_groups)) {
-    if (group.keywords.some((keyword) => containsKeyword(text, keyword))) {
+    const matchedKeyword = group.keywords.find((keyword) => {
+      const normalized = keyword.normalize('NFKC').toLocaleLowerCase().trim();
+      return !creditedKeywords.has(normalized) && containsKeyword(text, keyword);
+    });
+    if (matchedKeyword) {
+      creditedKeywords.add(matchedKeyword.normalize('NFKC').toLocaleLowerCase().trim());
       score += group.weight;
       tags.push(tag);
     }

@@ -1,0 +1,86 @@
+version: 1
+
+twitter:
+  max_queries_per_run: 4
+  max_results_per_query: 20
+  queries:
+    - id: ai-tools-zh
+      query: AI工具
+      language: zh
+      product: top
+      exclude_replies: true
+      exclude_retweets: true
+      minimum_likes: 0
+      minimum_views: 0
+      priority: 100
+      enabled: true
+    - id: ai-workflow-en
+      query: AI workflow
+      language: en
+      product: live
+      exclude_replies: true
+      exclude_retweets: true
+      minimum_likes: 0
+      minimum_views: 0
+      priority: 90
+      enabled: true
+    - id: ai-learning-zh
+      query: AI学习
+      language: zh
+      product: live
+      exclude_replies: true
+      exclude_retweets: true
+      minimum_likes: 0
+      minimum_views: 0
+      priority: 80
+      enabled: true
+    - id: ai-coding-en
+      query: AI coding
+      language: en
+      product: top
+      exclude_replies: true
+      exclude_retweets: true
+      minimum_likes: 0
+      minimum_views: 0
+      priority: 70
+      enabled: true
+    - id: ai-productivity-en
+      query: AI productivity
+      language: en
+      product: live
+      exclude_replies: true
+      exclude_retweets: true
+      minimum_likes: 0
+      minimum_views: 0
+      priority: 60
+      enabled: true
+
+xiaohongshu:
+  max_queries_per_run: 4
+  max_results_per_query: 10
+  max_details_per_query: 2
+  max_comment_notes_per_run: 2
+  max_comments_per_note: 10
+  queries:
+    - id: ai-tools-xhs
+      query: AI工具
+      priority: 100
+      enabled: true
+    - id: ai-coding-xhs
+      query: AI编程
+      priority: 90
+      enabled: true
+
+weixin:
+  max_queries_per_run: 4
+  max_results_per_query: 10
+  max_downloads_per_run: 5
+  queries:
+    - id: ai-tools-weixin
+      query: AI工具
+      priority: 100
+      enabled: true
+    - id: ai-coding-weixin
+      query: AI编程
+      priority: 90
+      enabled: true

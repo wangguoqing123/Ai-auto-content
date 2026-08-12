@@ -2,6 +2,9 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { loadConfig } from './config/load-config.js';
 import { RssCollector } from './collectors/rss-collector.js';
+import { AihotCollector } from './collectors/aihot-collector.js';
+import { CloudCollector } from './collectors/cloud-collector.js';
+import type { MaterialCollector } from './collectors/rss-collector.js';
 import { AllSourcesFailedError, runCollectionPipeline } from './pipeline.js';
 import { logger } from './utils/logger.js';
 import { formatDateInTimeZone, isValidDateArgument } from './utils/time.js';
@@ -39,11 +42,11 @@ async function main(): Promise<void> {
   const cli = parseCliOptions(process.argv.slice(2));
   const config = await loadConfig(rootDir);
   let sources = config.sources.sources;
-  let collector: RssCollector;
+  let collector: MaterialCollector;
 
   if (cli.fixture) {
     const fixtureXml = await readFile(path.join(rootDir, 'tests', 'fixtures', 'rss.xml'), 'utf8');
-    const fixtureSource = sources.find((source) => source.enabled);
+    const fixtureSource = sources.find((source) => source.enabled && source.type === 'rss');
     if (!fixtureSource) throw new Error('Fixture mode requires one enabled source');
     sources = [fixtureSource];
     collector = new RssCollector({
@@ -54,12 +57,19 @@ async function main(): Promise<void> {
       logger,
     });
   } else {
-    collector = new RssCollector({
+    const rssCollector = new RssCollector({
       timeoutMs: config.scoring.collector.timeout_ms,
       retries: config.scoring.collector.retries,
       userAgent: config.scoring.collector.user_agent,
       logger,
     });
+    const aihotCollector = new AihotCollector({
+      timeoutMs: config.scoring.collector.timeout_ms,
+      retries: config.scoring.collector.retries,
+      userAgent: 'aihot-skill/1.4.1 (+https://aihot.virxact.com/aihot-skill/)',
+      logger,
+    });
+    collector = new CloudCollector(rssCollector, aihotCollector);
   }
 
   const result = await runCollectionPipeline({

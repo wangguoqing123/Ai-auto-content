@@ -92,6 +92,7 @@ export class RssCollector implements MaterialCollector {
   }
 
   async collect(source: SourceConfig): Promise<RawFeedItem[]> {
+    if (source.type !== 'rss') throw new Error(`RssCollector cannot collect source type ${source.type}`);
     const xml = await withRetry(
       () => this.fetchXml(source.url, {
         timeoutMs: this.options.timeoutMs,

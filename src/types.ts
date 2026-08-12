@@ -1,11 +1,54 @@
 import { z } from 'zod';
 
 export const sourceTierSchema = z.enum(['primary', 'secondary', 'unverified']);
+export const sourcePlatformSchema = z.enum(['twitter', 'xiaohongshu', 'weixin', 'aihot', 'rss']);
+export const sourceKindSchema = z.enum(['official', 'news', 'ugc']);
+export const publishedAtQualitySchema = z.enum(['exact', 'inferred', 'unknown']);
+export const metricQualitySchema = z.enum(['complete', 'partial', 'unavailable']);
+export const usageModeSchema = z.enum(['fact_source', 'trend_signal', 'structure_inspiration', 'reference_only']);
+export const viralConfidenceSchema = z.enum(['verified', 'likely', 'candidate', 'unverified']);
+
+export const engagementSchema = z.object({
+  views: z.number().int().nonnegative().nullable(),
+  likes: z.number().int().nonnegative().nullable(),
+  comments: z.number().int().nonnegative().nullable(),
+  shares: z.number().int().nonnegative().nullable(),
+  reposts: z.number().int().nonnegative().nullable(),
+  quotes: z.number().int().nonnegative().nullable(),
+  bookmarks: z.number().int().nonnegative().nullable(),
+  collects: z.number().int().nonnegative().nullable(),
+});
+
+export const unifiedMaterialSchema = z.object({
+  material_id: z.string().regex(/^mat_[a-f0-9]{12}$/),
+  source_platform: sourcePlatformSchema,
+  source_kind: sourceKindSchema,
+  collector: z.string().min(1),
+  query_id: z.string(),
+  query_text: z.string(),
+  search_rank: z.number().int().positive().nullable(),
+  source_item_id: z.string(),
+  author_name: z.string(),
+  author_followers: z.number().int().nonnegative().nullable(),
+  title: z.string().min(1),
+  excerpt: z.string(),
+  source_url: z.string().min(1),
+  content_path: z.string().nullable(),
+  published_at: z.iso.datetime().nullable(),
+  published_at_quality: publishedAtQualitySchema,
+  collected_at: z.iso.datetime(),
+  engagement: engagementSchema,
+  metric_quality: metricQualitySchema,
+  usage_mode: usageModeSchema,
+  viral_confidence: viralConfidenceSchema,
+  status: z.enum(['accepted', 'rejected', 'quarantined']),
+  rejection_reasons: z.array(z.string()),
+});
 
 export const sourceConfigSchema = z.object({
   id: z.string().min(1).regex(/^[a-z0-9][a-z0-9-]*$/),
   name: z.string().min(1),
-  type: z.literal('rss'),
+  type: z.enum(['rss', 'aihot']),
   url: z.string().url(),
   enabled: z.boolean(),
   language: z.string().min(2),
@@ -70,19 +113,14 @@ export const scoringConfigSchema = z.object({
   }),
 });
 
-export const materialSchema = z.object({
-  material_id: z.string().regex(/^mat_[a-f0-9]{12}$/),
+export const materialSchema = unifiedMaterialSchema.extend({
   source_id: z.string().min(1),
   source_name: z.string().min(1),
-  source_type: z.literal('rss'),
+  source_type: z.enum(['rss', 'opencli', 'api']),
   source_tier: sourceTierSchema,
   category: z.string().min(1),
-  title: z.string().min(1),
-  source_url: z.string().min(1),
   canonical_url: z.string().min(1),
   author: z.string().nullable(),
-  published_at: z.iso.datetime().nullable(),
-  collected_at: z.iso.datetime(),
   language: z.string().min(2),
   excerpt: z.string().max(1_000),
   target_users: z.array(z.string().min(1)),
@@ -93,8 +131,6 @@ export const materialSchema = z.object({
   overall_score: z.number().int().min(0).max(100),
   fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
   content_fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
-  status: z.enum(['accepted', 'rejected']),
-  rejection_reasons: z.array(z.string()),
 });
 
 export const seenMaterialsSchema = z.object({
@@ -138,6 +174,7 @@ export const runLogSchema = z.object({
 export type SourceConfig = z.infer<typeof sourceConfigSchema>;
 export type SourcesFile = z.infer<typeof sourcesFileSchema>;
 export type ScoringConfig = z.infer<typeof scoringConfigSchema>;
+export type UnifiedMaterial = z.infer<typeof unifiedMaterialSchema>;
 export type Material = z.infer<typeof materialSchema>;
 export type SeenMaterials = z.infer<typeof seenMaterialsSchema>;
 export type SourceRun = z.infer<typeof sourceRunSchema>;

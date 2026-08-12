@@ -12,11 +12,12 @@ export class Deduplicator {
   }
 
   checkAndAdd(candidate: Pick<NormalizedCandidate, 'urlFingerprint' | 'contentFingerprint'>): DuplicateDecision {
-    if (this.urlFingerprints.has(candidate.urlFingerprint)) return 'duplicate_url';
-    if (this.contentFingerprints.has(candidate.contentFingerprint)) return 'duplicate_content';
-
-    this.urlFingerprints.add(candidate.urlFingerprint);
-    this.contentFingerprints.add(candidate.contentFingerprint);
+    const duplicateUrl = this.urlFingerprints.has(candidate.urlFingerprint);
+    const duplicateContent = this.contentFingerprints.has(candidate.contentFingerprint);
+    if (!duplicateUrl) this.urlFingerprints.add(candidate.urlFingerprint);
+    if (!duplicateContent) this.contentFingerprints.add(candidate.contentFingerprint);
+    if (duplicateUrl) return 'duplicate_url';
+    if (duplicateContent) return 'duplicate_content';
     return 'unique';
   }
 
