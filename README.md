@@ -6,13 +6,24 @@
 
 > 系统每天运行，但不要求每天发布。没有足够高质量的题目时，后续选题阶段必须允许输出 `NO_PUBLISH`。
 
-## 当前阶段：混合素材采集 MVP
+## 当前阶段：正式 Cloud Collector + 实验 Browser Collector
 
-当前版本在 RSS 第一阶段上增加了 OpenCLI 浏览器采集 MVP：
+PR #1 的交付定位是“可每日运行的 Cloud Collector，以及尚处于实验阶段的 Browser Collector 基础架构”。各模块状态如下：
+
+| 模块 | 状态 | 是否每日运行 |
+|---|---|---|
+| RSS | `verified_live` | 是 |
+| AIHOT | `verified_live` | 是 |
+| OpenCLI X | `manual_verification_required` | 否 |
+| OpenCLI 小红书 | `manual_verification_required` | 否 |
+| OpenCLI 公众号 | `manual_verification_required` | 否 |
+| Codex Browser | `exploration_only` | 否 |
+
+当前唯一正式每日运行通道是 Cloud Collector：
 
 ```text
 Cloud Collector（GitHub Actions）→ RSS / AIHOT / 公开来源
-Browser Collector（用户本机）→ X / 小红书 / 公众号
+OpenCLI Browser Collector（本地手动实验）→ X / 小红书 / 公众号
 → 限流采集并隔离单源、单平台和单条失败
 → 标准化字段和规范 URL
 → URL 指纹 + 内容指纹跨天去重
@@ -21,7 +32,9 @@ Browser Collector（用户本机）→ X / 小红书 / 公众号
 → 仅在输出有变化时提交
 ```
 
-Browser Collector 必须使用真实 Chrome、Browser Bridge 和已有登录态，不能放到 GitHub-hosted runner。本阶段仍不调用大模型，不开发自动选题、写作、配图或发布。
+OpenCLI Browser Collector 的代码、Fixture 和失败隔离已经完成，但真实 Browser Bridge 尚未验证，模块状态为 `experimental_manual_only`。它需要本地 Chrome、OpenCLI Browser Bridge 和平台登录态，不能放到 GitHub-hosted runner，也没有配置 `launchd`。Codex Browser 仅用于页面探索、DOM 字段确认、登录状态诊断和适配器修复，不接入正式 Browser Pipeline。
+
+本阶段仍不调用大模型，不开发自动选题、写作、配图或发布。
 
 ## 快速开始
 
@@ -34,18 +47,33 @@ npm test
 npm run collect:fixture
 ```
 
-真实采集：
+正式 Cloud Collector：
 
 ```bash
 npm run collect:cloud
 npm run collect:cloud -- --date=2026-08-12
 npm run collect:cloud -- --dry-run
+```
+
+AIHOT 默认使用项目自身身份：
+
+```text
+AI-Auto-Content/0.2 (+https://github.com/wangguoqing123/Ai-auto-content)
+```
+
+如拥有 AIHOT Actor UUID v4，可在 shell 或任务运行环境中配置 `AIHOT_ACTOR_ID`；`.env.example` 只提供变量模板，程序不会自动加载本地 `.env`。缺失或非法值不会阻断 Cloud Collector，也不会把 Actor 值写入日志。项目继续只访问 `https://aihot.virxact.com/api/v1/*`。
+
+以下仅为本地手动实验命令，不是每日运行入口：
+
+```bash
 npm run opencli:install-adapters
 npm run spike:opencli
 npm run collect:browser -- --dry-run
 ```
 
 `--dry-run` 会真实执行 preflight/采集，但不会写入正式数据目录。`collect:fixture` 只使用本地 Fixture，不访问网络。当前实机 Browser Bridge 未连接，浏览器平台状态必须按 `docs/14-opencli-live-capability-spike.md` 处理，不能把 Fixture 成功描述成在线接通。
+
+Browser CLI 对 `success` 和 `partial_success` 返回退出码 0，其中部分成功会写 warning；完整失败仍在 stdout 保留 JSON 诊断，同时返回退出码 2；参数或程序错误返回退出码 1。当前未配置任何正式浏览器定时任务。
 
 ## 自动运行
 
@@ -54,6 +82,7 @@ npm run collect:browser -- --dry-run
 - 每天 UTC 01:00，即北京时间 09:00 定时运行。
 - 在 GitHub Actions 页面通过 **Run workflow** 手动运行。
 - Node.js 20、`npm ci`、类型检查、测试和真实采集。
+- Workflow 只执行 `npm run collect:cloud`，不启动 OpenCLI、Codex Browser、Chrome 或 Playwright。
 - 只暂存素材、状态、运行日志和日报；没有变化时不创建空提交。
 
 仓库需在 **Settings → Actions → General → Workflow permissions** 中允许 **Read and write permissions**，否则 `GITHUB_TOKEN` 无法推送自动采集结果。
@@ -108,6 +137,7 @@ reports/materials/YYYY-MM-DD.md     每日素材日报
 13. `docs/13-source-capability-matrix.md`
 14. `docs/14-opencli-live-capability-spike.md`
 15. `docs/15-hybrid-collector-runtime.md`
+16. `docs/16-codex-browser-runtime-spike.md`
 
 发生冲突时，真实性与合规规则、人物事实库和产品知识库优先。资料不足时必须标记 `UNKNOWN`，不得自行补全。
 

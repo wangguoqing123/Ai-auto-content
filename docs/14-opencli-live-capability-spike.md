@@ -2,10 +2,12 @@
 title: OpenCLI 实时能力验证报告
 version: 1.0.0
 updated_at: 2026-08-12
-status: live_checked_with_manual_blocker
+status: experimental_manual_only
 ---
 
 # OpenCLI 实时能力验证报告
+
+OpenCLI Browser Collector 当前模块状态为 `experimental_manual_only`：代码与 Fixture 已完成，但 Browser Bridge 和三个平台的 OpenCLI 在线链路尚未真实验证。Cloud Collector 为 `verified_live`，Codex Browser 为 `exploration_only`，两者不能替代 OpenCLI 的 Browser Bridge 验收。
 
 ## 执行环境
 
@@ -53,17 +55,17 @@ npm run collect:browser -- --dry-run
 npm run spike:opencli
 ```
 
-在首次定位环境问题时执行过一次有界 X 中文搜索探测；未获得可解析结果。修复 preflight 对 `doctor` 的退出码识别后，两个正式入口都会先停止，不再向三个浏览器平台发请求。所有命令均为只读，没有点赞、评论、关注、发布或导出 Cookie。
+在首次定位环境问题时执行过一次有界 X 中文搜索探测；未获得可解析结果。修复 preflight 对 `doctor` 的退出码识别后，两个手动实验入口都会先停止，不再向三个浏览器平台发请求。所有命令均为只读，没有点赞、评论、关注、发布或导出 Cookie。
 
 ## 实时结果
 
 ### Browser Collector 总体
 
-- `npm run collect:browser -- --dry-run`：命令成功结束，不写正式数据；preflight 用时 8,408 ms。
+- `npm run collect:browser -- --dry-run`：当时输出完整失败诊断且未写正式数据；preflight 用时 8,408 ms。当时顶层脚本错误返回退出码 0，现已修复为 `failed -> 2`。
 - `npm run spike:opencli`：Browser preflight 用时 9,045 ms。
 - 两次均得到：daemon `OK`、Extension `MISSING`、Connectivity `FAIL`。
 - 三个平台真实返回条数均为 0。这里的 0 表示没有完成采集，不表示平台搜索结果为空。
-- 当前能力状态统一为 `manual_verification_required`，不适合无人值守。
+- 三个平台的在线验证状态统一为 `manual_verification_required`，运行时整体为 `experimental_manual_only`，不适合无人值守。
 
 ### X / Twitter
 
@@ -98,7 +100,7 @@ npm run spike:opencli
 
 ### AIHOT
 
-所有请求只使用 `https://aihot.virxact.com/api/v1/*`，均为匿名只读请求：
+本次历史验证未配置 Actor；所有请求只使用 `https://aihot.virxact.com/api/v1/*`，均为只读请求：
 
 | 验证项 | HTTP | 条数 | 耗时 | 实际字段 |
 |---|---:|---:|---:|---|
@@ -108,6 +110,7 @@ npm run spike:opencli
 | 技巧与观点 | 200 | 5 | 201 ms | 与 items v1 字段一致 |
 
 - 当前状态：`verified_live`。
+- 当前运行时 User-Agent 已改为项目身份 `AI-Auto-Content/0.2 (+https://github.com/wangguoqing123/Ai-auto-content)`；只有合法 `AIHOT_ACTOR_ID` UUID v4 才会追加 `aihot-actor/<uuid>`，且不记录 Actor 值。
 - 缺失字段：正文、评论和社交平台互动数据；v1 不提供单条正文接口。
 - 默认数据语义：`source_kind: news`、`usage_mode: reference_only`。
 - 适合云端无人值守只读采集，但不得直接复制摘要公开发布；若把 AIHOT 数据用于面向外部的商业数据产品、代理、镜像或批量再分发，需要另行取得书面授权。
@@ -128,9 +131,9 @@ npm run spike:opencli
 
 浏览器平台在出现登录墙、验证码、安全限制或频率限制后，本轮会立即停止该平台，不自动绕过，也不无限重试。
 
-## 唯一待人工操作
+## 后续独立 PR 的人工前置条件
 
-在正在运行且已登录平台的 Chrome 中安装或启用与 OpenCLI 1.8.6 匹配的 Browser Bridge 扩展，确认 `opencli doctor` 显示 Extension 和 Connectivity 均为 `OK`。完成后重新运行：
+本 PR 不安装 Browser Bridge，也不要求登录 X。后续独立 PR 如要完成在线验收，需要在本地 Chrome 安装或启用与 OpenCLI 1.8.6 匹配的 Browser Bridge，并在正常登录的平台上确认 `opencli doctor` 的 Extension 和 Connectivity 均为 `OK`，再运行：
 
 ```bash
 npm run spike:opencli

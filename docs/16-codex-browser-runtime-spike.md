@@ -2,7 +2,8 @@
 title: Codex 浏览器采集运行时真实验证报告
 version: 1.0.0
 updated_at: 2026-08-12
-status: live_checked
+status: exploration_only
+validation: live_checked
 recommendation: use_for_exploration_only
 ---
 
@@ -18,6 +19,8 @@ recommendation: use_for_exploration_only
 控制层提供一个受限的 Playwright 风格 API，用于标签页、DOM、点击、输入、截图和只读页面求值；本轮实际浏览器列表中没有 `cdp` 类型实例，也没有 Network 请求/响应订阅接口。
 
 推荐结论：`use_for_exploration_only`。
+
+Codex Browser 的正式边界是：用于页面探索、DOM 字段确认、登录状态诊断和 OpenCLI 适配器修复；不作为每日无人值守运行时，也不接入正式 Browser Pipeline。
 
 直接原因：Chrome 扩展路径能复用小红书登录态并真实结构化读取 DOM，但当前没有 Network 面板能力；X 未登录；微信公众号正文被站点安全策略阻止；`codex exec` 无交互实测中，浏览器访问需要用户许可且失败后进程仍返回退出码 0，不能组成可靠的 `launchd -> JSON -> 退出码` 日采集链路。
 
@@ -327,10 +330,10 @@ Codex 浏览器解决了“当前 Chrome 可以真实打开并读到小红书”
 
 `use_for_exploration_only`
 
-适用范围：人工发起的只读页面探索、DOM 字段确认、登录态诊断和适配器开发前的页面结构研究。
+适用范围：人工发起的只读页面探索、DOM 字段确认、登录状态诊断、适配器修复和适配器开发前的页面结构研究。
 
 不适用范围：每日 launchd 采集、稳定生产 JSON、依赖 Network payload 的 X 富字段采集、微信公众号正文批量读取，以及需要可靠取消/退出码的任务。
 
-## 12. 唯一仍需用户完成的操作
+## 12. 后续独立验证条件
 
-如要补齐 X 的真实字段验证，请在 Chrome 扩展当前连接的“您的 Chrome” Profile 中正常登录 X，然后只重跑本报告的两条 X 查询。不要导出 Cookie，也不要处理或绕过任何验证码/安全验证。
+本 PR 不要求用户登录 X。后续独立验证如要补齐 X 的真实字段，应在 Chrome 扩展当前连接的“您的 Chrome” Profile 中正常登录 X，再只重跑本报告的两条 X 查询；不要导出 Cookie，也不要处理或绕过任何验证码/安全验证。

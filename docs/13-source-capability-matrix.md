@@ -7,7 +7,15 @@ status: live_checked
 
 # 来源能力矩阵
 
-状态只使用 `verified_live`、`verified_fixture_only`、`login_required`、`manual_verification_required`、`temporarily_blocked`、`unsupported`。
+## 运行时状态
+
+| 运行时 | 状态 | 当前用途 | 是否每日运行 |
+|---|---|---|---|
+| Cloud Collector | `verified_live` | RSS / Atom + AIHOT v1 | 是；GitHub Actions 的唯一正式通道 |
+| OpenCLI Browser Collector | `experimental_manual_only` | 本地手动 preflight、Fixture 和待验证的平台采集 | 否 |
+| Codex Browser | `exploration_only` | 页面探索、DOM 字段确认、登录诊断、适配器修复 | 否；不接入正式 Browser Pipeline |
+
+下表的来源验证状态只使用 `verified_live`、`verified_fixture_only`、`login_required`、`manual_verification_required`、`temporarily_blocked`、`unsupported`。
 
 | 来源 | 发现内容 | 正文 | 互动数据 | 评论 | 登录要求 | 当前状态 |
 |---|---|---|---|---|---|---|
@@ -19,3 +27,5 @@ status: live_checked
 | 公众号正文 | 通过文章 URL 下载 Markdown 的 Fixture 与命令 schema 已验证 | 是，待本机在线验证 | 无 | 否 | Browser Bridge；部分文章会要求人工环境验证 | `manual_verification_required` |
 
 `manual_verification_required` 的直接原因不是 Fixture 失败，而是 2026-08-12 实机 `opencli doctor` 返回 Browser Bridge 扩展未连接，因此登录态和在线返回字段均无法核实。详见 `docs/14-opencli-live-capability-spike.md`。
+
+Codex Browser 已真实读取小红书搜索、详情、评论和搜狗微信搜索 DOM，但这只证明页面探索能力，不证明 OpenCLI 生产链路已接通。其真实边界见 `docs/16-codex-browser-runtime-spike.md`。

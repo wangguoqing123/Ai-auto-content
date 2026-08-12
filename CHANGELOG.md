@@ -2,12 +2,16 @@
 
 ## Unreleased
 
-- 增加 AIHOT v1 Cloud Collector 与 X、小红书、公众号 OpenCLI Browser Collector MVP。
+- 增加已真实验证的 RSS / AIHOT v1 Cloud Collector；它是当前唯一正式每日运行通道。
+- 增加 X、小红书、公众号 OpenCLI Browser Collector 基础架构，状态为 `experimental_manual_only`，不声称已在线接通。
 - 增加本地只读 Twitter 富互动适配器、安装脚本、平台预算和查询轮换。
 - 扩展统一素材字段，缺失互动数据保持 `null`，小红书推断日期显式标记。
 - 首次 RSS 启动只落最近 7 天素材，旧内容只写指纹，未知日期进入隔离区。
 - 修复英文短关键词边界、重复关键词加分和单条异常隔离。
 - 增加 PR CI、UGC 原创政策、实时能力报告和双通道运行文档。
+- 修复 Browser CLI 状态到退出码的映射：成功/部分成功为 0，完整失败为 2，参数或程序错误为 1。
+- 将 AIHOT User-Agent 改为项目自身身份；可选 Actor 仅接受 UUID v4，缺失或非法配置不阻断采集。
+- 记录 Codex Browser 的 `exploration_only` 真实能力边界，不接入正式 Browser Pipeline。
 
 ## 0.2.0 — 2026-08-12
 

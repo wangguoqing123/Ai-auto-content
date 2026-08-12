@@ -2,10 +2,15 @@
 title: 云端与浏览器双通道采集运行时
 version: 1.0.0
 updated_at: 2026-08-12
-status: mvp_implemented
+status: cloud_verified_browser_experimental
+cloud_status: verified_live
+opencli_browser_status: experimental_manual_only
+codex_browser_status: exploration_only
 ---
 
 # 云端与浏览器双通道采集运行时
+
+Cloud Collector 是当前唯一正式每日运行通道，状态为 `verified_live`。OpenCLI Browser Collector 是 `experimental_manual_only` 基础架构；Codex Browser 是 `exploration_only` 工具，不进入正式 Pipeline。
 
 ## 运行边界
 
@@ -27,10 +32,18 @@ Browser Collector ─ X / 小红书 / 公众号 ──────────�
 
 ### Browser Collector
 
+- 当前状态：`experimental_manual_only`，尚未完成真实 Browser Bridge 验证。
 - 运行位置：用户自己的 Mac，或一台长期在线且拥有真实 Chrome Profile 的专用机器。
 - 当前命令：`npm run collect:browser -- --dry-run`。
-- 职责：X GraphQL 搜索、小红书搜索/详情/评论、搜狗微信搜索和公众号正文下载。
+- 设计职责：X GraphQL 搜索、小红书搜索/详情/评论、搜狗微信搜索和公众号正文下载；这些能力当前不能声称在线接通。
 - 不得运行在 `ubuntu-latest`、`windows-latest`、`macos-latest` 等 GitHub 托管临时机器上。
+
+### Codex Browser
+
+- 当前状态：`exploration_only`。
+- 已真实验证小红书搜索/详情/评论 DOM 和搜狗微信搜索。
+- 只用于页面探索、DOM 字段确认、登录状态诊断和 OpenCLI 适配器修复。
+- 不作为每日无人值守运行时，不接入 `npm run collect:browser` 或 Cloud Workflow。
 
 ## Chrome、扩展与登录要求
 
@@ -50,6 +63,7 @@ Browser Collector 启动时首先真实执行 `opencli doctor`。只有 daemon�
 - 登录失效：记录 `login_required` 并停止该平台。
 - 安全限制、验证码或频率限制：记录 `blocked` 并停止该平台本轮所有后续请求。
 - 命令超时、JSON 解析失败和取消运行都有独立状态；超时进程会被终止。
+- Browser CLI 的 `success` 与 `partial_success` 返回 0；部分成功同时写 warning；`failed` 在 stdout 保留完整 JSON、在 stderr 写摘要并返回 2；参数或程序错误返回 1。
 
 ## 数据合并
 
@@ -69,7 +83,7 @@ Browser Collector 启动时首先真实执行 `opencli doctor`。只有 daemon�
 
 ## 未来定时方式
 
-本 PR 不配置 Browser Collector 的正式定时任务。待在线能力完成验证后，可在本机使用 macOS `launchd` 或专用机器的系统调度器运行，并满足：
+本 PR 没有配置 `launchd` 或任何 Browser Collector 正式定时任务。待后续独立 PR 完成 Browser Bridge、登录态和在线数据验证后，才可评估在本机使用 macOS `launchd` 或专用机器系统调度器，并满足：
 
 1. 机器长期在线且 Chrome Profile 稳定。
 2. 先运行 preflight，失败时不继续平台请求。
