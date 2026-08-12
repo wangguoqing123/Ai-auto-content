@@ -18,6 +18,20 @@ status: proposed
 
 ## 2. 素材库 `materials`
 
+阶段 1 的每日采集记录采用 `data/materials/YYYY-MM-DD.jsonl`，每行一个通过 Zod 校验的对象。当前字段：
+
+- `material_id`
+- `source_id`、`source_name`、`source_type`、`source_tier`
+- `category`、`language`、`target_users`、`tags`
+- `title`、`source_url`、`canonical_url`、`author`
+- `published_at`、`collected_at`
+- `excerpt`，只保留有界摘要，不保存第三方全文
+- `relevance_score`、`freshness_score`、`evidence_score`、`overall_score`
+- `fingerprint`、`content_fingerprint`
+- `status`、`rejection_reasons`
+
+旧版规划字段在后续语义整理阶段按需映射：
+
 核心字段：
 
 - `material_id`
