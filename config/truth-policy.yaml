@@ -1,0 +1,63 @@
+version: 1.0.0
+updated_at: 2026-08-12
+
+labels:
+  FACT_CONFIRMED:
+    publishable: true
+    evidence_required: false
+  FACT_EVIDENCE:
+    publishable: true
+    evidence_required: true
+  OPINION_APPROVED:
+    publishable: true
+    evidence_required: false
+  TEST_RESULT:
+    publishable: true
+    evidence_required: true
+  THIRD_PARTY_SOURCE:
+    publishable: true
+    evidence_required: true
+    source_attribution_required: true
+  USER_CASE:
+    publishable: true
+    evidence_required: true
+    consent_required: true
+    redaction_required: true
+  PLAN_ONLY:
+    publishable_as_current_fact: false
+  UNKNOWN:
+    publishable: false
+  PROHIBITED:
+    publishable: false
+
+hard_blockers:
+  - fabricated_first_person_experience
+  - fabricated_user_case
+  - fabricated_test_or_data
+  - speculation_presented_as_fact
+  - third_party_claim_presented_as_personal_test
+  - planned_product_benefit_presented_as_current
+  - fake_screenshot_or_chat_record
+  - omitted_material_limitation
+  - platform_evasion_intent
+
+first_person_triggers:
+  - 我测试
+  - 我用了
+  - 我的学员
+  - 我的会员
+  - 我的客户
+  - 我最近发现
+  - 很多粉丝问我
+  - 我每天都
+  - 我靠这个
+
+prohibited_phrases:
+  - 在这个飞速发展的 AI 时代
+  - AI 正在彻底改变一切
+  - 普通人一定要抓住这波红利
+  - 再不学 AI 就晚了
+  - 效率直接提高十倍
+  - 看完这篇你就懂了
+  - 全网最全
+  - 保证学会

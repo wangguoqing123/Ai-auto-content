@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/topic-card.schema.json",
+  "title": "Topic Card",
+  "type": "object",
+  "required": ["topic_id", "working_title", "target_segment", "user_problem", "core_conclusion", "scores", "decision"],
+  "properties": {
+    "topic_id": {"type": "string"},
+    "working_title": {"type": "string"},
+    "target_segment": {"type": "string"},
+    "user_problem": {"type": "string"},
+    "core_conclusion": {"type": "string"},
+    "content_pillar": {"type": "string"},
+    "original_value": {"type": "string"},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}},
+    "experiment_required": {"type": "boolean"},
+    "experiment_idea": {"type": ["string", "null"]},
+    "product_connection": {"type": ["string", "null"]},
+    "scores": {
+      "type": "object",
+      "required": ["pain", "actionability", "result_visibility", "evidence", "shareability", "product_fit", "total"],
+      "properties": {
+        "pain": {"type": "number", "minimum": 0, "maximum": 25},
+        "actionability": {"type": "number", "minimum": 0, "maximum": 20},
+        "result_visibility": {"type": "number", "minimum": 0, "maximum": 15},
+        "evidence": {"type": "number", "minimum": 0, "maximum": 15},
+        "shareability": {"type": "number", "minimum": 0, "maximum": 15},
+        "product_fit": {"type": "number", "minimum": 0, "maximum": 10},
+        "total": {"type": "number", "minimum": 0, "maximum": 100}
+      }
+    },
+    "hard_blockers": {"type": "array", "items": {"type": "string"}},
+    "decision": {"enum": ["approve", "hold", "reject"]}
+  },
+  "additionalProperties": true
+}

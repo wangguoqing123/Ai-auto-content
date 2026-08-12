@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/material-card.schema.json",
+  "title": "Material Card",
+  "type": "object",
+  "required": ["material_id", "source_type", "captured_at", "freshness_status", "privacy_status"],
+  "properties": {
+    "material_id": {"type": "string"},
+    "source_type": {"enum": ["official", "primary", "secondary", "user_question", "case", "opinion", "unknown"]},
+    "source_url": {"type": ["string", "null"], "format": "uri"},
+    "source_title": {"type": ["string", "null"]},
+    "published_at": {"type": ["string", "null"], "format": "date-time"},
+    "captured_at": {"type": "string", "format": "date-time"},
+    "raw_text": {"type": ["string", "null"]},
+    "summary": {"type": ["string", "null"]},
+    "user_problem": {"type": ["string", "null"]},
+    "target_segment": {"type": ["string", "null"]},
+    "credibility_level": {"enum": ["high", "medium", "low", "unknown"]},
+    "freshness_status": {"enum": ["current", "time_sensitive", "outdated", "unknown"]},
+    "privacy_status": {"enum": ["safe", "needs_redaction", "do_not_use"]},
+    "copyright_status": {"enum": ["reference_allowed", "quote_only", "unknown"]},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}},
+    "hard_blockers": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": true
+}

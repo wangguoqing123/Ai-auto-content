@@ -1,0 +1,65 @@
+project:
+  name: AI Auto Content
+  version: 0.1.0
+  owner: 七天假
+  updated_at: 2026-08-12
+
+account:
+  primary_identity: 互联网产品经理
+  supporting_identities:
+    - 独立开发者
+    - AI 工具实践者
+    - AI 教程创作者
+    - AI 不掉队俱乐部主理人
+  target_segments:
+    beginner: 0.55
+    light_intermediate: 0.35
+    intermediate: 0.10
+
+product:
+  name: AI 不掉队俱乐部
+  price_cny_per_year: 365
+  confirmed_format:
+    - 社群交流
+    - AI 教程
+  confirmed_topics:
+    - AI 基础教程
+    - 自动化内容工厂
+    - AI 自动剪辑
+    - AI 视频
+    - AI 编程
+  dynamic_fields:
+    - price_cny_per_year
+    - member_count
+    - tutorial_count
+    - update_frequency
+    - answer_frequency
+    - refund_policy
+
+platforms:
+  - wechat_official_account
+  - xiaohongshu
+  - x
+  - wechat_visuals
+
+content_mix:
+  beginner_basics: 0.35
+  real_tasks_and_workflows: 0.25
+  video_editing_and_content: 0.15
+  coding_and_automation: 0.10
+  product_manager_perspective: 0.10
+  product_and_verified_cases: 0.05
+
+thresholds:
+  topic_approval_score: 80
+  quality_publish_score: 85
+  max_new_concepts_per_piece: 3
+  preferred_max_core_steps: 5
+
+human_gate:
+  enabled: true
+  checks:
+    - no_overpromise_in_title
+    - first_person_is_true
+    - viewpoint_is_approved
+    - product_cta_is_appropriate

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/content-package.schema.json",
+  "title": "Content Package",
+  "type": "object",
+  "required": ["package_id", "topic_id", "platform_assets", "review", "human_check_required"],
+  "properties": {
+    "package_id": {"type": "string"},
+    "topic_id": {"type": "string"},
+    "research_pack_id": {"type": "string"},
+    "platform_assets": {
+      "type": "object",
+      "properties": {
+        "wechat": {"type": ["object", "null"]},
+        "xiaohongshu": {"type": ["object", "null"]},
+        "x": {"type": ["object", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "evidence_ids": {"type": "array", "items": {"type": "string"}},
+    "persona_claim_ids": {"type": "array", "items": {"type": "string"}},
+    "product_claim_ids": {"type": "array", "items": {"type": "string"}},
+    "review": {
+      "type": "object",
+      "required": ["decision", "score", "hard_blockers"],
+      "properties": {
+        "decision": {"enum": ["pass", "revise", "reject"]},
+        "score": {"type": "number", "minimum": 0, "maximum": 100},
+        "hard_blockers": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "policy_check_date": {"type": ["string", "null"], "format": "date"},
+    "human_check_required": {"type": "boolean"},
+    "status": {"enum": ["draft", "reviewing", "ready_for_human", "published", "archived"]}
+  },
+  "additionalProperties": true
+}
