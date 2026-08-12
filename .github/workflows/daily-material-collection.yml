@@ -1,0 +1,57 @@
+name: Daily material collection
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Beijing 09:00 (UTC+8)
+    - cron: '0 1 * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-material-collection-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm test
+
+      - name: Collect daily materials
+        run: npm run collect
+
+      - name: Commit collection outputs when changed
+        shell: bash
+        run: |
+          git add data/materials data/runs data/state reports/materials
+          if git diff --cached --quiet; then
+            echo "No material collection changes to commit."
+            exit 0
+          fi
+
+          collection_date="$(TZ=Asia/Shanghai date +%F)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(data): collect daily materials ${collection_date}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

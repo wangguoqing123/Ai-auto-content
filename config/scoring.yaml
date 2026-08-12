@@ -1,0 +1,72 @@
+version: 1
+
+evidence_scores:
+  primary: 100
+  secondary: 70
+  unverified: 30
+
+freshness_scores:
+  within_24_hours: 100
+  within_3_days: 80
+  within_7_days: 60
+  within_14_days: 40
+  older_or_unknown: 10
+
+relevance:
+  base_score: 5
+  audience_fit_bonus:
+    ai_beginner: 15
+    intermediate_user: 5
+  category_bonus:
+    official_update: 15
+    tutorial: 20
+    case_study: 20
+    developer_tool: 10
+    automation: 15
+    ai_video: 15
+    research: 0
+  positive_keyword_groups:
+    beginner:
+      weight: 15
+      keywords: [beginner, getting started, how to, guide, tutorial, no-code, 小白, 入门, 教程]
+    work_task:
+      weight: 15
+      keywords: [workflow, productivity, document, spreadsheet, meeting, presentation, work, task, 工作流, 表格, 会议, 文档]
+    ai_basics:
+      weight: 10
+      keywords: [prompt, chatgpt, gemini, claude, assistant, agent, prompting, 提示词, 助手]
+    content_and_video:
+      weight: 15
+      keywords: [content, creator, video, image, audio, caption, editing, avatar, 内容, 视频, 图片, 剪辑]
+    automation:
+      weight: 15
+      keywords: [automation, automate, integration, trigger, workflow, 自动化]
+    ai_coding:
+      weight: 12
+      keywords: [coding, developer, github copilot, code, app, website, 编程, 开发]
+    actionable_update:
+      weight: 10
+      keywords: [launch, release, update, new feature, available, now supports, 发布, 更新, 新功能]
+    application_case:
+      weight: 15
+      keywords: [case study, customer story, use case, example, step-by-step, 案例, 实操]
+  negative_keyword_groups:
+    low_level_research:
+      weight: -30
+      keywords: [benchmark, weights, pretraining, parameter count, arxiv, theorem, architecture ablation, 参数, 预训练, 论文]
+
+overall_weights:
+  relevance: 0.50
+  freshness: 0.25
+  evidence: 0.25
+
+thresholds:
+  minimum_relevance: 50
+  minimum_overall: 60
+
+collector:
+  concurrency: 3
+  timeout_ms: 15000
+  retries: 2
+  max_excerpt_chars: 500
+  user_agent: AI-Auto-Content-Material-Collector/0.2 (+https://github.com/wangguoqing123/Ai-auto-content)
