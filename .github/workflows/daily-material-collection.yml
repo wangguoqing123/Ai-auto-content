@@ -39,7 +39,7 @@ jobs:
         run: npm test
 
       - name: Collect daily materials
-        run: npm run collect
+        run: npm run collect:cloud
 
       - name: Commit collection outputs when changed
         shell: bash
