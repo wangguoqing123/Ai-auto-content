@@ -18,7 +18,17 @@ status: proposed
 
 ## 2. 素材库 `materials`
 
-阶段 1 的每日采集记录采用 `data/materials/YYYY-MM-DD.jsonl`，每行一个通过 Zod 校验的对象。当前字段：
+云端 RSS 和浏览器来源共享以下核心素材字段：
+
+- `source_platform`、`source_kind`、`collector`、`query_id`、`query_text`、`search_rank`、`source_item_id`
+- `author_name`、`author_followers`
+- `title`、`excerpt`、`source_url`、`content_path`
+- `published_at`、`published_at_quality`
+- `engagement`；缺失值必须为 `null`
+- `metric_quality`、`usage_mode`、`viral_confidence`
+- `status`：`accepted`、`rejected` 或 `quarantined`
+
+阶段 1 的 RSS 每日记录继续采用 `data/materials/YYYY-MM-DD.jsonl`，并保留以下确定性评分与指纹字段：
 
 - `material_id`
 - `source_id`、`source_name`、`source_type`、`source_tier`

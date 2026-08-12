@@ -2,7 +2,7 @@
 title: 系统架构
 version: 0.2.0
 updated_at: 2026-08-12
-status: implemented_stage_1
+status: implemented_stage_1_5
 ---
 
 # 系统架构
@@ -36,7 +36,7 @@ status: implemented_stage_1
 
 ## 3. 当前实现：阶段 1
 
-第一阶段采用 Node.js 20、TypeScript、npm 和 GitHub Actions，不引入数据库、n8n、浏览器自动化或大模型 API。
+第一阶段采用 Node.js 20、TypeScript、npm 和 GitHub Actions；阶段 1.5 增加仅在用户自有机器运行的 OpenCLI Browser Collector，仍不引入数据库、n8n 或大模型 API。
 
 ```text
 .github/workflows/daily-material-collection.yml
@@ -70,7 +70,7 @@ status: implemented_stage_1
 
 ### 3.2 采集层
 
-- 当前注册的唯一采集类型为 `rss`，同时解析 RSS 和 Atom。
+- Cloud Collector 当前注册 `rss` 与 `aihot`：RSS 同时解析 RSS/Atom，AIHOT 只调用稳定 `/api/v1/items`。
 - 并发上限、超时、重试次数和 User-Agent 由配置控制。
 - 每个来源单独记录开始、结束、抓取、新增、重复、淘汰和错误。
 - 只保留标题、链接、作者、发布时间和最多 500 字摘要，不保存第三方全文。
@@ -85,10 +85,18 @@ status: implemented_stage_1
 
 ### 3.4 存储与报告层
 
-- 当天首次发现且格式正确的唯一素材追加到 JSONL，不重写历史日期。
+- 只把最近 7 天内的正常素材和发布时间未知的隔离素材追加到 JSONL；更旧内容只更新指纹状态。
 - 达标素材标记为 `accepted`，未达标素材标记为 `rejected` 并保留规则原因。
 - 日报的推荐项只来自 `accepted`，没有合格项时明确显示无高质量新素材。
 - 所有来源失败时仍记录失败日志和日报，然后让任务返回失败状态。
+
+### 3.5 浏览器采集 MVP
+
+- `Cloud Collector` 继续运行 RSS、AIHOT 和公开无登录来源。
+- `Browser Collector` 通过 `child_process.spawn('opencli', args)` 调用 X、小红书和公众号只读命令，查询词不经过 shell 拼接。
+- 运行前必须通过 `opencli doctor`；登录失效、验证码和风险控制都会停止该平台。
+- GitHub-hosted Workflow 永远不调用 `collect:browser`。
+- 详细运行边界见 `docs/15-hybrid-collector-runtime.md`，真实能力状态见 `docs/14-opencli-live-capability-spike.md`。
 
 ## 4. 后续模块边界
 
@@ -98,7 +106,7 @@ status: implemented_stage_1
 
 - 自动选题、自动写作和多平台文案。
 - 图片生成、自动登录和自动发布。
-- 平台数据抓取、效果复盘和策略学习。
+- 已发布内容的效果复盘和策略学习。
 - 数据库、管理后台、社交平台爬虫和反爬绕过。
 
 ## 5. 未来状态机

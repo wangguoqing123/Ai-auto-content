@@ -2,7 +2,7 @@
 title: 每日自主运行循环
 version: 0.2.0
 updated_at: 2026-08-12
-status: implemented_stage_1
+status: implemented_stage_1_5
 ---
 
 # 每日自主运行循环
@@ -82,6 +82,7 @@ overall_score = relevance_score × 0.50
 
 | 来源 | 地址 | 覆盖方向 | 核验结果 |
 |---|---|---|---|
+| AIHOT 24 小时精选 | `https://aihot.virxact.com/api/v1/items?mode=selected&window=24h&limit=20` | 中文 AI 资讯发现 | HTTP 200，v1 字段已验证 |
 | OpenAI News | `https://openai.com/news/rss.xml` | AI 官方产品更新 | HTTP 200，可解析 |
 | Google AI Blog | `https://blog.google/innovation-and-ai/technology/ai/rss/` | 普通用户可理解的 AI 应用与更新 | HTTP 200，可解析 |
 | GitHub AI and ML | `https://github.blog/ai-and-ml/feed/` | AI 开发工具 | HTTP 200，可解析 |
@@ -105,4 +106,4 @@ npm run collect:fixture
 
 ## 8. 本阶段明确不做
 
-不做自动选题、文章或平台文案、配图、登录、发布、平台数据抓取、内容复盘、大模型调用、数据库、管理后台和社交平台爬虫。
+不做自动选题、文章或平台文案、配图、自动登录、发布、内容复盘、大模型调用、数据库和管理后台。阶段 1.5 只增加只读浏览器采集 MVP；不会绕过登录、验证码或平台安全限制，也不为它配置正式定时任务。

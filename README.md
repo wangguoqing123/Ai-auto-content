@@ -6,14 +6,14 @@
 
 > 系统每天运行，但不要求每天发布。没有足够高质量的题目时，后续选题阶段必须允许输出 `NO_PUBLISH`。
 
-## 当前阶段：每日素材采集器
+## 当前阶段：混合素材采集 MVP
 
-当前版本为 `v0.2.0`，只实现第一阶段：
+当前版本在 RSS 第一阶段上增加了 OpenCLI 浏览器采集 MVP：
 
 ```text
-GitHub Actions 定时启动
-→ 读取 RSS / Atom 信源配置
-→ 限流抓取并隔离单源失败
+Cloud Collector（GitHub Actions）→ RSS / AIHOT / 公开来源
+Browser Collector（用户本机）→ X / 小红书 / 公众号
+→ 限流采集并隔离单源、单平台和单条失败
 → 标准化字段和规范 URL
 → URL 指纹 + 内容指纹跨天去重
 → 确定性评分与阈值判断
@@ -21,7 +21,7 @@ GitHub Actions 定时启动
 → 仅在输出有变化时提交
 ```
 
-本阶段不调用大模型，不开发自动选题、写作、配图、发布或平台数据分析。
+Browser Collector 必须使用真实 Chrome、Browser Bridge 和已有登录态，不能放到 GitHub-hosted runner。本阶段仍不调用大模型，不开发自动选题、写作、配图或发布。
 
 ## 快速开始
 
@@ -37,12 +37,15 @@ npm run collect:fixture
 真实采集：
 
 ```bash
-npm run collect
-npm run collect -- --date=2026-08-12
-npm run collect -- --dry-run
+npm run collect:cloud
+npm run collect:cloud -- --date=2026-08-12
+npm run collect:cloud -- --dry-run
+npm run opencli:install-adapters
+npm run spike:opencli
+npm run collect:browser -- --dry-run
 ```
 
-`--dry-run` 会读取现有去重状态，但不会写入正式数据目录。`collect:fixture` 只使用本地测试订阅，不访问网络。
+`--dry-run` 会真实执行 preflight/采集，但不会写入正式数据目录。`collect:fixture` 只使用本地 Fixture，不访问网络。当前实机 Browser Bridge 未连接，浏览器平台状态必须按 `docs/14-opencli-live-capability-spike.md` 处理，不能把 Fixture 成功描述成在线接通。
 
 ## 自动运行
 
@@ -60,13 +63,16 @@ npm run collect -- --dry-run
 ```text
 config/sources.yaml                 已核验的 RSS / Atom 信源
 config/scoring.yaml                 评分关键词、权重、阈值与采集参数
-data/materials/YYYY-MM-DD.jsonl     当天首次发现的唯一素材
+config/platform-queries.yaml        浏览器平台关键词、预算与轮换
+data/materials/YYYY-MM-DD.jsonl     最近 7 天内及隔离区 RSS 素材
+data/browser-materials/YYYY-MM-DD.jsonl  浏览器非 dry-run 素材
+data/browser-runs/                  浏览器平台运行日志
 data/state/seen-materials.json      跨天 URL 与内容指纹
 data/runs/run_*.json                每次运行及逐信源日志
 reports/materials/YYYY-MM-DD.md     每日素材日报
 ```
 
-每条格式正确且首次发现的素材都会保存，并通过 `status` 区分 `accepted` 与 `rejected`。运行日志中的 `items_new` 只统计达到阈值的有效素材，低分素材保留用于审计规则，不会自动进入后续选题池。
+首次运行时，7 天以前的 RSS 只写入指纹状态，不写入当天素材；发布时间未知的素材进入 `quarantined`。缺失互动字段保存为 `null`，不以 0 冒充真实数据。
 
 ## 项目目标
 
@@ -98,6 +104,10 @@ reports/materials/YYYY-MM-DD.md     每日素材日报
 9. `docs/08-data-model.md`
 10. `docs/09-mvp-roadmap.md`
 11. `docs/10-daily-operation-loop.md`
+12. `docs/12-ugc-originality-policy.md`
+13. `docs/13-source-capability-matrix.md`
+14. `docs/14-opencli-live-capability-spike.md`
+15. `docs/15-hybrid-collector-runtime.md`
 
 发生冲突时，真实性与合规规则、人物事实库和产品知识库优先。资料不足时必须标记 `UNKNOWN`，不得自行补全。
 
@@ -109,4 +119,5 @@ reports/materials/YYYY-MM-DD.md     每日素材日报
 - 通过伪造生活细节制造“真人感”。
 - 以规避平台审核、检测或标注要求为目标。
 - 在未经确认时承诺课程权益、更新频率或学习结果。
-- 在当前阶段接入数据库、浏览器爬虫、大模型或自动发布。
+- 在当前阶段接入数据库、大模型或自动发布。
+- 在 GitHub-hosted runner 上运行需要真实 Chrome 登录态的采集。

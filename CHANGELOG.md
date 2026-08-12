@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- 增加 AIHOT v1 Cloud Collector 与 X、小红书、公众号 OpenCLI Browser Collector MVP。
+- 增加本地只读 Twitter 富互动适配器、安装脚本、平台预算和查询轮换。
+- 扩展统一素材字段，缺失互动数据保持 `null`，小红书推断日期显式标记。
+- 首次 RSS 启动只落最近 7 天素材，旧内容只写指纹，未知日期进入隔离区。
+- 修复英文短关键词边界、重复关键词加分和单条异常隔离。
+- 增加 PR CI、UGC 原创政策、实时能力报告和双通道运行文档。
+
 ## 0.2.0 — 2026-08-12
 
 - 增加 Node.js 20 + TypeScript 每日素材采集管线。
