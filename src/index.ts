@@ -3,6 +3,7 @@ import path from 'node:path';
 import { loadConfig } from './config/load-config.js';
 import { RssCollector } from './collectors/rss-collector.js';
 import { AihotCollector } from './collectors/aihot-collector.js';
+import { buildAihotUserAgent } from './collectors/aihot/user-agent.js';
 import { CloudCollector } from './collectors/cloud-collector.js';
 import type { MaterialCollector } from './collectors/rss-collector.js';
 import { AllSourcesFailedError, runCollectionPipeline } from './pipeline.js';
@@ -66,7 +67,10 @@ async function main(): Promise<void> {
     const aihotCollector = new AihotCollector({
       timeoutMs: config.scoring.collector.timeout_ms,
       retries: config.scoring.collector.retries,
-      userAgent: 'aihot-skill/1.4.1 (+https://aihot.virxact.com/aihot-skill/)',
+      userAgent: buildAihotUserAgent({
+        actorId: process.env.AIHOT_ACTOR_ID,
+        onInvalidActorId: (message) => logger.warn(message),
+      }),
       logger,
     });
     collector = new CloudCollector(rssCollector, aihotCollector);

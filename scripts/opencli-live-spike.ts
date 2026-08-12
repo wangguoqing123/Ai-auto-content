@@ -1,5 +1,6 @@
 import { performance } from 'node:perf_hooks';
 import { runBrowserPipeline } from '../src/browser-pipeline.js';
+import { buildAihotUserAgent } from '../src/collectors/aihot/user-agent.js';
 
 const AIHOT_ENDPOINTS = {
   selected_24h: 'https://aihot.virxact.com/api/v1/items?mode=selected&window=24h&limit=5',
@@ -9,11 +10,15 @@ const AIHOT_ENDPOINTS = {
 } as const;
 
 async function validateAihot(): Promise<Record<string, unknown>> {
+  const userAgent = buildAihotUserAgent({
+    actorId: process.env.AIHOT_ACTOR_ID,
+    onInvalidActorId: (message) => console.warn(message),
+  });
   const entries = await Promise.all(Object.entries(AIHOT_ENDPOINTS).map(async ([name, url]) => {
     const started = performance.now();
     try {
       const response = await fetch(url, {
-        headers: { 'User-Agent': 'aihot-skill/1.4.1 (+https://aihot.virxact.com/aihot-skill/)' },
+        headers: { 'User-Agent': userAgent },
         signal: AbortSignal.timeout(15_000),
       });
       const payload = await response.json() as Record<string, unknown>;

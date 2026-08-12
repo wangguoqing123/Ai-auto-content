@@ -64,7 +64,7 @@ describe('RSS and Atom collection', () => {
     const aihot = new AihotCollector({
       timeoutMs: 15_000,
       retries: 0,
-      userAgent: 'aihot-skill/test',
+      userAgent: 'AI-Auto-Content/0.2 (+https://github.com/wangguoqing123/Ai-auto-content)',
       fetchJson: async (url) => {
         expect(url).toContain('https://aihot.virxact.com/api/v1/');
         expect(url).not.toContain('/api/public/');
