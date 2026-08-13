@@ -1,7 +1,7 @@
 ---
 title: AI Auto Content 项目章程
-version: 0.1.0
-updated_at: 2026-08-12
+version: 0.2.0
+updated_at: 2026-08-13
 status: approved
 ---
 
@@ -57,7 +57,7 @@ status: approved
 - 选题评分与筛选。
 - 真实实验设计与记录。
 - 内容母稿生产。
-- 公众号、小红书、X 原生改写。
+- 公众号和 X 原生改写。
 - 公众号封面和正文配图规划。
 - 事实、人格、价值、合规和平台质检。
 - 发布包生成。

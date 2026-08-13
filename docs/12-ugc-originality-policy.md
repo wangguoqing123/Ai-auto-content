@@ -1,7 +1,7 @@
 ---
 title: UGC 原创与使用边界
-version: 1.0.0
-updated_at: 2026-08-12
+version: 1.1.0
+updated_at: 2026-08-13
 status: implemented
 ---
 
@@ -9,7 +9,7 @@ status: implemented
 
 ## 基本判断
 
-抓到高互动内容，不等于获得了改写或复制许可。X、小红书和公众号素材只用于发现用户问题、内容结构与待核实线索，不能把单篇内容逐段换词后发布。
+抓到高互动内容，不等于获得了改写或复制许可。X 和公众号素材只用于发现用户问题、内容结构与待核实线索，不能把单篇内容逐段换词后发布。
 
 ## 允许的处理链路
 
@@ -26,7 +26,7 @@ status: implemented
 
 系统字段用于约束用途：
 
-- X、小红书默认 `source_kind: ugc`、`usage_mode: trend_signal`。
+- X 默认 `source_kind: ugc`、`usage_mode: trend_signal`。
 - 公众号搜索默认 `usage_mode: structure_inspiration`、`viral_confidence: unverified`。
 - AIHOT 默认 `source_kind: news`、`usage_mode: reference_only`。
 - UGC 观点不能直接成为 `fact_source`；需要独立的一手来源或真实实验验证。
@@ -37,7 +37,7 @@ status: implemented
 - 保留原文独特表达后做轻微修改。
 - 把别人的案例、经历或结果改写成七天假的第一人称经历。
 - 把 UGC 观点、搜索排名或高互动数字当作已经核实的事实。
-- 复制公众号、小红书正文或 AIHOT 摘要作为最终发布稿。
+- 复制公众号正文或 AIHOT 摘要作为最终发布稿。
 - 因为搜狗排名靠前就称文章为“公众号爆款”。
 
 ## 证据与保存

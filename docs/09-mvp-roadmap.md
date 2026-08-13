@@ -1,7 +1,7 @@
 ---
 title: MVP 实施路线
-version: 0.2.0
-updated_at: 2026-08-12
+version: 0.3.0
+updated_at: 2026-08-13
 status: approved
 ---
 
@@ -40,7 +40,19 @@ status: approved
 
 验收：同日重跑与跨日运行均不重复；没有合格素材时日报明确说明，不虚构推荐项。
 
-状态：当前开发阶段。
+状态：`Cloud Collector` 已为 `production_scheduled`。
+
+## 阶段 1.5：本机 Browser Collector 无人值守运行
+
+交付物：
+
+- 用户 Mac 上的独立 Runtime clone，只跟踪 `main`。
+- `RunAtLoad + StartInterval=900` 的 LaunchAgent 到期检查。
+- 上海时区 07:30—12:00 的 morning 窗口，目标时间 08:00，每天最多 2 次尝试。
+- X 和微信公众号采集、外部状态、原子锁、本机日志与安全通知。
+- 只允许 Browser 数据目录进入自动 commit，并在 push 失败时保留本地数据 commit。
+
+状态：X Collector 与 WeChat Collector 均为 `verified_live`，待本 PR 合并后由用户安装调度；Codex Browser 仍为 `exploration_only`。只有完成至少一次正式自动运行后，才进入阶段 2。
 
 ## 阶段 2：每日自主选题器
 
@@ -56,7 +68,7 @@ status: approved
 - 为已批准选题建立研究包和证据链。
 - 需要“实测”时先创建真实实验任务。
 - 生成平台无关母稿。
-- 分别生成公众号、小红书和 X 原生版本。
+- 分别生成公众号和 X 原生版本。
 - 执行事实、人格、产品和质量审核。
 
 ## 阶段 4：配图与发布包

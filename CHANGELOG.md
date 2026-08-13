@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- 因用户主动降低账号与自动化风险的产品决策，将小红书从活跃采集、内容生产、发布、报告、查询配置和 Browser Pipeline 中移除；历史 Schema 与验证审计继续保留。
+- 增加 X + 微信公众号 Mac 本机调度运行时：上海时区 07:30—12:00 due window、外部状态、原子锁、环境检查、Browser 日报和安全通知。
+- 增加独立 Runtime clone、Browser 数据 Git 白名单、敏感内容扫描、pending commit 优先重试、rebase 冲突 abort 与禁止 force push 的同步逻辑。
+- 增加 LaunchAgent 模板和默认 dry-run 的安装/卸载器；PR 与 CI 不安装生产 Agent，也不访问真实 Browser 平台。
 - 在真实 Chrome Profile 下接通 OpenCLI Browser Bridge，并在线验证 X、小红书、公众号搜索与 5 篇正文下载；第一轮 dry-run 24/24 命令成功并产生 104 个 raw 行，旧输出未统计唯一数。
 - 增加 Browser 素材稳定 identity、canonical URL、跨查询统一合并，以及平台和总计的 raw/unique/duplicate 统计；同日持久化不再覆盖先前查询来源。
 - 增加 X 富搜索到内建基础搜索的受控 fallback；小红书 token URL 和公众号临时 tracking URL 不再持久化。
