@@ -2,8 +2,11 @@
 
 ## Unreleased
 
+- 在真实 Chrome Profile 下接通 OpenCLI Browser Bridge，并在线验证 X、小红书、公众号搜索与 5 篇正文下载；最终 dry-run 24/24 命令成功、返回 104 条材料。
+- 增加搜狗微信结果到公众号正文 URL 的只读解析适配器，支持相对时间和中文发布时间，并拒绝退出码为 0 的业务失败下载结果。
+- 修复 X 富字段适配器的公共 Web bearer 发现：优先复用当前 OpenCLI 版本集中维护的公共 token，页面扫描仅作后备。
 - 增加已真实验证的 RSS / AIHOT v1 Cloud Collector；它是当前唯一正式每日运行通道。
-- 增加 X、小红书、公众号 OpenCLI Browser Collector 基础架构，状态为 `experimental_manual_only`，不声称已在线接通。
+- 增加 X、小红书、公众号 OpenCLI Browser Collector 基础架构，并在本次从 `experimental_manual_only` 升级为 `verified_live_manual`。
 - 增加本地只读 Twitter 富互动适配器、安装脚本、平台预算和查询轮换。
 - 扩展统一素材字段，缺失互动数据保持 `null`，小红书推断日期显式标记。
 - 首次 RSS 启动只落最近 7 天素材，旧内容只写指纹，未知日期进入隔离区。

@@ -8,7 +8,11 @@ import {
   parseXiaohongshuDetail,
   parseXiaohongshuSearch,
 } from '../src/collectors/opencli/parsers/xiaohongshu-parser.js';
-import { parseWeixinDownload, parseWeixinSearch } from '../src/collectors/opencli/parsers/weixin-parser.js';
+import {
+  parseWeixinDownload,
+  parseWeixinResolvedUrl,
+  parseWeixinSearch,
+} from '../src/collectors/opencli/parsers/weixin-parser.js';
 import { createBrowserMaterial } from '../src/collectors/opencli/material-factory.js';
 
 async function fixture(name: string): Promise<unknown> {
@@ -43,10 +47,22 @@ describe('OpenCLI fixture parsers', () => {
   });
 
   it('parses Weixin discovery and downloaded article metadata without inventing engagement', async () => {
-    const search = parseWeixinSearch(await fixture('weixin-search.json'));
+    const search = parseWeixinSearch(await fixture('weixin-search.json'), new Date('2026-08-13T02:00:00.000Z'));
     const download = parseWeixinDownload(await fixture('weixin-download.json'));
-    expect(search[0]).toMatchObject({ rank: 1, page: 1 });
-    expect(download).toMatchObject({ account_name: '示例公众号', status: 'success' });
+    const resolvedUrl = parseWeixinResolvedUrl(await fixture('weixin-resolved-url.json'));
+    expect(search[0]).toMatchObject({
+      rank: 1,
+      page: 1,
+      publish_time: '2026-08-13T00:00:00.000Z',
+      published_at_quality: 'inferred',
+    });
+    expect(download).toMatchObject({
+      account_name: '示例公众号',
+      status: 'success',
+      publish_time: '2026-08-13T01:01:00.000Z',
+      published_at_quality: 'exact',
+    });
+    expect(resolvedUrl).toContain('https://mp.weixin.qq.com/s?');
     expect(download).not.toHaveProperty('viral_score');
     const material = createBrowserMaterial({
       sourcePlatform: 'weixin',
@@ -56,9 +72,9 @@ describe('OpenCLI fixture parsers', () => {
       authorName: download.account_name,
       title: download.title,
       excerpt: search[0]?.summary ?? '',
-      sourceUrl: search[0]?.url ?? '',
+      sourceUrl: resolvedUrl,
       publishedAt: download.publish_time,
-      publishedAtQuality: 'exact',
+      publishedAtQuality: download.published_at_quality,
       collectedAt: '2026-08-12T01:00:00.000Z',
       engagement: {},
       usageMode: 'structure_inspiration',
@@ -67,5 +83,11 @@ describe('OpenCLI fixture parsers', () => {
     expect(Object.values(material.engagement)).toEqual(Array(8).fill(null));
     expect(material).not.toHaveProperty('viral_score');
     expect(material.viral_confidence).toBe('unverified');
+  });
+
+  it('rejects an exit-zero Weixin download payload whose business status failed', () => {
+    expect(() => parseWeixinDownload([{
+      title: 'Error', author: '-', publish_time: '-', status: 'invalid URL', saved: '-',
+    }])).toThrow('did not succeed');
   });
 });

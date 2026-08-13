@@ -6,24 +6,24 @@
 
 > 系统每天运行，但不要求每天发布。没有足够高质量的题目时，后续选题阶段必须允许输出 `NO_PUBLISH`。
 
-## 当前阶段：正式 Cloud Collector + 实验 Browser Collector
+## 当前阶段：正式 Cloud Collector + 已验证的本机 Browser Collector
 
-PR #1 的交付定位是“可每日运行的 Cloud Collector，以及尚处于实验阶段的 Browser Collector 基础架构”。各模块状态如下：
+Cloud Collector 是正式每日通道；OpenCLI Browser Collector 已在用户本机真实 Chrome 登录态下完成在线验证，但仍只作为本机手动通道。各模块状态如下：
 
 | 模块 | 状态 | 是否每日运行 |
 |---|---|---|
 | RSS | `verified_live` | 是 |
 | AIHOT | `verified_live` | 是 |
-| OpenCLI X | `manual_verification_required` | 否 |
-| OpenCLI 小红书 | `manual_verification_required` | 否 |
-| OpenCLI 公众号 | `manual_verification_required` | 否 |
+| OpenCLI X | `verified_live` | 否；本机手动 |
+| OpenCLI 小红书 | `verified_live` | 否；本机手动 |
+| OpenCLI 公众号 | `verified_live` | 否；本机手动 |
 | Codex Browser | `exploration_only` | 否 |
 
 当前唯一正式每日运行通道是 Cloud Collector：
 
 ```text
 Cloud Collector（GitHub Actions）→ RSS / AIHOT / 公开来源
-OpenCLI Browser Collector（本地手动实验）→ X / 小红书 / 公众号
+OpenCLI Browser Collector（本地手动已验证）→ X / 小红书 / 公众号
 → 限流采集并隔离单源、单平台和单条失败
 → 标准化字段和规范 URL
 → URL 指纹 + 内容指纹跨天去重
@@ -32,7 +32,7 @@ OpenCLI Browser Collector（本地手动实验）→ X / 小红书 / 公众号
 → 仅在输出有变化时提交
 ```
 
-OpenCLI Browser Collector 的代码、Fixture 和失败隔离已经完成，但真实 Browser Bridge 尚未验证，模块状态为 `experimental_manual_only`。它需要本地 Chrome、OpenCLI Browser Bridge 和平台登录态，不能放到 GitHub-hosted runner，也没有配置 `launchd`。Codex Browser 仅用于页面探索、DOM 字段确认、登录状态诊断和适配器修复，不接入正式 Browser Pipeline。
+OpenCLI Browser Collector 的代码、Fixture、失败隔离和真实 Browser Bridge 均已验证，模块状态为 `verified_live_manual`。最终 dry-run 的 24 个命令全部成功，X、小红书和公众号共返回 104 条材料，其中 5 篇公众号正文完成临时 Markdown 下载。它仍需要本地 Chrome、Browser Bridge 和平台登录态，不能放到 GitHub-hosted runner，也没有配置 `launchd`。Codex Browser 仅用于页面探索、DOM 字段确认、登录状态诊断和适配器修复，不接入正式 Browser Pipeline。
 
 本阶段仍不调用大模型，不开发自动选题、写作、配图或发布。
 
@@ -71,7 +71,7 @@ npm run spike:opencli
 npm run collect:browser -- --dry-run
 ```
 
-`--dry-run` 会真实执行 preflight/采集，但不会写入正式数据目录。`collect:fixture` 只使用本地 Fixture，不访问网络。当前实机 Browser Bridge 未连接，浏览器平台状态必须按 `docs/14-opencli-live-capability-spike.md` 处理，不能把 Fixture 成功描述成在线接通。
+`--dry-run` 会真实执行 preflight/采集，但不会写入正式数据目录。`collect:fixture` 只使用本地 Fixture，不访问网络。2026-08-13 本机最终 dry-run 已验证成功；后续仍必须以当次 `opencli doctor` 和平台返回为准，不能把历史成功或 Fixture 成功当成当前在线状态。
 
 Browser CLI 对 `success` 和 `partial_success` 返回退出码 0，其中部分成功会写 warning；完整失败仍在 stdout 保留 JSON 诊断，同时返回退出码 2；参数或程序错误返回退出码 1。当前未配置任何正式浏览器定时任务。
 

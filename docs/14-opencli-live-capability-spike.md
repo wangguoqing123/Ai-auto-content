@@ -1,141 +1,126 @@
 ---
-title: OpenCLI 实时能力验证报告
-version: 1.0.0
-updated_at: 2026-08-12
-status: experimental_manual_only
+title: OpenCLI 浏览器采集真实能力报告
+version: 2.0.0
+updated_at: 2026-08-13
+status: verified_live_manual
 ---
 
-# OpenCLI 实时能力验证报告
+# OpenCLI 浏览器采集真实能力报告
 
-OpenCLI Browser Collector 当前模块状态为 `experimental_manual_only`：代码与 Fixture 已完成，但 Browser Bridge 和三个平台的 OpenCLI 在线链路尚未真实验证。Cloud Collector 为 `verified_live`，Codex Browser 为 `exploration_only`，两者不能替代 OpenCLI 的 Browser Bridge 验收。
+OpenCLI Browser Collector 已于 2026-08-13 在用户本机真实 Chrome Profile 和现有登录态下完成在线验证。X、小红书、微信公众号搜索和正文下载均取得真实返回，并完成一次不写正式数据的可重复 dry-run。
+
+这里的 `verified_live_manual` 只表示本机手动链路已真实接通，不表示它适合 GitHub-hosted Actions 或无人值守定时。Cloud Collector 仍是唯一正式每日运行通道；Codex Browser 仍是 `exploration_only`。
 
 ## 执行环境
 
 | 项目 | 实际值 |
 |---|---|
-| 综合 spike 完成时间 | 2026-08-12 15:31:35 Asia/Shanghai |
-| 操作系统 | macOS 15.7.5（Build 24G624） |
+| 验证时间 | 2026-08-13，Asia/Shanghai |
+| 基准提交 | `be0df7fefd200079967a5709ac9c094c1627ad91` |
 | Node.js | v22.22.2 |
-| npm | 10.9.7 |
-| OpenCLI | 1.8.6；执行时与 `npm view @jackwener/opencli version` 一致 |
-| OpenCLI daemon | 正常，端口 19825，版本 1.8.6 |
-| Chrome | 正在运行；本机进程显示 Chrome 150.0.7871.187 |
-| Browser Bridge | 未连接；重启 daemon 后复检结果不变 |
-| X 登录状态 | 无法检查，Bridge 在登录态检查前阻断 |
-| 小红书登录状态 | 无法检查，Bridge 在登录态检查前阻断 |
-| 搜狗微信状态 | 无法检查，Bridge 在页面访问前阻断 |
+| OpenCLI | 1.8.6 |
+| OpenCLI daemon | 端口 19825，版本 1.8.6 |
+| Browser Bridge | 已连接，扩展版本 1.0.22 |
+| Chrome Profile | 用户当前 Profile；本地标识不写入仓库 |
+| Connectivity | 0.5 秒通过 |
 
-## 安装与注册结果
+Bridge 扩展来自 OpenCLI v1.8.6 官方 Release，解压前校验的 SHA-256 为 `9d2e3d053948beab5d97124aa79b1532d2122e33e461eca56cac113afd33207a`。
 
-- `qiaomu-opencli-usage`、`qiaomu-opencli-browser`、`qiaomu-opencli-explorer`、`qiaomu-opencli-autofix`、`qiaomu-smart-search` 已在当前会话可读取，不需要新会话。
-- AIHOT Skill 1.4.1 已在当前会话可读取。
-- `npm install -g @jackwener/opencli@latest` 成功，实际版本 1.8.6。
-- 项目内只读适配器 `twitter/search-rich` 已安装到 OpenCLI 用户适配器目录；实时 help 已声明 `author_followers/retweets/replies/quotes/bookmarks/views` 等字段。该适配器尚未完成在线数据验证。
+## 执行边界
 
-## 执行过的只读命令
+- 所有平台命令均为只读搜索、详情、评论读取、URL 跳转解析或正文下载。
+- 没有发布、点赞、评论、关注、收藏或发送消息。
+- 没有导出 Cookie、密码、请求头或登录凭证。
+- 没有遇到验证码、登录墙、频率限制或安全验证；若未来遇到，Collector 仍会停止对应平台，不绕过。
+- `--dry-run` 真实访问平台，但公众号正文只写临时目录，运行结束后自动删除，不写 `data/browser-*` 正式目录。
 
-预检与实时 schema：
-
-```text
-opencli --version
-opencli doctor
-opencli daemon restart
-opencli list -f yaml
-opencli twitter -h
-opencli twitter search -h
-opencli twitter search-rich -h
-opencli xiaohongshu -h
-opencli xiaohongshu search -h
-opencli xiaohongshu note -h
-opencli xiaohongshu comments -h
-opencli weixin -h
-opencli weixin search -h
-opencli weixin download -h
-npm run collect:browser -- --dry-run
-npm run spike:opencli
-```
-
-在首次定位环境问题时执行过一次有界 X 中文搜索探测；未获得可解析结果。修复 preflight 对 `doctor` 的退出码识别后，两个手动实验入口都会先停止，不再向三个浏览器平台发请求。所有命令均为只读，没有点赞、评论、关注、发布或导出 Cookie。
-
-## 实时结果
-
-### Browser Collector 总体
-
-- `npm run collect:browser -- --dry-run`：当时输出完整失败诊断且未写正式数据；preflight 用时 8,408 ms。当时顶层脚本错误返回退出码 0，现已修复为 `failed -> 2`。
-- `npm run spike:opencli`：Browser preflight 用时 9,045 ms。
-- 两次均得到：daemon `OK`、Extension `MISSING`、Connectivity `FAIL`。
-- 三个平台真实返回条数均为 0。这里的 0 表示没有完成采集，不表示平台搜索结果为空。
-- 三个平台的在线验证状态统一为 `manual_verification_required`，运行时整体为 `experimental_manual_only`，不适合无人值守。
+## 真实探针结果
 
 ### X / Twitter
 
-- 实际在线数据：未获得。
-- 登录状态：未核实。
-- 内建 `twitter search` 的实时 schema 声明：`id`、`author`、`bio`、`text`、`created_at`、`likes`、`views`、`url`、媒体、卡片、引用帖。
-- 因内建 schema 缺少富互动字段，已增加项目内 `search-rich`；它的实时 schema 声明：`id`、`author`、`author_followers`、`text`、`created_at`、`likes`、`retweets`、`replies`、`quotes`、`bookmarks`、`views`、`url`、媒体。
-- 真实获得字段：无。
-- 当前缺失字段：全部目标字段；适配器注册成功不等于在线取数成功。
-- 状态：`manual_verification_required`。
+项目内 `twitter search-rich` 在当前 Chrome 登录态下真实返回 3 条探针结果。实际取得字段：
+
+```text
+id
+author
+author_followers
+text
+created_at
+likes
+retweets
+replies
+quotes
+bookmarks
+views
+url
+has_media
+media_urls
+media_posters
+```
+
+首次完整 dry-run 暴露出自定义适配器从 X 客户端脚本动态扫描公共 Web bearer token 不稳定。修复后改为优先复用当前 OpenCLI 安装包集中维护的公共 Web token，页面扫描仅作后备；用户身份仍由 Chrome 中的 `ct0` 登录 Cookie 判断，Cookie 不离开浏览器环境。
+
+修复后同一失败查询重新执行成功，随后完整 dry-run 的 4 个 X 查询全部成功，返回 80 条材料。该次运行没有缺失目标富互动字段。
 
 ### 小红书
 
-- 实际在线数据：未获得。
-- 登录状态：未核实。
-- 实时 schema 确认搜索返回 `rank/title/author/likes/published_at/url`，详情返回字段值表，评论返回 `author/text/likes/time/is_reply/reply_to`。
-- 搜索 URL 的 `xsec_token` 在配置和解析器中强制保留；裸 note ID 不会被采集器接受。
-- 搜索结果中的日期来自笔记 ID 推断，统一标记 `published_at_quality: inferred`，不能写成官方发布时间。
-- 真实获得字段：无。
-- 当前缺失字段：标题、作者、正文、点赞、收藏、评论、标签及评论详情的在线实值。
-- 状态：`manual_verification_required`。
+真实探针按顺序完成：
 
-### 微信公众号
+1. `xiaohongshu search` 返回 3 条结果，字段包括 `rank/author/likes/title/url/published_at`。
+2. 搜索 URL 均保留详情和评论所需的 `xsec_token`。
+3. `xiaohongshu note` 取得 `title/author/content/likes/collects/comments/tags`。
+4. `xiaohongshu comments --with-replies true` 取得顶层评论与楼中楼的 `rank/author/userId/profileUrl/text/likes/time/is_reply/reply_to`。
 
-- 实际在线搜索和正文：未获得。
-- 实时 schema 确认搜索字段为 `rank/page/title/url/summary/publish_time`，下载字段为 `title/author/publish_time/status/size/saved`。
-- 公众号搜索没有阅读、在看、转发、收藏数据；统一保存为 `engagement: null`、`viral_confidence: unverified`、`usage_mode: structure_inspiration`。
-- 搜狗排名只作为发现信号，不作为爆款证据。
-- 真实获得字段：无。
-- 当前缺失字段：搜索和正文的全部在线实值；互动指标属于 `unsupported`，不是待补 0。
-- 状态：`manual_verification_required`。
+`--limit` 限制顶层评论数量；启用楼中楼后总行数可能超过该值。完整 dry-run 执行 2 个搜索、4 篇详情和 2 组评论，共产出 4 条精选材料。
 
-### AIHOT
+当前确认缺失或不提供的统一字段为：`author_followers/views/shares/reposts/quotes/bookmarks`。搜索日期继续标记 `published_at_quality: inferred`，不冒充平台官方精确时间。
 
-本次历史验证未配置 Actor；所有请求只使用 `https://aihot.virxact.com/api/v1/*`，均为只读请求：
+### 微信公众号搜索和正文
 
-| 验证项 | HTTP | 条数 | 耗时 | 实际字段 |
-|---|---:|---:|---:|---|
-| 过去 24 小时精选 | 200 | 5 | 238 ms | `id/title/originalTitle/summary/source/links/publishedAt/discoveredAt/category/score/selected/attribution` |
-| 当前热点 | 200 | 10 | 115 ms | `rank/id/title/source/links/sourceCount/signalCount/sourceNames/latestAt` |
-| 产品更新 | 200 | 5 | 187 ms | 与 items v1 字段一致 |
-| 技巧与观点 | 200 | 5 | 201 ms | 与 items v1 字段一致 |
+`weixin search` 真实返回 `rank/page/title/url/summary/publish_time`，但实际 URL 是 `weixin.sogou.com/link?...`，不是原 Collector 预期的直接 `mp.weixin.qq.com` URL。
 
-- 当前状态：`verified_live`。
-- 当前运行时 User-Agent 已改为项目身份 `AI-Auto-Content/0.2 (+https://github.com/wangguoqing123/Ai-auto-content)`；只有合法 `AIHOT_ACTOR_ID` UUID v4 才会追加 `aihot-actor/<uuid>`，且不记录 Actor 值。
-- 缺失字段：正文、评论和社交平台互动数据；v1 不提供单条正文接口。
-- 默认数据语义：`source_kind: news`、`usage_mode: reference_only`。
-- 适合云端无人值守只读采集，但不得直接复制摘要公开发布；若把 AIHOT 数据用于面向外部的商业数据产品、代理、镜像或批量再分发，需要另行取得书面授权。
+本次增加只读 `weixin resolve-article-url` 适配器：
 
-## 风控与无人值守判断
+```text
+搜狗搜索结果 URL
+→ 在 Browser Bridge 中打开并跟随正常跳转
+→ 检查验证码/安全验证
+→ 返回 mp.weixin.qq.com/s?... URL
+→ weixin download 导出 Markdown
+```
 
-### Cloud Collector 回归验证
+真实正文下载取得 `title/author/publish_time/status/size/saved`。Parser 同步支持搜索返回的相对时间（如“2小时前”，标记 `inferred`）和正文返回的中文绝对时间（如“2026年8月13日 09:01”，标记 `exact`），并拒绝 OpenCLI 退出码为 0 但业务字段为 `status: invalid URL` 的假成功。
 
-2026-08-12 15:38（北京时间）执行 `npm run collect:cloud -- --dry-run`：8 个来源全部成功，AIHOT v1 返回 20 条；整批 RSS/AIHOT 共发现 2,138 条，其中 2,085 条因超过 7 天只进入指纹路径，不会写入当天素材库。运行未写正式数据。
+完整 dry-run 搜索 2 个关键词、返回 20 条发现结果，成功解析并下载其中 5 篇正文。微信公众号没有可验证的阅读、点赞、评论、分享、转发、引用、书签或收藏字段；这些值保持 `null`，`viral_confidence` 保持 `unverified`。
 
-| 来源 | 风控情况 | 是否适合无人值守 |
-|---|---|---|
-| RSS | 无登录；按来源超时和重试 | 是 |
-| AIHOT | v1 匿名只读；需遵守用途许可 | 是 |
-| X | Bridge 未连接，登录和 GraphQL 未验证 | 否 |
-| 小红书 | Bridge 未连接；真实登录墙和风险控制未验证 | 否 |
-| 公众号搜索/正文 | Bridge 未连接；搜狗或微信可能要求人工验证 | 否 |
+## 完整 dry-run 验收
 
-浏览器平台在出现登录墙、验证码、安全限制或频率限制后，本轮会立即停止该平台，不自动绕过，也不无限重试。
-
-## 后续独立 PR 的人工前置条件
-
-本 PR 不安装 Browser Bridge，也不要求登录 X。后续独立 PR 如要完成在线验收，需要在本地 Chrome 安装或启用与 OpenCLI 1.8.6 匹配的 Browser Bridge，并在正常登录的平台上确认 `opencli doctor` 的 Extension 和 Connectivity 均为 `OK`，再运行：
+修复后的最终命令：
 
 ```bash
-npm run spike:opencli
+npm run opencli:install-adapters
 npm run collect:browser -- --dry-run
 ```
+
+最终运行摘要：
+
+| 项目 | 结果 |
+|---|---:|
+| run_id | `browser_20260813032321` |
+| preflight | `success` |
+| 总体状态 | `success` |
+| 成功命令 | 24 / 24 |
+| X | 4 个查询，80 条材料 |
+| 小红书 | 8 个命令，4 条材料 |
+| 公众号 | 12 个命令，20 条材料，其中 5 篇正文 |
+| 总材料数 | 104 |
+
+## 验证层级与运行建议
+
+| 通道 | 当前状态 | 用途 |
+|---|---|---|
+| Cloud Collector | `verified_live` | GitHub Actions 正式每日采集 |
+| OpenCLI Browser Collector | `verified_live_manual` | 用户本机手动 dry-run 和受控采集 |
+| Codex Browser | `exploration_only` | 页面探索、登录诊断和适配器排查 |
+
+当前不增加 `launchd`，也不把 Browser Collector 放入 GitHub Actions。OpenCLI 或其 Twitter 内部适配器升级后，应重新运行安装命令、平台小探针和完整 dry-run，不能沿用本报告推断新版本仍兼容。

@@ -9,7 +9,12 @@ import {
 import { OpenCliRunner, toCommandSummary } from './opencli-runner.js';
 import type { WeixinCollectorConfig } from './platform-config.js';
 import { selectRotatedQueries } from './query-budget.js';
-import { parseWeixinDownload, parseWeixinSearch, type WeixinSearchRecord } from './parsers/weixin-parser.js';
+import {
+  parseWeixinDownload,
+  parseWeixinResolvedUrl,
+  parseWeixinSearch,
+  type WeixinSearchRecord,
+} from './parsers/weixin-parser.js';
 
 export interface WechatViralMetricsProvider {
   readonly status: 'unsupported';
@@ -21,7 +26,18 @@ export class UnsupportedWechatViralMetricsProvider implements WechatViralMetrics
 
 function isDownloadableArticle(url: string): boolean {
   try {
-    return new URL(url).hostname.toLocaleLowerCase() === 'mp.weixin.qq.com';
+    const parsed = new URL(url);
+    return parsed.hostname.toLocaleLowerCase() === 'mp.weixin.qq.com' && parsed.pathname === '/s';
+  } catch {
+    return false;
+  }
+}
+
+function isResolvableArticle(url: string): boolean {
+  if (isDownloadableArticle(url)) return true;
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname.toLocaleLowerCase() === 'weixin.sogou.com' && parsed.pathname === '/link';
   } catch {
     return false;
   }
@@ -31,7 +47,7 @@ function selectDownloadCandidates(records: Array<WeixinSearchRecord & { queryId:
   const occurrences = new Map<string, number>();
   for (const record of records) occurrences.set(record.url, (occurrences.get(record.url) ?? 0) + 1);
   return [...records]
-    .filter((record) => isDownloadableArticle(record.url))
+    .filter((record) => isResolvableArticle(record.url))
     .sort((left, right) => (occurrences.get(right.url) ?? 0) - (occurrences.get(left.url) ?? 0)
       || Number(Boolean(right.publish_time)) - Number(Boolean(left.publish_time))
       || left.rank - right.rank)
@@ -73,7 +89,7 @@ export class WeixinCollector {
         continue;
       }
       try {
-        discoveries.push(...parseWeixinSearch(search.data).map((record) => ({ ...record, queryId: query.id })));
+        discoveries.push(...parseWeixinSearch(search.data, now).map((record) => ({ ...record, queryId: query.id })));
       } catch {
         failures.push('command_failed');
       }
@@ -92,7 +108,7 @@ export class WeixinCollector {
         excerpt: candidate.summary.slice(0, 1_000),
         sourceUrl: candidate.url,
         publishedAt: candidate.publish_time,
-        publishedAtQuality: candidate.publish_time ? 'exact' : 'unknown',
+        publishedAtQuality: candidate.published_at_quality,
         collectedAt: now.toISOString(),
         engagement: {},
         usageMode: 'structure_inspiration',
@@ -112,9 +128,29 @@ export class WeixinCollector {
 
     if (!hardStop) {
       for (const candidate of selectDownloadCandidates(discoveries, this.config.max_downloads_per_run)) {
+        let articleUrl = candidate.url;
+        if (!isDownloadableArticle(articleUrl)) {
+          const resolve = await this.runner.run([
+            'weixin', 'resolve-article-url',
+            '--url', articleUrl,
+            '-f', 'json',
+          ], { signal, timeoutMs: 30_000 });
+          commands.push(toCommandSummary(resolve));
+          if (resolve.status !== 'success') {
+            failures.push(resolve.status);
+            if (terminalPlatformStatus(resolve.status)) break;
+            continue;
+          }
+          try {
+            articleUrl = parseWeixinResolvedUrl(resolve.data);
+          } catch {
+            failures.push('command_failed');
+            continue;
+          }
+        }
         const download = await this.runner.run([
           'weixin', 'download',
-          '--url', candidate.url,
+          '--url', articleUrl,
           '--output', this.outputDirectory,
           '--download-images', 'false',
           '-f', 'json',
@@ -138,15 +174,16 @@ export class WeixinCollector {
             authorName: article.account_name,
             title: article.title || candidate.title,
             excerpt: candidate.summary.slice(0, 1_000),
-            sourceUrl: candidate.url,
+            sourceUrl: articleUrl,
             contentPath: article.markdown_path,
             publishedAt: article.publish_time ?? candidate.publish_time,
-            publishedAtQuality: article.publish_time || candidate.publish_time ? 'exact' : 'unknown',
+            publishedAtQuality: article.publish_time ? article.published_at_quality : candidate.published_at_quality,
             collectedAt: now.toISOString(),
             engagement: {},
             usageMode: 'structure_inspiration',
             viralConfidence: 'unverified',
           });
+          if (existing) materialById.delete(existing.material_id);
           materialById.set(material.material_id, material);
         } catch {
           failures.push('command_failed');

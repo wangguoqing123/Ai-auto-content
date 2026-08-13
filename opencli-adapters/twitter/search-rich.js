@@ -55,6 +55,21 @@ const FALLBACK_OPERATION = {
   },
 };
 
+async function resolveOpenCliWebBearer() {
+  try {
+    const openCliEntry = import.meta.resolve('@jackwener/opencli');
+    const twitterUtilsUrl = new URL('../../clis/twitter/utils.js', openCliEntry);
+    const twitterUtils = await import(twitterUtilsUrl.href);
+    return typeof twitterUtils.TWITTER_BEARER_TOKEN === 'string'
+      ? twitterUtils.TWITTER_BEARER_TOKEN
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+const OPENCLI_WEB_BEARER = await resolveOpenCliWebBearer();
+
 async function resolvePublicWebBearer(page) {
   return page.evaluate(`async () => {
     const scripts = Array.from(new Set(Array.from(document.scripts).map((script) => script.src).filter((src) => src && src.includes('client-web'))));
@@ -166,7 +181,7 @@ cli({
     if (!ct0) throw new AuthRequiredError('x.com', 'Not logged into x.com (no ct0 cookie)');
     await page.goto('https://x.com/home', { waitUntil: 'load', settleMs: 1000 });
     const operation = await resolveOperation(page);
-    const bearerToken = await resolvePublicWebBearer(page);
+    const bearerToken = OPENCLI_WEB_BEARER || await resolvePublicWebBearer(page);
     if (!bearerToken) throw new CommandExecutionError('Could not discover X public web bearer token from the current client bundle');
     const headers = {
       Authorization: `Bearer ${decodeURIComponent(bearerToken)}`,

@@ -1,16 +1,16 @@
 ---
 title: 云端与浏览器双通道采集运行时
 version: 1.0.0
-updated_at: 2026-08-12
-status: cloud_verified_browser_experimental
+updated_at: 2026-08-13
+status: cloud_and_local_browser_verified
 cloud_status: verified_live
-opencli_browser_status: experimental_manual_only
+opencli_browser_status: verified_live_manual
 codex_browser_status: exploration_only
 ---
 
 # 云端与浏览器双通道采集运行时
 
-Cloud Collector 是当前唯一正式每日运行通道，状态为 `verified_live`。OpenCLI Browser Collector 是 `experimental_manual_only` 基础架构；Codex Browser 是 `exploration_only` 工具，不进入正式 Pipeline。
+Cloud Collector 是当前唯一正式每日运行通道，状态为 `verified_live`。OpenCLI Browser Collector 已在用户本机真实 Chrome 登录态下验证，状态为 `verified_live_manual`；Codex Browser 是 `exploration_only` 工具，不进入正式 Pipeline。
 
 ## 运行边界
 
@@ -32,10 +32,10 @@ Browser Collector ─ X / 小红书 / 公众号 ──────────�
 
 ### Browser Collector
 
-- 当前状态：`experimental_manual_only`，尚未完成真实 Browser Bridge 验证。
+- 当前状态：`verified_live_manual`；2026-08-13 已完成真实 Browser Bridge、三平台和完整 dry-run 验证。
 - 运行位置：用户自己的 Mac，或一台长期在线且拥有真实 Chrome Profile 的专用机器。
 - 当前命令：`npm run collect:browser -- --dry-run`。
-- 设计职责：X GraphQL 搜索、小红书搜索/详情/评论、搜狗微信搜索和公众号正文下载；这些能力当前不能声称在线接通。
+- 设计职责：X GraphQL 搜索、小红书搜索/详情/评论、搜狗微信搜索、跳转 URL 解析和公众号正文下载；这些能力已在当前版本在线接通。
 - 不得运行在 `ubuntu-latest`、`windows-latest`、`macos-latest` 等 GitHub 托管临时机器上。
 
 ### Codex Browser
@@ -52,7 +52,7 @@ Browser Collector 启动时首先真实执行 `opencli doctor`。只有 daemon�
 - Chrome 必须正在运行。
 - Browser Bridge 版本需要与当前 OpenCLI 兼容。
 - 用户需要提前在普通 Chrome 中登录 X 和小红书。
-- 公众号公开搜索不要求公众号账号，但搜狗或微信可能弹出人工验证。
+- 公众号公开搜索在本次运行未要求账号登录，但搜狗或微信未来仍可能弹出人工验证。
 - 不导出 Cookie，不把 Cookie、请求头或 Session 写入项目。
 - 不自动完成验证码或安全验证。
 
@@ -81,9 +81,9 @@ Browser Collector 启动时首先真实执行 `opencli doctor`。只有 daemon�
 - 公众号每个关键词只查第 1 页、最多 10 条；全局最多下载 5 篇正文。
 - `config/platform-queries.yaml` 负责启用、优先级、轮换和预算。
 
-## 未来定时方式
+## 定时边界
 
-本 PR 没有配置 `launchd` 或任何 Browser Collector 正式定时任务。待后续独立 PR 完成 Browser Bridge、登录态和在线数据验证后，才可评估在本机使用 macOS `launchd` 或专用机器系统调度器，并满足：
+本 PR 没有配置 `launchd` 或任何 Browser Collector 正式定时任务。在线验证通过不等于允许无人值守；未来如单独评估 macOS `launchd` 或专用机器系统调度器，仍需满足：
 
 1. 机器长期在线且 Chrome Profile 稳定。
 2. 先运行 preflight，失败时不继续平台请求。

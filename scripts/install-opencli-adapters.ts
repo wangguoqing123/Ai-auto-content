@@ -3,12 +3,21 @@ import os from 'node:os';
 import path from 'node:path';
 
 const rootDir = process.cwd();
-const source = path.join(rootDir, 'opencli-adapters', 'twitter', 'search-rich.js');
-const destinationDirectory = path.join(os.homedir(), '.opencli', 'clis', 'twitter');
-const destination = path.join(destinationDirectory, 'search-rich.js');
-const temporary = `${destination}.tmp-${process.pid}`;
+const adapters = [
+  { site: 'twitter', file: 'search-rich.js' },
+  { site: 'weixin', file: 'resolve-article-url.js' },
+];
+const installed = [];
 
-await mkdir(destinationDirectory, { recursive: true });
-await copyFile(source, temporary);
-await rename(temporary, destination);
-console.log(JSON.stringify({ installed: true, source, destination }, null, 2));
+for (const adapter of adapters) {
+  const source = path.join(rootDir, 'opencli-adapters', adapter.site, adapter.file);
+  const destinationDirectory = path.join(os.homedir(), '.opencli', 'clis', adapter.site);
+  const destination = path.join(destinationDirectory, adapter.file);
+  const temporary = `${destination}.tmp-${process.pid}`;
+  await mkdir(destinationDirectory, { recursive: true });
+  await copyFile(source, temporary);
+  await rename(temporary, destination);
+  installed.push({ source, destination });
+}
+
+console.log(JSON.stringify({ installed: true, adapters: installed }, null, 2));
