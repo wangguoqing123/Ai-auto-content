@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+- 增加已真实验证的 RSS / AIHOT v1 Cloud Collector；它是当前唯一正式每日运行通道。
+- 增加 X、小红书、公众号 OpenCLI Browser Collector 基础架构，状态为 `experimental_manual_only`，不声称已在线接通。
+- 增加本地只读 Twitter 富互动适配器、安装脚本、平台预算和查询轮换。
+- 扩展统一素材字段，缺失互动数据保持 `null`，小红书推断日期显式标记。
+- 首次 RSS 启动只落最近 7 天素材，旧内容只写指纹，未知日期进入隔离区。
+- 修复英文短关键词边界、重复关键词加分和单条异常隔离。
+- 增加 PR CI、UGC 原创政策、实时能力报告和双通道运行文档。
+- 修复 Browser CLI 状态到退出码的映射：成功/部分成功为 0，完整失败为 2，参数或程序错误为 1。
+- 将 AIHOT User-Agent 改为项目自身身份；可选 Actor 仅接受 UUID v4，缺失或非法配置不阻断采集。
+- 记录 Codex Browser 的 `exploration_only` 真实能力边界，不接入正式 Browser Pipeline。
+
+## 0.2.0 — 2026-08-12
+
+- 增加 Node.js 20 + TypeScript 每日素材采集管线。
+- 增加 7 个经真实请求和解析核验的 RSS / Atom 来源。
+- 增加 URL 规范化、双 SHA-256 指纹、同日与跨天去重。
+- 增加确定性可信度、新鲜度和用户相关度评分。
+- 增加 JSONL 素材、运行日志、状态文件和每日 Markdown 报告。
+- 增加定时与手动 GitHub Actions，只在输出变化时自动提交。
+- 增加离线 fixture 与 URL、指纹、去重、评分、失败隔离、幂等和日报测试。
+- 将路线从批量生成 20 个选题修正为支持 `NO_PUBLISH` 的每日自主循环。
+
 ## 0.1.0 — 2026-08-12
 
 - 初始化项目仓库结构。

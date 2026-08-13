@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Fixture Atom Updates</title>
+  <link href="https://example.org/" />
+  <updated>2026-08-12T01:00:00Z</updated>
+  <id>https://example.org/</id>
+  <entry>
+    <title>AI video editing guide for beginners</title>
+    <link href="https://example.org/video-guide" />
+    <id>atom-1</id>
+    <updated>2026-08-12T01:00:00Z</updated>
+    <author><name>Atom Author</name></author>
+    <summary>Learn a practical content and video workflow.</summary>
+  </entry>
+</feed>

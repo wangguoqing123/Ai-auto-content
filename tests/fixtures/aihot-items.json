@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "query": {"mode": "selected", "window": "24h", "by": "timeline", "ordering": "timelineDesc"},
+  "items": [
+    {
+      "id": "fixture-aihot-1",
+      "title": "AIHOT Fixture Product Update",
+      "originalTitle": "Fixture",
+      "summary": "A bounded summary for the cloud collector fixture.",
+      "source": {"name": "Fixture Source"},
+      "links": {
+        "aihot": "https://aihot.virxact.com/items/fixture-aihot-1",
+        "original": "https://example.com/aihot-fixture"
+      },
+      "publishedAt": "2026-08-12T00:00:00.000Z",
+      "discoveredAt": "2026-08-12T01:00:00.000Z",
+      "category": "ai-products",
+      "score": 70,
+      "selected": true
+    }
+  ],
+  "page": {"count": 1, "hasMore": false, "nextCursor": null}
+}

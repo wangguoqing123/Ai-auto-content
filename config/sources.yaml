@@ -1,0 +1,98 @@
+version: 1
+verified_at: 2026-08-12
+
+# All enabled URLs were fetched and parsed on verified_at. Keep unstable or
+# blocked feeds disabled instead of trying to bypass their access controls.
+sources:
+  - id: aihot-selected-24h
+    name: AIHOT 24 小时精选
+    type: aihot
+    url: https://aihot.virxact.com/api/v1/items?mode=selected&window=24h&limit=20
+    enabled: true
+    language: zh
+    category: ai_news
+    source_tier: secondary
+    audience_fit:
+      - ai_beginner
+      - intermediate_user
+
+  - id: openai-news
+    name: OpenAI News
+    type: rss
+    url: https://openai.com/news/rss.xml
+    enabled: true
+    language: en
+    category: official_update
+    source_tier: primary
+    audience_fit:
+      - ai_beginner
+      - intermediate_user
+
+  - id: google-ai-blog
+    name: Google AI Blog
+    type: rss
+    url: https://blog.google/innovation-and-ai/technology/ai/rss/
+    enabled: true
+    language: en
+    category: official_update
+    source_tier: primary
+    audience_fit:
+      - ai_beginner
+      - intermediate_user
+
+  - id: github-ai-ml
+    name: GitHub AI and ML
+    type: rss
+    url: https://github.blog/ai-and-ml/feed/
+    enabled: true
+    language: en
+    category: developer_tool
+    source_tier: primary
+    audience_fit:
+      - intermediate_user
+
+  - id: n8n-blog
+    name: n8n Blog
+    type: rss
+    url: https://blog.n8n.io/rss/
+    enabled: true
+    language: en
+    category: automation
+    source_tier: primary
+    audience_fit:
+      - ai_beginner
+      - intermediate_user
+
+  - id: hugging-face-blog
+    name: Hugging Face Blog
+    type: rss
+    url: https://huggingface.co/blog/feed.xml
+    enabled: true
+    language: en
+    category: tutorial
+    source_tier: primary
+    audience_fit:
+      - intermediate_user
+
+  - id: google-deepmind-blog
+    name: Google DeepMind Blog
+    type: rss
+    url: https://deepmind.google/blog/rss.xml
+    enabled: true
+    language: en
+    category: research
+    source_tier: primary
+    audience_fit:
+      - intermediate_user
+
+  - id: heygen-updates
+    name: HeyGen Product Updates
+    type: rss
+    url: https://heygen.noticeable.news/feed.rss
+    enabled: true
+    language: en
+    category: ai_video
+    source_tier: primary
+    audience_fit:
+      - ai_beginner
+      - intermediate_user

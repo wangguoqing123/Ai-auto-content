@@ -1,0 +1,32 @@
+{
+  "name": "ai-auto-content",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Deterministic daily AI material collection pipeline",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "collect": "npm run collect:cloud",
+    "collect:cloud": "tsx src/index.ts",
+    "collect:browser": "tsx scripts/browser-pipeline-cli.ts",
+    "collect:fixture": "tsx src/index.ts --fixture --date=2026-08-12 --dry-run",
+    "spike:opencli": "tsx scripts/opencli-live-spike.ts",
+    "opencli:install-adapters": "tsx scripts/install-opencli-adapters.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "p-limit": "^7.1.1",
+    "rss-parser": "^3.13.0",
+    "yaml": "^2.8.1",
+    "zod": "^4.0.17"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
