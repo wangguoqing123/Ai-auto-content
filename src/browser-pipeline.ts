@@ -92,7 +92,7 @@ export async function runBrowserPipeline(options: BrowserPipelineOptions): Promi
       : path.join(options.rootDir, 'data', 'weixin-articles', date);
     const collectors = options.collectors ?? [
       new TwitterCollector(runner, config.twitter),
-      new WeixinCollector(runner, config.weixin, outputDirectory),
+      new WeixinCollector(runner, config.weixin, outputDirectory, options.rootDir, options.dryRun),
     ];
     const settled = await Promise.allSettled(collectors.map((collector) => collector.collect(now, options.signal)));
     platforms = settled.map((entry, index) => entry.status === 'fulfilled' ? entry.value : {

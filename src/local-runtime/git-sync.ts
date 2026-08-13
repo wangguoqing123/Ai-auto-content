@@ -69,7 +69,7 @@ async function assertOnlyAutomatedChanges(execute: Execute, repositoryRoot: stri
 
 async function scanStagedContent(execute: Execute, repositoryRoot: string, files: string[]): Promise<void> {
   const homeDirectory = os.homedir();
-  const sensitive = /xsec_token|pass_ticket|\bCookie:|\bAuthorization:|\bct0\b|auth_token|\.DS_Store/i;
+  const sensitive = /[?&](?:signature|pass_ticket|exportkey|sessionid|xsec_token)=|\bCookie:|\bAuthorization:|\bct0\b|auth_token|\.DS_Store/i;
   for (const file of files) {
     if (!isAutomatedDataPath(file)) throw new GitSyncError(`Invalid staged path: ${file}`, 'invalid_staged_paths');
     const shown = await git(execute, repositoryRoot, ['show', `:${file}`], true);
@@ -78,6 +78,41 @@ async function scanStagedContent(execute: Execute, repositoryRoot: string, files
       throw new GitSyncError(`Sensitive content detected in staged file: ${file}`, 'invalid_staged_paths');
     }
   }
+}
+
+async function preservedPendingCommitError(
+  execute: Execute,
+  repositoryRoot: string,
+  originalCommit: string,
+  message: string,
+): Promise<never> {
+  await git(execute, repositoryRoot, ['rebase', '--abort'], true);
+  throw new GitSyncError(`${message}; local data commit ${originalCommit} was preserved`, 'git_sync_failed');
+}
+
+async function rebaseAndPushPendingCommit(
+  execute: Execute,
+  repositoryRoot: string,
+  config: LocalRuntimeConfig,
+  originalCommit: string,
+  fetchFirst: boolean,
+): Promise<string> {
+  if (fetchFirst) {
+    const fetched = await git(execute, repositoryRoot, ['fetch', config.git_sync.remote, config.git_sync.branch], true);
+    if (fetched.exitCode !== 0) {
+      throw new GitSyncError(`Fetch failed; local data commit ${originalCommit} was preserved`, 'git_sync_failed');
+    }
+  }
+  const rebase = await git(execute, repositoryRoot, ['pull', '--rebase', config.git_sync.remote, config.git_sync.branch], true);
+  if (rebase.exitCode !== 0) {
+    return preservedPendingCommitError(execute, repositoryRoot, originalCommit, 'Rebase failed');
+  }
+  const rebasedCommit = (await git(execute, repositoryRoot, ['rev-parse', 'HEAD'])).stdout.trim();
+  const push = await git(execute, repositoryRoot, ['push', config.git_sync.remote, config.git_sync.branch], true);
+  if (push.exitCode !== 0) {
+    throw new GitSyncError(`Push failed; local data commit ${rebasedCommit || originalCommit} was preserved`, 'git_sync_failed');
+  }
+  return rebasedCommit;
 }
 
 export async function prepareRuntimeRepository(
@@ -99,8 +134,16 @@ export async function prepareRuntimeRepository(
   const behind = counts[0] ?? 0;
   const ahead = counts[1] ?? 0;
   if (ahead > 0) {
-    await git(execute, repositoryRoot, ['push', config.git_sync.remote, config.git_sync.branch]);
-    const commit = (await git(execute, repositoryRoot, ['rev-parse', 'HEAD'])).stdout.trim();
+    const originalCommit = (await git(execute, repositoryRoot, ['rev-parse', 'HEAD'])).stdout.trim();
+    let commit: string;
+    if (behind > 0) {
+      commit = await rebaseAndPushPendingCommit(execute, repositoryRoot, config, originalCommit, false);
+    } else {
+      const push = await git(execute, repositoryRoot, ['push', config.git_sync.remote, config.git_sync.branch], true);
+      commit = push.exitCode === 0
+        ? originalCommit
+        : await rebaseAndPushPendingCommit(execute, repositoryRoot, config, originalCommit, true);
+    }
     return { status: 'pending_pushed', commit, skipCollection: true };
   }
   if (behind > 0) await git(execute, repositoryRoot, ['merge', '--ff-only', `${config.git_sync.remote}/${config.git_sync.branch}`]);

@@ -80,15 +80,75 @@ describe('morning task orchestration', () => {
     expect((await readSchedulerState(env.paths.stateFile))?.tasks.morning.attempts).toBe(2);
   });
 
-  it('stops after max attempts without a third platform visit', async () => {
+  it('notifies once when the second failure reaches max attempts and stays quiet afterward', async () => {
     const env = await environment();
     const runPipeline = vi.fn(async () => pipeline('failed', 'command_failed'));
     const deps = dependencies(runPipeline);
     await runMorningTask({ ...env, now, config }, deps);
     await runMorningTask({ ...env, now, config }, deps);
     const third = await runMorningTask({ ...env, now, config }, deps);
+    const fourth = await runMorningTask({ ...env, now, config }, deps);
     expect(third.outcome).toBe('MAX_ATTEMPTS_REACHED');
+    expect(fourth.outcome).toBe('MAX_ATTEMPTS_REACHED');
     expect(runPipeline).toHaveBeenCalledTimes(2);
+    expect(deps.notify).toHaveBeenCalledTimes(2);
+    expect(deps.notify).toHaveBeenLastCalledWith('failed', 'Morning task reached 2 attempts', config);
+
+    const outsideWindow = await runMorningTask({
+      ...env, now: new Date('2026-08-14T04:01:00.000Z'), config, triggerMode: 'scheduled',
+    }, deps);
+    expect(outsideWindow.outcome).toBe('NOT_DUE');
+    expect(deps.notify).toHaveBeenCalledTimes(2);
+
+    await runMorningTask({ ...env, now: new Date('2026-08-15T00:00:00.000Z'), config }, deps);
+    expect(runPipeline).toHaveBeenCalledTimes(3);
+  });
+
+  it('runs a manual dry-run at 14:00 without state, report, or Git writes', async () => {
+    const env = await environment();
+    const deps = dependencies();
+    const execution = await runMorningTask({
+      ...env,
+      now: new Date('2026-08-14T06:00:00.000Z'),
+      config,
+      dryRun: true,
+      triggerMode: 'manual',
+    }, deps);
+    expect(execution).toMatchObject({ outcome: 'COMPLETED', collected: true });
+    expect(deps.healthCheck).toHaveBeenCalledTimes(1);
+    expect(deps.runPipeline).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true }));
+    expect(deps.prepareRepository).not.toHaveBeenCalled();
+    expect(deps.syncData).not.toHaveBeenCalled();
+    expect(deps.writeReport).not.toHaveBeenCalled();
+    await expect(access(env.paths.stateFile)).rejects.toThrow();
+  });
+
+  it('runs one formal manual task at 14:00 but does not repeat a completed day', async () => {
+    const env = await environment();
+    const deps = dependencies();
+    const manual = {
+      ...env,
+      now: new Date('2026-08-14T06:00:00.000Z'),
+      config,
+      triggerMode: 'manual' as const,
+    };
+    expect((await runMorningTask(manual, deps)).outcome).toBe('COMPLETED');
+    expect((await runMorningTask(manual, deps)).outcome).toBe('ALREADY_COMPLETED');
+    expect(deps.runPipeline).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the scheduled task not due at 14:00', async () => {
+    const env = await environment();
+    const deps = dependencies();
+    const execution = await runMorningTask({
+      ...env,
+      now: new Date('2026-08-14T06:00:00.000Z'),
+      config,
+      triggerMode: 'scheduled',
+    }, deps);
+    expect(execution.outcome).toBe('NOT_DUE');
+    expect(deps.healthCheck).not.toHaveBeenCalled();
+    expect(deps.runPipeline).not.toHaveBeenCalled();
   });
 
   it('releases the lock after an unexpected exception', async () => {

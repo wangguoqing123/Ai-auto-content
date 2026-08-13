@@ -18,19 +18,22 @@ LaunchAgent 不是只在 08:00 触发一次，而是 `RunAtLoad=true`、`StartIn
 → 执行 morning
 ```
 
-其他时间输出 `NOT_DUE`；当天完成输出 `ALREADY_COMPLETED`；活锁输出 `LOCK_HELD`。三者都返回 0，不访问平台。
+调度检查先判断时间窗口：其他时间始终输出 `NOT_DUE`，不会因为已达到最大尝试次数而重复通知。窗口内当天完成输出 `ALREADY_COMPLETED`；活锁输出 `LOCK_HELD`。三者都返回 0，不访问平台。
+
+`local:scheduler -- --once` 是 scheduled 触发，服从上述窗口。`local:morning` 是 manual 触发：可在窗口外执行一次，但正式运行仍服从活锁、当天已完成和最多 2 次尝试。`local:morning -- --dry-run` 不读取或写入正式状态，始终执行健康检查和 Browser dry-run，同时仍获取运行锁；它不写正式数据、报告或 Git。
 
 ## Morning 顺序
 
 1. 读取外部状态并判断 due。
 2. 原子创建锁目录；活 PID 阻止并发，超过 120 分钟且 PID 不存在才恢复 stale lock。
-3. 同步独立 Runtime clone 的 `origin/main`；未推送数据 commit 优先重试 push。
+3. 同步独立 Runtime clone 的 `origin/main`；未推送数据 commit 优先恢复。仅 ahead 时先正常 push；ahead 与 behind 同时存在时执行 `pull --rebase origin main` 后 push；首次 push 与远端更新竞态时只允许一次 fetch + rebase + push 恢复。
 4. 检查 Node >=20、npm、兼容 OpenCLI 1.x >=1.8.6、项目 adapters、Chrome、daemon、Extension、Connectivity、X 登录和公众号公开搜索。
 5. 只运行 X 与微信公众号 Browser Pipeline。
-6. 保存 Browser Materials、Run Log、公众号正文和 Browser 日报。
-7. 只暂存白名单路径，扫描敏感内容，创建数据 commit。
-8. `git pull --rebase origin main` 后正常 push；冲突 abort，绝不 force。
-9. 原子更新外部状态，按需发送本机通知，并在 `finally` 中释放锁。
+6. 保存 Browser Materials、Run Log、公众号正文和 Browser 日报。公众号正文必须经 `realpath` 验证位于 Runtime clone 的 `data/weixin-articles/**`，素材中的 `content_path` 只保存仓库相对 POSIX 路径；dry-run 为 `null`。
+7. 公众号 Markdown 只改写顶部元数据中的“原文链接”：可追溯 URL 写入去参数后的 canonical URL，不可追溯临时 URL 删除；正文不做字符串替换。随后重新读取并扫描敏感查询参数。
+8. 只暂存白名单路径，扫描敏感内容，创建数据 commit。
+9. `git pull --rebase origin main` 后正常 push；冲突 abort 并保留本地 commit，绝不 force、reset hard 或重新采集。
+10. 原子更新外部状态，按需发送本机通知，并在 `finally` 中释放锁。
 
 ## 命令
 
@@ -44,7 +47,7 @@ npm run local:uninstall -- --dry-run
 npm run launchd:render
 ```
 
-`local:morning -- --dry-run` 会访问真实平台，但不写正式数据或 Git。`--fixture --dry-run` 完全离线，供测试和 CI 使用。
+`local:morning -- --dry-run` 会访问真实平台，但不写状态、正式数据、报告或 Git。`--fixture --dry-run` 完全离线，供测试和 CI 使用。
 
 PR 合并后，用户确认 Chrome、Bridge、登录态和 Git 鉴权可用，再显式安装：
 
@@ -65,7 +68,7 @@ npm run local:uninstall -- --uninstall
 
 状态文件：`~/Library/Application Support/AiAutoContent/state/scheduler-state.json`。损坏状态不会被静默覆盖。
 
-通知标题固定为 `AI Auto Content`。Bridge 不可用、登录失效、blocked、部分成功、达到重试上限、Git 失败或写入失败时发送安全摘要；完整错误留在本机日志。通知失败不改变主任务结果。
+通知标题固定为 `AI Auto Content`。Bridge 不可用、登录失效、blocked、部分成功、达到重试上限、Git 失败或写入失败时发送安全摘要；完整错误留在本机日志。第二次失败达到上限时发送一次 `Morning task reached maximum attempts`，之后的同日轮询静默返回；次日重新允许运行。通知失败不改变主任务结果。
 
 ## 退出码
 

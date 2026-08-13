@@ -59,9 +59,13 @@ Browser 正式运行只写：
 - `data/weixin-articles/**`
 - `reports/browser/**`
 
-自动 commit 前会再次检查 staged paths，并扫描 `xsec_token`、`pass_ticket`、Cookie、Authorization、`ct0`、`auth_token`、本地用户目录与 `.DS_Store`。发现任何一项即拒绝提交。
+公众号下载结果先解析为绝对路径并执行 `realpath`，拒绝 `../`、符号链接逃逸、Runtime clone 外路径和非 Markdown 文件；统一素材只记录 `data/weixin-articles/.../*.md` 形式的仓库相对 POSIX 路径。dry-run 保持 `content_downloaded: true` 诊断，但 `content_path: null`。Markdown 顶部“原文链接”会替换为可追溯 canonical URL；只有临时参数的 URL 会被移除，正文中的普通 `signature` 单词不会被改写。
 
-运行前优先同步 `origin/main`。已有未推送数据 commit 时只重试正常 push，不重新访问平台；rebase 冲突会执行 `git rebase --abort`，保留本地 commit，绝不 force push、reset hard 或 clean。
+自动 commit 前会再次检查 staged paths，并扫描 URL 查询参数 `signature`、`pass_ticket`、`exportkey`、`sessionid`、`xsec_token`，以及 Cookie、Authorization、`ct0`、`auth_token`、本地用户目录与 `.DS_Store`。发现任何一项即拒绝提交；普通正文单词 `signature` 不会误报。
+
+运行前优先同步 `origin/main`。已有未推送数据 commit 时：仅 ahead 正常 push；ahead/behind 同时存在时自动 `pull --rebase origin main` 后 push；首次 push 与远端更新竞态时只恢复一次。三种成功路径都跳过重新采集并返回 rebase 后的新 HEAD；冲突会执行 `git rebase --abort`，保留本地 commit，绝不 force push、reset hard、clean 或重新访问平台。
+
+scheduled 触发仅在 07:30—12:00 窗口判断完成状态和尝试次数，窗口外始终 `NOT_DUE`。manual 触发可在窗口外运行，但仍服从锁、当天完成和最大尝试；manual dry-run 始终执行健康检查与 Browser dry-run，不写状态、正式数据或 Git。
 
 ## 失败语义
 

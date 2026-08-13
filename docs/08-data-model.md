@@ -47,6 +47,10 @@ Browser 素材的 `material_id` 优先使用平台稳定 `source_item_id`，没�
 
 公众号搜索素材在 discovery 阶段生成主 `source_item_id`，后续 URL 解析和正文下载不得替换它；解析出的 `slug/sn/message/metadata/url` 等更强身份只追加到 `identity_aliases`。发布时间无论是 `exact`、`inferred` 还是 `unknown` 都不参与 discovery identity，主身份只使用经过 NFKC、空白合并、trim、lowercase 和长度限制的标题与摘要。相对时间升级为精确时间时，`material_id` 保持不变；精确发布时间仍作为 `published_at` 与 `published_at_quality` 元数据保存。
 
+公众号 canonical URL 只有满足以下任一条件才可追溯：`/s/<stable-slug>`、包含 `sn`，或同时包含 `__biz + mid + idx`。只有 `signature`、`src`、`scene` 等临时参数，或清理后只剩 `https://mp.weixin.qq.com/s`，都不能升级为 resolved。即使正文下载成功，这类素材也保持 `content_downloaded: true`、`source_access_status: unresolved`、`status: quarantined`，并包含 `unresolved_source_url`；其 Markdown 不保留临时访问 URL。
+
+正式公众号 `content_path` 必须是从仓库根开始的相对 POSIX 路径，例如 `data/weixin-articles/2026-08-14/foo/foo.md`。绝对路径、home 简写、Windows 绝对路径、父目录跳转、符号链接逃逸和非 Markdown 文件均被拒绝。dry-run 的 `content_path` 固定为 `null`，但成功下载仍记录 `content_downloaded: true`。Browser Materials 与 Run Log 不持久化 Runtime clone 的本机绝对路径。
+
 机器可读契约由 Zod 模型生成并提交：
 
 - `schemas/unified-material.schema.json` 对应 `unifiedMaterialSchema`，用于 Browser 和跨来源核心素材。
@@ -64,7 +68,7 @@ Browser 素材的 `material_id` 优先使用平台稳定 `source_item_id`，没�
 - `usage_mode: structure_inspiration`
 - `viral_confidence: unverified`
 
-解析出合法微信原文 URL 后，素材升级为 `source_access_status: resolved`；即使正文下载失败，也可保留可追溯的搜索素材，并保持 `content_downloaded: false`。
+解析出可追溯微信原文 URL 后，素材升级为 `source_access_status: resolved`；即使正文下载失败，也可保留可追溯的搜索素材，并保持 `content_downloaded: false`。
 
 旧版规划字段在后续语义整理阶段按需映射：
 

@@ -10,6 +10,7 @@ import {
 import { OpenCliRunner, toCommandSummary } from './opencli-runner.js';
 import type { WeixinCollectorConfig } from './platform-config.js';
 import { selectRotatedQueries } from './query-budget.js';
+import { normalizeWeixinArticleArtifact } from './weixin-article-artifact.js';
 import {
   parseWeixinDownload,
   parseWeixinResolvedUrl,
@@ -21,6 +22,7 @@ import {
   deriveWeixinArticleId,
   deriveWeixinDiscoveryId,
   isSogouWeixinRedirectUrl,
+  isTraceableWeixinCanonicalUrl,
   isWeixinArticleUrl,
   sanitizeWeixinDiscoveryUrl,
 } from './weixin-url.js';
@@ -53,7 +55,7 @@ function discoverySourceItemId(record: WeixinSearchRecord): string {
 
 function discoveryMaterial(record: Discovery, now: Date): UnifiedMaterial {
   const canonicalUrl = sanitizeWeixinDiscoveryUrl(record.url);
-  const resolved = isWeixinArticleUrl(record.url);
+  const resolved = isTraceableWeixinCanonicalUrl(record.url);
   const identityAliases = resolved ? [deriveWeixinArticleId(record.url, {
     accountName: '',
     title: record.title,
@@ -105,6 +107,8 @@ export class WeixinCollector {
     private readonly runner: OpenCliRunner,
     private readonly config: WeixinCollectorConfig,
     private readonly outputDirectory: string,
+    private readonly repositoryRoot: string,
+    private readonly dryRun = false,
   ) {}
 
   async collect(now = new Date(), signal?: AbortSignal): Promise<BrowserPlatformResult> {
@@ -178,6 +182,8 @@ export class WeixinCollector {
         }
 
         const canonicalUrl = canonicalizeWeixinArticleUrl(articleAccessUrl);
+        const traceable = isTraceableWeixinCanonicalUrl(canonicalUrl);
+        const storedCanonicalUrl = traceable ? canonicalUrl : existingProvisional.canonical_url;
         const resolvedIdentity = deriveWeixinArticleId(articleAccessUrl, {
           accountName: '',
           title: candidate.title,
@@ -191,21 +197,23 @@ export class WeixinCollector {
           queryText: existingProvisional.query_text,
           searchRank: existingProvisional.search_rank,
           sourceItemId: existingProvisional.source_item_id,
-          identityAliases: [...existingProvisional.identity_aliases, resolvedIdentity],
-          sourceAccessStatus: 'resolved',
+          identityAliases: traceable
+            ? [...existingProvisional.identity_aliases, resolvedIdentity]
+            : existingProvisional.identity_aliases,
+          sourceAccessStatus: traceable ? 'resolved' : 'unresolved',
           authorName: '',
           title: candidate.title,
           excerpt: candidate.summary.slice(0, 1_000),
-          sourceUrl: canonicalUrl,
-          canonicalUrl,
+          sourceUrl: storedCanonicalUrl,
+          canonicalUrl: storedCanonicalUrl,
           publishedAt: candidate.publish_time,
           publishedAtQuality: candidate.published_at_quality,
           collectedAt: now.toISOString(),
           engagement: {},
           usageMode: 'structure_inspiration',
           viralConfidence: 'unverified',
-          status: 'accepted',
-          rejectionReasons: [],
+          status: traceable ? 'accepted' : 'quarantined',
+          rejectionReasons: traceable ? [] : ['unresolved_source_url'],
         });
         if (resolvedSearch.material_id !== existingProvisional.material_id) {
           throw new Error('Weixin material identity changed during URL resolution');
@@ -231,6 +239,14 @@ export class WeixinCollector {
           const useArticleTime = article.publish_time !== null && article.published_at_quality !== 'unknown';
           const publishedAt = useArticleTime ? article.publish_time : candidate.publish_time;
           const publishedAtQuality = useArticleTime ? article.published_at_quality : candidate.published_at_quality;
+          const contentPath = await normalizeWeixinArticleArtifact({
+            repositoryRoot: this.repositoryRoot,
+            outputDirectory: this.outputDirectory,
+            savedPath: article.markdown_path ?? '',
+            accessUrl: articleAccessUrl,
+            canonicalUrl: traceable ? canonicalUrl : null,
+            persistContentPath: !this.dryRun,
+          });
           const finalIdentity = deriveWeixinArticleId(articleAccessUrl, {
             accountName: article.account_name,
             title: article.title || candidate.title,
@@ -245,13 +261,13 @@ export class WeixinCollector {
             searchRank: resolvedExisting.search_rank,
             sourceItemId: resolvedExisting.source_item_id,
             identityAliases: [...resolvedExisting.identity_aliases, finalIdentity],
-            sourceAccessStatus: 'resolved',
+            sourceAccessStatus: traceable ? 'resolved' : 'unresolved',
             authorName: article.account_name,
             title: article.title || candidate.title,
             excerpt: candidate.summary.slice(0, 1_000),
-            sourceUrl: canonicalUrl,
-            canonicalUrl,
-            contentPath: article.markdown_path,
+            sourceUrl: storedCanonicalUrl,
+            canonicalUrl: storedCanonicalUrl,
+            contentPath,
             contentDownloaded: true,
             publishedAt,
             publishedAtQuality,
@@ -259,8 +275,8 @@ export class WeixinCollector {
             engagement: {},
             usageMode: 'structure_inspiration',
             viralConfidence: 'unverified',
-            status: 'accepted',
-            rejectionReasons: [],
+            status: traceable ? 'accepted' : 'quarantined',
+            rejectionReasons: traceable ? [] : ['unresolved_source_url'],
           });
           if (material.material_id !== resolvedExisting.material_id) {
             throw new Error('Weixin material identity changed during article download');

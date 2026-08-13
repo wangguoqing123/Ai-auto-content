@@ -159,7 +159,7 @@ export class OpenCliRunner {
 export function toCommandSummary(result: OpenCliRunResult): OpenCliCommandSummary {
   const { args, status, exit_code, duration_ms, timed_out, cancelled, error } = result;
   return {
-    args: args.map(redactCommandArgument),
+    args: args.map((argument, index) => args[index - 1] === '--output' ? '[runtime-output]' : redactCommandArgument(argument)),
     status,
     exit_code,
     duration_ms,
@@ -192,5 +192,7 @@ function redactCommandArgument(value: string): string {
 function redactSensitiveText(value: string): string {
   return value
     .replace(/https:\/\/[^\s"'<>]+/gi, (url) => redactCommandArgument(url))
-    .replace(/([?&](?:xsec_token|signature|pass_ticket|exportkey|sessionid)=)[^&\s]+/gi, '$1[redacted]');
+    .replace(/([?&](?:xsec_token|signature|pass_ticket|exportkey|sessionid)=)[^&\s]+/gi, '$1[redacted]')
+    .replace(/\/(?:Users|home)\/[^/\s"'<>]+(?:\/[^\s"'<>)]*)?/g, '[local-path]')
+    .replace(/\b[a-z]:\\[^\s"'<>)]*/gi, '[local-path]');
 }

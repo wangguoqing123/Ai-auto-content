@@ -8,7 +8,7 @@
 
 ## 当前阶段：Cloud Collector + X / 微信公众号本机调度运行时
 
-Cloud Collector 与 Local Browser Collector 是两个独立运行通道。Cloud 在 GitHub Actions 每天北京时间 09:00 运行；本机 Browser 调度器每 15 分钟做一次轻量到期检查，在北京时间 07:30—12:00 窗口内只执行一次 X 与微信公众号早晨采集。
+Cloud Collector 与 Local Browser Collector 是两个独立运行通道。Cloud 在 GitHub Actions 每天北京时间 09:00 运行；本机 Browser 调度器每 15 分钟做一次轻量到期检查，在北京时间 07:30—12:00 窗口内只执行一次 X 与微信公众号早晨采集。手动 `local:morning` 可在窗口外运行一次，但仍服从锁、当天已完成和最多尝试次数保护。
 
 | 模块 | 状态 | 是否每日运行 |
 |---|---|---|
@@ -45,6 +45,7 @@ npm run schema:check
 npm test
 npm run collect:fixture
 npm run local:scheduler -- --once --fixture --dry-run --now=2026-08-14T00:00:00.000Z
+npm run local:morning -- --fixture --dry-run --now=2026-08-14T06:00:00.000Z
 npm run local:install -- --dry-run
 ```
 
@@ -75,7 +76,7 @@ npm run local:install -- --dry-run
 npm run local:uninstall -- --dry-run
 ```
 
-`local:morning -- --dry-run` 仍会访问真实 X 与公众号，但不会写正式数据或提交 Git。CI 只允许运行 `--fixture --dry-run`，不会访问平台、Chrome 或 OpenCLI Browser Bridge。生产安装必须由用户在 PR 合并后显式执行：
+`local:morning -- --dry-run` 不受调度窗口限制，仍会执行健康检查和真实 X / 公众号 Browser dry-run，但不会写状态、正式数据、报告或 Git；它仍使用运行锁。CI 只允许运行 `--fixture --dry-run`，不会访问平台、Chrome 或 OpenCLI Browser Bridge。生产安装必须由用户在 PR 合并后显式执行：
 
 ```bash
 npm run local:install -- --install
@@ -113,7 +114,7 @@ config/platform-queries.yaml        浏览器平台关键词、预算与轮换
 data/materials/YYYY-MM-DD.jsonl     最近 7 天内及隔离区 RSS 素材
 data/browser-materials/YYYY-MM-DD.jsonl  浏览器非 dry-run 素材
 data/browser-runs/                  浏览器平台运行日志
-data/weixin-articles/YYYY-MM-DD/    已下载的公众号正文
+data/weixin-articles/YYYY-MM-DD/    已下载的公众号正文；素材只记录仓库相对 POSIX 路径
 data/state/seen-materials.json      跨天 URL 与内容指纹
 data/runs/run_*.json                每次运行及逐信源日志
 reports/materials/YYYY-MM-DD.md     每日素材日报

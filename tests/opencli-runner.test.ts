@@ -80,12 +80,13 @@ describe('OpenCLI runner', () => {
 
   it('redacts temporary platform access URLs from persisted command summaries', () => {
     const summary = toCommandSummary({
-      args: ['weixin', 'resolve-article-url', 'https://weixin.sogou.com/link?signature=secret&pass_ticket=hidden'],
+      args: ['weixin', 'download', '--url', 'https://weixin.sogou.com/link?signature=secret&pass_ticket=hidden', '--output', '/Users/alice/runtime/data/weixin-articles'],
       status: 'command_failed', exit_code: 1, duration_ms: 1, timed_out: false, cancelled: false,
-      error: 'failed https://weixin.sogou.com/link?signature=secret&pass_ticket=hidden',
+      error: 'failed https://weixin.sogou.com/link?signature=secret&pass_ticket=hidden at /Users/alice/runtime/data/weixin-articles',
       stdout: '', stderr: '', data: null,
     });
-    expect(JSON.stringify(summary)).not.toMatch(/secret|hidden|pass_ticket/);
-    expect(summary.args[2]).toBe('https://weixin.sogou.com/link');
+    expect(JSON.stringify(summary)).not.toMatch(/secret|hidden|pass_ticket|\/Users\/alice/);
+    expect(summary.args[3]).toBe('https://weixin.sogou.com/link');
+    expect(summary.args[5]).toBe('[runtime-output]');
   });
 });

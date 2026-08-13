@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- 加固公众号正文产物：`realpath` 限定 Runtime clone、拒绝路径/符号链接逃逸与非 Markdown 文件，正式素材只保存仓库相对 POSIX `content_path`，dry-run 路径保持 `null`。
+- 清理公众号 Markdown 顶部临时“原文链接”，仅保留可追溯 canonical URL；签名型、来源型和裸 `/s` URL 即使正文下载成功也保持 unresolved/quarantined，正文中的普通 `signature` 不误报。
+- 扩展 Browser 数据暂存扫描到 `signature/pass_ticket/exportkey/sessionid/xsec_token` URL 查询参数，并确保 Materials、Run Log 和命令摘要不持久化 Runtime clone 绝对路径。
+- 增加 pending commit 与远端同时前进时的自动 rebase/push 恢复，以及首次 push 竞态的一次有界重试；冲突继续 abort 并保留本地 commit，不 force、不重新采集。
+- 区分 manual 与 scheduled 触发：`local:morning` 可在窗口外执行一次，manual dry-run 始终健康检查和 Browser dry-run；scheduled 继续严格服从窗口。第二次失败只发送一次达到上限通知，后续同日轮询静默。
 - 因用户主动降低账号与自动化风险的产品决策，将小红书从活跃采集、内容生产、发布、报告、查询配置和 Browser Pipeline 中移除；历史 Schema 与验证审计继续保留。
 - 增加 X + 微信公众号 Mac 本机调度运行时：上海时区 07:30—12:00 due window、外部状态、原子锁、环境检查、Browser 日报和安全通知。
 - 增加独立 Runtime clone、Browser 数据 Git 白名单、敏感内容扫描、pending commit 优先重试、rebase 冲突 abort 与禁止 force push 的同步逻辑。

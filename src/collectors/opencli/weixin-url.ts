@@ -42,6 +42,23 @@ export function canonicalizeWeixinArticleUrl(rawUrl: string): string {
   return canonical.toString();
 }
 
+export function isTraceableWeixinCanonicalUrl(rawUrl: string): boolean {
+  try {
+    const canonical = canonicalizeWeixinArticleUrl(rawUrl);
+    const url = new URL(canonical);
+    const slug = url.pathname.match(ARTICLE_PATH)?.[1];
+    if (slug) return true;
+    if (url.searchParams.get('sn')) return true;
+    return Boolean(
+      url.searchParams.get('__biz')
+      && url.searchParams.get('mid')
+      && url.searchParams.get('idx'),
+    );
+  } catch {
+    return false;
+  }
+}
+
 function normalizedIdentityPart(value: string): string {
   return value.normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase();
 }

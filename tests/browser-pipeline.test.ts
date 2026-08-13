@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -97,6 +97,69 @@ describe('browser pipeline isolation', () => {
     expect(result.platforms[1]?.materials[0]).toMatchObject({ content_path: null, content_downloaded: true });
   });
 
+  it('persists relative Weixin paths without leaking local paths or temporary article parameters', async () => {
+    const rootDir = await mkdtemp(path.join(os.tmpdir(), 'ai-auto-content-weixin-persist-'));
+    const outputDirectory = path.join(rootDir, 'data', 'weixin-articles', '2026-08-14');
+    const config = await loadPlatformQueries(process.cwd());
+    const weixinConfig: WeixinCollectorConfig = {
+      ...config.weixin,
+      max_queries_per_run: 1,
+      max_results_per_query: 1,
+      max_downloads_per_run: 1,
+      queries: [{ id: 'fixture-query', query: 'fixture', priority: 1, enabled: true }],
+    };
+    const runner = { run: async (args: readonly string[]) => {
+      if (args[0] === 'doctor') return commandResult(args, 'success', 'ok');
+      if (args[1] === 'search') return commandResult(args, 'success', [{
+        rank: 1, page: 1, title: 'Fixture article', summary: 'Fixture summary', publish_time: '2026年8月14日 08:00',
+        url: 'https://weixin.sogou.com/link?signature=search-secret',
+      }]);
+      if (args[1] === 'resolve-article-url') return commandResult(args, 'success', [{
+        url: 'https://mp.weixin.qq.com/s?sn=stable&signature=access-secret&pass_ticket=hidden',
+      }]);
+      if (args[1] === 'download') {
+        const output = args[args.indexOf('--output') + 1];
+        if (!output) throw new Error('Missing fixture output directory');
+        const saved = path.join(output, 'fixture', 'article.md');
+        await mkdir(path.dirname(saved), { recursive: true });
+        await writeFile(saved, '# Fixture article\n\n> 原文链接: https://mp.weixin.qq.com/s?sn=stable&signature=access-secret&pass_ticket=hidden\n\nNormal signature text.\n');
+        return commandResult(args, 'success', [{
+          title: 'Fixture article', author: 'Fixture account', publish_time: '2026年8月14日 08:00', status: 'success', saved,
+        }]);
+      }
+      throw new Error(`Unexpected command: ${args.join(' ')}`);
+    } } as unknown as OpenCliRunner;
+    try {
+      const result = await runBrowserPipeline({
+        rootDir,
+        dryRun: false,
+        runner,
+        config: { ...config, weixin: weixinConfig },
+        now: new Date('2026-08-14T00:00:00.000Z'),
+        collectors: [
+          { collect: async () => platform('twitter') },
+          new WeixinCollector(runner, weixinConfig, outputDirectory, rootDir),
+        ],
+      });
+      expect(result.platforms[1]?.materials[0]).toMatchObject({
+        content_path: 'data/weixin-articles/2026-08-14/fixture/article.md',
+        content_downloaded: true,
+        source_access_status: 'resolved',
+        canonical_url: 'https://mp.weixin.qq.com/s?sn=stable',
+      });
+      const materialLog = await readFile(path.join(rootDir, 'data', 'browser-materials', '2026-08-14.jsonl'), 'utf8');
+      const runLog = await readFile(path.join(rootDir, 'data', 'browser-runs', `${result.run_id}.json`), 'utf8');
+      expect(`${materialLog}\n${runLog}`).not.toContain(rootDir);
+      expect(`${materialLog}\n${runLog}`).not.toMatch(/\/Users\/|[?&](?:signature|pass_ticket)=/);
+      const markdown = await readFile(path.join(rootDir, 'data', 'weixin-articles', '2026-08-14', 'fixture', 'article.md'), 'utf8');
+      expect(markdown).toContain('> 原文链接: https://mp.weixin.qq.com/s?sn=stable');
+      expect(markdown).toContain('Normal signature text.');
+      expect(markdown).not.toMatch(/[?&](?:signature|pass_ticket)=/);
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
   it('merges repeated same-day persistence without losing query provenance or fresh metrics', async () => {
     const rootDir = await mkdtemp(path.join(os.tmpdir(), 'ai-auto-content-persistence-'));
     try {
@@ -140,6 +203,10 @@ describe('browser pipeline isolation', () => {
 
   it('keeps one Weixin material ID while a cross-run discovery upgrades to downloaded article metadata', async () => {
     const rootDir = await mkdtemp(path.join(os.tmpdir(), 'ai-auto-content-weixin-upgrade-'));
+    const outputDirectory = path.join(rootDir, 'data', 'weixin-articles', '2026-08-13');
+    const savedPath = path.join(outputDirectory, 'fixture', 'article.md');
+    await mkdir(path.dirname(savedPath), { recursive: true });
+    await writeFile(savedPath, '# 跨运行稳定文章\n\n> 原文链接: https://mp.weixin.qq.com/s?sn=stable&signature=temporary\n\n正文\n');
     const firstConfig: WeixinCollectorConfig = {
       max_queries_per_run: 1, max_results_per_query: 1, max_downloads_per_run: 0,
       queries: [{ id: 'first-query', query: 'AI工具', priority: 1, enabled: true }],
@@ -168,7 +235,7 @@ describe('browser pipeline isolation', () => {
       }]);
       if (args[1] === 'download') return commandResult(args, 'success', [{
         title: '跨运行稳定文章', author: '稳定公众号', publish_time: '2026年8月13日 09:05',
-        status: 'success', saved: '/tmp/fixture/article.md',
+        status: 'success', saved: savedPath,
       }]);
       throw new Error(`Unexpected second-run command: ${args.join(' ')}`);
     } } as unknown as OpenCliRunner;
@@ -182,7 +249,7 @@ describe('browser pipeline isolation', () => {
     });
 
     try {
-      const first = await new WeixinCollector(firstRunner, firstConfig, '/tmp/fixture').collect(
+      const first = await new WeixinCollector(firstRunner, firstConfig, outputDirectory, rootDir).collect(
         new Date('2026-08-13T03:00:00.000Z'),
       );
       const firstMaterial = first.materials[0]!;
@@ -193,7 +260,7 @@ describe('browser pipeline isolation', () => {
       });
       await persistBrowserResult(rootDir, '2026-08-13', wrap('browser_20260813030000', first));
 
-      const second = await new WeixinCollector(secondRunner, secondConfig, '/tmp/fixture').collect(
+      const second = await new WeixinCollector(secondRunner, secondConfig, outputDirectory, rootDir).collect(
         new Date('2026-08-13T03:10:00.000Z'),
       );
       const downloaded = second.materials[0]!;
@@ -202,6 +269,7 @@ describe('browser pipeline isolation', () => {
       expect(downloaded).toMatchObject({
         source_access_status: 'resolved', status: 'accepted', content_downloaded: true,
         canonical_url: 'https://mp.weixin.qq.com/s?__biz=biz&mid=10&idx=1&sn=stable',
+        content_path: 'data/weixin-articles/2026-08-13/fixture/article.md',
         author_name: '稳定公众号', published_at: '2026-08-13T01:05:00.000Z', published_at_quality: 'exact',
       });
       expect(downloaded.identity_aliases).toEqual(expect.arrayContaining(['sn:biz:stable']));

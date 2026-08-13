@@ -10,7 +10,7 @@ import { createRuntimePaths } from './paths.js';
 import { writeBrowserReport } from './report.js';
 import { acquireRuntimeLock, type RuntimeLock } from './runtime-lock.js';
 import { createEmptyState, readSchedulerState, writeSchedulerState } from './runtime-state.js';
-import { scheduleDecision } from './schedule-window.js';
+import { scheduleDecision, type TriggerMode } from './schedule-window.js';
 import type {
   CompletedCollectionStatus,
   LocalRuntimeConfig,
@@ -27,6 +27,7 @@ export interface MorningTaskOptions {
   fixture?: boolean;
   paths?: RuntimePaths;
   config?: LocalRuntimeConfig;
+  triggerMode?: TriggerMode;
 }
 
 export interface MorningTaskDependencies {
@@ -152,20 +153,29 @@ export async function runMorningTask(
   const syncData = dependencies.syncData ?? commitAndPushBrowserData;
   const reportWriter = dependencies.writeReport ?? writeBrowserReport;
   const notify = dependencies.notify ?? sendLocalNotification;
+  const triggerMode = options.triggerMode ?? 'scheduled';
   let lock: RuntimeLock | null = null;
   let activeState: SchedulerState | null = null;
-  let date = scheduleDecision(now, config, null).date;
+  let date = scheduleDecision(now, config, null, triggerMode).date;
+
+  const notifyFailure = async (status: RuntimeTaskStatus, message: string): Promise<void> => {
+    const reachedMaximum = (activeState?.tasks.morning.attempts ?? 0) >= config.morning.max_attempts;
+    await notify(
+      reachedMaximum ? 'failed' : status,
+      reachedMaximum ? `Morning task reached ${config.morning.max_attempts} attempts` : message,
+      config,
+    );
+  };
 
   try {
     const initialState = dryRun ? null : await readState(paths.stateFile);
-    const initialDecision = scheduleDecision(now, config, initialState?.tasks.morning ?? null);
+    const initialDecision = scheduleDecision(now, config, initialState?.tasks.morning ?? null, triggerMode);
     date = initialDecision.date;
     if (initialDecision.decision === 'NOT_DUE') return result('NOT_DUE', 'not_due', 0, date);
     if (initialDecision.decision === 'ALREADY_COMPLETED') {
       return result('ALREADY_COMPLETED', initialState?.tasks.morning.last_status ?? 'success', 0, date);
     }
     if (initialDecision.decision === 'MAX_ATTEMPTS_REACHED') {
-      await notify('failed', `Morning task reached ${config.morning.max_attempts} attempts`, config);
       return result('MAX_ATTEMPTS_REACHED', initialState?.tasks.morning.last_status ?? 'failed', 0, date);
     }
 
@@ -173,9 +183,13 @@ export async function runMorningTask(
     if (!lock.acquired) return result('LOCK_HELD', 'running', 0, date);
 
     const latestState = dryRun ? null : await readState(paths.stateFile);
-    const lockedDecision = scheduleDecision(now, config, latestState?.tasks.morning ?? null);
+    const lockedDecision = scheduleDecision(now, config, latestState?.tasks.morning ?? null, triggerMode);
     if (lockedDecision.decision !== 'DUE') {
-      const status = lockedDecision.decision === 'ALREADY_COMPLETED' ? (latestState?.tasks.morning.last_status ?? 'success') : 'not_due';
+      const status = lockedDecision.decision === 'ALREADY_COMPLETED'
+        ? (latestState?.tasks.morning.last_status ?? 'success')
+        : lockedDecision.decision === 'MAX_ATTEMPTS_REACHED'
+          ? (latestState?.tasks.morning.last_status ?? 'failed')
+          : 'not_due';
       return result(lockedDecision.decision, status, 0, date);
     }
 
@@ -199,7 +213,7 @@ export async function runMorningTask(
         activeState.tasks.morning.last_status = 'git_sync_failed';
         activeState.tasks.morning.last_error = gitError.message;
         await writeState(paths.stateFile, activeState);
-        await notify('git_sync_failed', gitError.message, config);
+        await notifyFailure('git_sync_failed', gitError.message);
         return result('FAILED', 'git_sync_failed', gitError.kind === 'invalid_staged_paths' ? 7 : 6, date, { error: gitError.message });
       }
       if (prepared.skipCollection) {
@@ -218,7 +232,7 @@ export async function runMorningTask(
       activeState.tasks.morning.last_status = failure.status;
       activeState.tasks.morning.last_error = health.error;
       if (!dryRun) await writeState(paths.stateFile, activeState);
-      await notify(failure.status, health.error ?? 'Local Browser runtime health check failed', config);
+      await notifyFailure(failure.status, health.error ?? 'Local Browser runtime health check failed');
       return result('FAILED', failure.status, failure.exitCode, date, { error: health.error });
     }
 
@@ -231,7 +245,7 @@ export async function runMorningTask(
       activeState.tasks.morning.last_error = failure.error;
       activeState.tasks.morning.last_run_id = browserResult.run_id;
       if (!dryRun) await writeState(paths.stateFile, activeState);
-      await notify(failure.status, failure.error, config);
+      await notifyFailure(failure.status, failure.error);
       return result('FAILED', failure.status, failure.exitCode, date, {
         runId: browserResult.run_id, error: failure.error, collected: true,
       });
@@ -250,7 +264,7 @@ export async function runMorningTask(
         activeState.tasks.morning.last_run_id = browserResult.run_id;
         activeState.tasks.morning.last_error = gitError.message;
         await writeState(paths.stateFile, activeState);
-        await notify('git_sync_failed', gitError.message, config);
+        await notifyFailure('git_sync_failed', gitError.message);
         return result('FAILED', 'git_sync_failed', gitError.kind === 'invalid_staged_paths' ? 7 : 6, date, {
           runId: browserResult.run_id, error: gitError.message, collected: true,
         });
@@ -277,7 +291,7 @@ export async function runMorningTask(
       try { await writeState(paths.stateFile, activeState); } catch { /* preserve the original error */ }
     }
     await logEvent(paths, dryRun, { at: new Date().toISOString(), event: 'morning_failed', date, error: message });
-    await notify('failed', message, config);
+    await notifyFailure('failed', message);
     return result('FAILED', 'failed', 1, date, { error: message });
   } finally {
     await lock?.release();

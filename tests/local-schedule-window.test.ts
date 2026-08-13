@@ -42,6 +42,22 @@ describe('local morning schedule window', () => {
     expect(scheduleDecision(new Date('2026-08-14T00:00:00Z'), config, state({ attempts: 2, last_status: 'failed' })).decision).toBe('MAX_ATTEMPTS_REACHED');
   });
 
+  it('returns not due outside the scheduled window before checking maximum attempts', () => {
+    expect(scheduleDecision(
+      new Date('2026-08-14T04:01:00Z'),
+      config,
+      state({ attempts: 2, last_status: 'failed' }),
+      'scheduled',
+    ).decision).toBe('NOT_DUE');
+  });
+
+  it('allows a manual run outside the scheduled window while retaining completion and attempt guards', () => {
+    const afternoon = new Date('2026-08-14T06:00:00Z');
+    expect(scheduleDecision(afternoon, config, null, 'manual').decision).toBe('DUE');
+    expect(scheduleDecision(afternoon, config, state({ last_status: 'success' }), 'manual').decision).toBe('ALREADY_COMPLETED');
+    expect(scheduleDecision(afternoon, config, state({ attempts: 2, last_status: 'failed' }), 'manual').decision).toBe('MAX_ATTEMPTS_REACHED');
+  });
+
   it('uses Shanghai time independently from the process timezone', () => {
     expect(zonedDateAndMinute(new Date('2026-08-13T16:15:00Z'))).toEqual({ date: '2026-08-14', minute: 15 });
   });

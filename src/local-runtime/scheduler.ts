@@ -58,6 +58,7 @@ export async function runLocalRuntimeCli(args: string[], repositoryRoot = proces
       fixture: options.fixture,
       paths,
       config,
+      triggerMode: options.command === 'morning' ? 'manual' : 'scheduled',
     });
     process.stdout.write(`${JSON.stringify({ command: options.command, once: options.once, dry_run: options.dryRun, fixture: options.fixture, execution }, null, 2)}\n`);
     return execution.exitCode;
