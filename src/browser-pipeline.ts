@@ -7,8 +7,9 @@ import { OpenCliRunner, toCommandSummary } from './collectors/opencli/opencli-ru
 import { TwitterCollector } from './collectors/opencli/twitter-collector.js';
 import { WeixinCollector } from './collectors/opencli/weixin-collector.js';
 import { XiaohongshuCollector } from './collectors/opencli/xiaohongshu-collector.js';
+import { deduplicateUnifiedMaterials } from './collectors/opencli/merge-materials.js';
 import type { PlatformQueriesConfig } from './collectors/opencli/platform-config.js';
-import type { UnifiedMaterial } from './types.js';
+import { unifiedMaterialSchema, type UnifiedMaterial } from './types.js';
 import { formatDateInTimeZone } from './utils/time.js';
 
 export interface BrowserPipelineOptions {
@@ -30,7 +31,9 @@ export interface BrowserPipelineResult {
   preflight: ReturnType<typeof toCommandSummary>;
   status: 'success' | 'partial_success' | 'failed';
   platforms: BrowserPlatformResult[];
+  raw_materials_count: number;
   materials_count: number;
+  duplicate_materials_count: number;
 }
 
 function unavailablePlatform(platform: BrowserPlatform, now: Date, preflight: ReturnType<typeof toCommandSummary>): BrowserPlatformResult {
@@ -41,12 +44,15 @@ function unavailablePlatform(platform: BrowserPlatform, now: Date, preflight: Re
     finished_at: new Date().toISOString(),
     commands: [preflight],
     materials: [],
+    raw_materials_count: 0,
+    materials_count: 0,
+    duplicate_materials_count: 0,
     missing_fields: [],
     error: preflight.error,
   };
 }
 
-async function persistBrowserResult(rootDir: string, date: string, result: BrowserPipelineResult): Promise<void> {
+export async function persistBrowserResult(rootDir: string, date: string, result: BrowserPipelineResult): Promise<void> {
   const materialDirectory = path.join(rootDir, 'data', 'browser-materials');
   const runDirectory = path.join(rootDir, 'data', 'browser-runs');
   await Promise.all([mkdir(materialDirectory, { recursive: true }), mkdir(runDirectory, { recursive: true })]);
@@ -54,13 +60,14 @@ async function persistBrowserResult(rootDir: string, date: string, result: Brows
   const materialPath = path.join(materialDirectory, `${date}.jsonl`);
   let existing: UnifiedMaterial[] = [];
   try {
-    existing = (await readFile(materialPath, 'utf8')).split('\n').filter(Boolean).map((line) => JSON.parse(line) as UnifiedMaterial);
+    existing = (await readFile(materialPath, 'utf8'))
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => unifiedMaterialSchema.parse(JSON.parse(line)));
   } catch (error) {
     if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error;
   }
-  const byId = new Map(existing.map((material) => [material.material_id, material]));
-  for (const material of materials) byId.set(material.material_id, material);
-  const serialized = [...byId.values()].sort((left, right) => left.material_id.localeCompare(right.material_id));
+  const serialized = deduplicateUnifiedMaterials([...existing, ...materials]);
   await writeFile(materialPath, serialized.length ? `${serialized.map((material) => JSON.stringify(material)).join('\n')}\n` : '', 'utf8');
   await writeFile(path.join(runDirectory, `${result.run_id}.json`), `${JSON.stringify(result, null, 2)}\n`, 'utf8');
 }
@@ -95,13 +102,38 @@ export async function runBrowserPipeline(options: BrowserPipelineOptions): Promi
       finished_at: new Date().toISOString(),
       commands: [],
       materials: [],
+      raw_materials_count: 0,
+      materials_count: 0,
+      duplicate_materials_count: 0,
       missing_fields: [],
       error: entry.reason instanceof Error ? entry.reason.message : String(entry.reason),
     });
   }
 
-  if (temporaryDirectory) await rm(temporaryDirectory, { recursive: true, force: true });
+  if (temporaryDirectory) {
+    await rm(temporaryDirectory, { recursive: true, force: true });
+    platforms = platforms.map((platform) => ({
+      ...platform,
+      materials: platform.materials.map((material) => material.content_path
+        ? unifiedMaterialSchema.parse({ ...material, content_path: null, content_downloaded: true })
+        : material),
+    }));
+  }
+  platforms = platforms.map((platform) => {
+    const materials = deduplicateUnifiedMaterials(platform.materials);
+    const rawCount = Math.max(platform.raw_materials_count, materials.length);
+    return {
+      ...platform,
+      materials,
+      raw_materials_count: rawCount,
+      materials_count: materials.length,
+      duplicate_materials_count: rawCount - materials.length,
+    };
+  });
   const succeeded = platforms.filter((platform) => platform.status === 'success').length;
+  const operational = platforms.filter((platform) => platform.status === 'success' || platform.status === 'partial_success').length;
+  const allMaterials = deduplicateUnifiedMaterials(platforms.flatMap((platform) => platform.materials));
+  const rawMaterialsCount = platforms.reduce((sum, platform) => sum + platform.raw_materials_count, 0);
   const result: BrowserPipelineResult = {
     run_id: `browser_${startedAt.replace(/\D/g, '').slice(0, 14)}`,
     collection_date: date,
@@ -109,9 +141,11 @@ export async function runBrowserPipeline(options: BrowserPipelineOptions): Promi
     started_at: startedAt,
     finished_at: new Date().toISOString(),
     preflight,
-    status: succeeded === platforms.length ? 'success' : succeeded > 0 ? 'partial_success' : 'failed',
+    status: succeeded === platforms.length ? 'success' : operational > 0 ? 'partial_success' : 'failed',
     platforms,
-    materials_count: platforms.reduce((sum, platform) => sum + platform.materials.length, 0),
+    raw_materials_count: rawMaterialsCount,
+    materials_count: allMaterials.length,
+    duplicate_materials_count: rawMaterialsCount - allMaterials.length,
   };
   if (!options.dryRun) await persistBrowserResult(options.rootDir, date, result);
   return result;

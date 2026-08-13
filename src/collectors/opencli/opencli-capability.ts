@@ -29,6 +29,9 @@ export interface BrowserPlatformResult {
   finished_at: string;
   commands: OpenCliCommandSummary[];
   materials: UnifiedMaterial[];
+  raw_materials_count: number;
+  materials_count: number;
+  duplicate_materials_count: number;
   missing_fields: string[];
   error: string | null;
 }

@@ -8,8 +8,11 @@ function parseAllowedUrl(rawUrl) {
   } catch {
     throw new ArgumentError('weixin resolve-article-url received an invalid URL');
   }
+  if (url.protocol !== 'https:' || url.username || url.password) {
+    throw new ArgumentError('weixin resolve-article-url requires HTTPS without URL credentials');
+  }
   const host = url.hostname.toLocaleLowerCase();
-  const isDirectArticle = host === 'mp.weixin.qq.com' && url.pathname === '/s';
+  const isDirectArticle = host === 'mp.weixin.qq.com' && /^\/s(?:\/[^/]+)?\/?$/.test(url.pathname);
   const isSogouRedirect = host === 'weixin.sogou.com' && url.pathname === '/link';
   if (!isDirectArticle && !isSogouRedirect) {
     throw new ArgumentError('weixin resolve-article-url only accepts Sogou Weixin redirects or mp.weixin.qq.com articles');
@@ -52,7 +55,9 @@ cli({
     } catch {
       throw new CommandExecutionError('Sogou Weixin did not return a valid article URL');
     }
-    if (resolved.hostname.toLocaleLowerCase() !== 'mp.weixin.qq.com' || resolved.pathname !== '/s') {
+    if (resolved.protocol !== 'https:' || resolved.username || resolved.password
+      || resolved.hostname.toLocaleLowerCase() !== 'mp.weixin.qq.com'
+      || !/^\/s(?:\/[^/]+)?\/?$/.test(resolved.pathname)) {
       throw new CommandExecutionError(
         'Sogou Weixin did not resolve to an article page',
         `Resolved host: ${resolved.hostname || 'unknown'}`,
