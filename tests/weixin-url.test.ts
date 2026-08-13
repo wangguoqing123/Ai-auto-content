@@ -42,21 +42,62 @@ describe('Weixin article URL safety and identity', () => {
     expect(first).toMatch(/^metadata:[a-f0-9]{64}$/);
   });
 
-  it('keeps inferred discovery identity stable when the inferred minute changes within one Shanghai date', () => {
+  it('keeps inferred discovery identity stable across minutes and Shanghai calendar dates', () => {
     const first = deriveWeixinDiscoveryId({
       title: '同一篇文章', summary: '同一段摘要',
-      publishedAt: '2026-08-13T01:00:00.000Z', publishedAtQuality: 'inferred',
+      publishedAt: '2026-08-13T15:50:00.000Z', publishedAtQuality: 'inferred',
     });
     const tenMinutesLater = deriveWeixinDiscoveryId({
       title: '同一篇文章', summary: '同一段摘要',
-      publishedAt: '2026-08-13T01:10:00.000Z', publishedAtQuality: 'inferred',
+      publishedAt: '2026-08-13T16:00:00.000Z', publishedAtQuality: 'inferred',
     });
-    const differentRelativeLabelSameDate = deriveWeixinDiscoveryId({
+    const nextShanghaiDate = deriveWeixinDiscoveryId({
       title: '同一篇文章', summary: '同一段摘要',
-      publishedAt: '2026-08-13T00:00:00.000Z', publishedAtQuality: 'inferred',
+      publishedAt: '2026-08-14T16:00:00.000Z', publishedAtQuality: 'inferred',
     });
     expect(tenMinutesLater).toBe(first);
-    expect(differentRelativeLabelSameDate).toBe(first);
+    expect(nextShanghaiDate).toBe(first);
+  });
+
+  it('keeps different relative labels stable when their inferred dates differ', () => {
+    const twentyThreeHoursAgo = deriveWeixinDiscoveryId({
+      title: '同一篇文章', summary: '同一段摘要',
+      publishedAt: '2026-08-13T03:00:00.000Z', publishedAtQuality: 'inferred',
+    });
+    const oneDayAgo = deriveWeixinDiscoveryId({
+      title: '同一篇文章', summary: '同一段摘要',
+      publishedAt: '2026-08-12T02:00:00.000Z', publishedAtQuality: 'inferred',
+    });
+    expect(oneDayAgo).toBe(twentyThreeHoursAgo);
+  });
+
+  it('uses the same fuzzy identity for inferred and unknown publication times', () => {
+    const inferred = deriveWeixinDiscoveryId({
+      title: '同一篇文章', summary: '同一段摘要',
+      publishedAt: '2026-08-13T03:00:00.000Z', publishedAtQuality: 'inferred',
+    });
+    const unknown = deriveWeixinDiscoveryId({
+      title: '同一篇文章', summary: '同一段摘要',
+      publishedAt: null, publishedAtQuality: 'unknown',
+    });
+    expect(unknown).toBe(inferred);
+  });
+
+  it('normalizes exact time to UTC and keeps different exact times distinct', () => {
+    const exact = deriveWeixinDiscoveryId({
+      title: '同一篇文章', summary: '同一段摘要',
+      publishedAt: '2026-08-13T01:00:00.000Z', publishedAtQuality: 'exact',
+    });
+    const sameInstant = deriveWeixinDiscoveryId({
+      title: '同一篇文章', summary: '同一段摘要',
+      publishedAt: '2026-08-13T09:00:00+08:00', publishedAtQuality: 'exact',
+    });
+    const differentInstant = deriveWeixinDiscoveryId({
+      title: '同一篇文章', summary: '同一段摘要',
+      publishedAt: '2026-08-13T01:00:01.000Z', publishedAtQuality: 'exact',
+    });
+    expect(sameInstant).toBe(exact);
+    expect(differentInstant).not.toBe(exact);
   });
 
   it('normalizes title and summary while keeping exact identity deterministic', () => {
