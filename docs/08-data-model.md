@@ -43,7 +43,7 @@ status: proposed
 
 Browser 素材的 `material_id` 优先使用平台稳定 `source_item_id`，没有稳定 item ID 时才使用 `canonical_url`。同一素材命中多个查询时，当前字符串字段以去重、稳定排序后的 `query_id` 逗号列表和 `query_text` 中文分号列表保存；临时访问 token 不进入统一素材。
 
-公众号搜索素材在 discovery 阶段生成主 `source_item_id`，后续 URL 解析和正文下载不得替换它；解析出的 `slug/sn/message/metadata` 等更强身份只追加到 `identity_aliases`。`inferred` 和 `unknown` 发布时间完全不参与 discovery identity，只使用经过 NFKC、空白合并、trim、lowercase 和长度限制的标题与摘要；只有 `exact` 时间在规范为 ISO 8601 UTC 后参与身份。
+公众号搜索素材在 discovery 阶段生成主 `source_item_id`，后续 URL 解析和正文下载不得替换它；解析出的 `slug/sn/message/metadata/url` 等更强身份只追加到 `identity_aliases`。发布时间无论是 `exact`、`inferred` 还是 `unknown` 都不参与 discovery identity，主身份只使用经过 NFKC、空白合并、trim、lowercase 和长度限制的标题与摘要。相对时间升级为精确时间时，`material_id` 保持不变；精确发布时间仍作为 `published_at` 与 `published_at_quality` 元数据保存。
 
 机器可读契约由 Zod 模型生成并提交：
 

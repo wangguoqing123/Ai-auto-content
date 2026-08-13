@@ -10,6 +10,7 @@
 - 第二轮唯一一次真实 dry-run 得到 104 raw / 102 unique / 2 duplicate；X 为 80/78/2，小红书为 4/4/0，公众号为 20/20/0，4 篇正文通过最终解析。
 - 最终离线补丁固定公众号跨运行 discovery identity 和搜索到正文的主 material identity，将不可追溯原文的搜狗候选隔离，并修复 X fallback product 与终端状态优先级；未再次访问真实平台。
 - 合并前同步 Zod 与 Cloud/统一素材 JSON Schema，新增自动生成、漂移检查和 Ajv 2020 契约测试；公众号 inferred/unknown discovery identity 不再依赖任何动态时间，真实运行统计保持不变。
+- 固定公众号 discovery identity 仅使用规范化标题与摘要，使 inferred/unknown 升级为 exact 时主 material ID 不变；精确发布时间保留为元数据，解析出的稳定文章身份继续作为 alias。
 - 增加搜狗微信结果到公众号正文 URL 的只读解析适配器，支持相对时间和中文发布时间，并拒绝退出码为 0 的业务失败下载结果。
 - 修复 X 富字段适配器的公共 Web bearer 发现：优先复用当前 OpenCLI 版本集中维护的公共 token，页面扫描仅作后备。
 - 增加已真实验证的 RSS / AIHOT v1 Cloud Collector；它是当前唯一正式每日运行通道。

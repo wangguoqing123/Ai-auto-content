@@ -1,6 +1,6 @@
 ---
 title: OpenCLI 浏览器采集成功验证与第二轮修正报告
-version: 1.2.0
+version: 1.3.0
 updated_at: 2026-08-13
 status: verified_live_manual
 ---
@@ -118,9 +118,20 @@ npm run collect:browser -- --dry-run
 - `schemas/material-card.schema.json` 改为从 `materialSchema` 生成，补齐 `identity_aliases`、`source_access_status` 和 `content_downloaded`。
 - 新增 `npm run schema:generate` 和纯离线 `npm run schema:check`；PR CI 会在临时目录重新生成两份 Schema 并检查漂移。
 - 增加 Ajv 2020 契约测试，覆盖 Cloud、X、小红书、已解析与 unresolved 公众号素材，以及缺失字段、非法值和额外字段拒绝。
-- 公众号 `inferred` 与 `unknown` discovery identity 不再依赖分钟、小时、上海日期或任何当前运行时间；只有规范为 UTC 的 `exact` 时间参与身份。
+- 公众号 `inferred` 与 `unknown` discovery identity 不再依赖分钟、小时、上海日期或任何当前运行时间；后续最终身份转换修正进一步移除了 `exact` 时间。
 
 以上结果来自 Schema 契约、Fixture 和单元测试，不是新的真实平台采集。
+
+## WeChat identity transition fix
+
+这项合并前边界修正在 `browser_20260813042041` 之后纯离线完成，没有再次访问真实平台、OpenCLI Browser Bridge 或执行 Browser dry-run；原真实统计继续保持 104 raw / 102 unique / 2 duplicate 和 4 篇公众号正文。
+
+- WeChat discovery 主身份现在只使用规范化标题和摘要，发布时间在 `exact`、`inferred`、`unknown` 任一质量下都不参与 `source_item_id/material_id`。
+- 同一篇文章从 `inferred → exact` 或 `unknown → exact` 时保持相同主 ID；精确发布时间继续保存为 `published_at` 和 `published_at_quality` 元数据。
+- 解析后的 `slug/sn/message/metadata/url` 等稳定文章身份继续追加到 `identity_aliases`，不替换 discovery 主身份。
+- 跨运行持久化测试模拟首次相对时间、unresolved/quarantined，第二次精确时间、解析原文并下载正文；最终 JSONL 只有一行，并保留两次查询来源、精确时间、作者、canonical URL、alias 与正文状态。
+
+以上仅是 Fixture、单元测试和本地 JSONL 持久化验证，不是新的真实平台运行结果。
 
 ## 验证层级与运行建议
 
