@@ -76,6 +76,7 @@ export class TwitterCollector {
       if (needsFallback) {
         const basic = await this.runner.run([
           'twitter', 'search', buildTwitterQuery(query, now),
+          '--product', query.product,
           '--limit', String(limit),
           '-f', 'json',
         ], { signal });
@@ -145,7 +146,7 @@ export class TwitterCollector {
     }
 
     const materials = deduplicateUnifiedMaterials(rawMaterials);
-    const status = summarizePlatformStatus(commands.filter((command) => command.status === 'success').length, failures);
+    const status = summarizePlatformStatus(materials.length, failures);
     return {
       platform: 'twitter',
       status,

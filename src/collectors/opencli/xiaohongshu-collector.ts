@@ -140,7 +140,7 @@ export class XiaohongshuCollector {
     const materials = deduplicateUnifiedMaterials(rawMaterials);
     return {
       platform: 'xiaohongshu',
-      status: summarizePlatformStatus(commands.filter((command) => command.status === 'success').length, failures),
+      status: summarizePlatformStatus(materials.length, failures),
       started_at: now.toISOString(),
       finished_at: new Date().toISOString(),
       commands,
