@@ -23,9 +23,6 @@
 │   ├── article.md
 │   ├── cover.png
 │   └── images/
-├── xiaohongshu/
-│   ├── caption.md
-│   └── cards/
 ├── x/
 │   ├── single-posts.md
 │   └── thread.md

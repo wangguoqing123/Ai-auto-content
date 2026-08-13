@@ -1,95 +1,79 @@
 ---
-title: 云端与浏览器双通道采集运行时
-version: 1.0.0
+title: 云端与本机浏览器双通道采集运行时
+version: 2.0.0
 updated_at: 2026-08-13
-status: cloud_and_local_browser_verified
-cloud_status: verified_live
-opencli_browser_status: verified_live_manual
+status: cloud_scheduled_local_runtime_ready_for_install
+cloud_status: production_scheduled
+opencli_browser_status: verified_live
 codex_browser_status: exploration_only
 ---
 
-# 云端与浏览器双通道采集运行时
+# 云端与本机浏览器双通道采集运行时
 
-Cloud Collector 是当前唯一正式每日运行通道，状态为 `verified_live`。OpenCLI Browser Collector 已在用户本机真实 Chrome 登录态下验证，状态为 `verified_live_manual`；Codex Browser 是 `exploration_only` 工具，不进入正式 Pipeline。
-
-## 运行边界
-
-系统分为两个独立运行通道：
+系统保留两个互不依赖的采集通道：
 
 ```text
-Cloud Collector ── RSS / AIHOT / 公开无登录来源 ──┐
-                                                   ├─ 统一素材字段与指纹 ── 后续选题器
-Browser Collector ─ X / 小红书 / 公众号 ──────────┘
+Cloud Collector ── GitHub Actions 09:00 ── RSS / AIHOT ─┐
+                                                        ├─ 统一素材契约
+Local Browser ── 用户 Mac 08:00 目标窗口 ── X / 公众号 ─┘
 ```
 
-### Cloud Collector
+## Cloud Collector
 
-- 运行位置：GitHub-hosted Actions。
-- 当前命令：`npm run collect:cloud`。
-- 职责：RSS、AIHOT 及未来明确无需登录的公开新闻接口。
+- 位置：GitHub-hosted Actions。
+- 命令：`npm run collect:cloud`。
+- 时间：UTC 01:00，即北京时间 09:00。
 - 不读取 Chrome、Cookie 或本地登录态。
-- 每日 Workflow 只调用 Cloud Collector。
+- 不调用本机 scheduler 或 OpenCLI Browser Collector。
 
-### Browser Collector
+## Local Browser Collector
 
-- 当前状态：`verified_live_manual`；2026-08-13 已完成真实 Browser Bridge、三平台和完整 dry-run 验证。
-- 运行位置：用户自己的 Mac，或一台长期在线且拥有真实 Chrome Profile 的专用机器。
-- 当前命令：`npm run collect:browser -- --dry-run`。
-- 设计职责：X GraphQL 搜索、小红书搜索/详情/评论、搜狗微信搜索、跳转 URL 解析和公众号正文下载；这些能力已在当前版本在线接通。
-- 不得运行在 `ubuntu-latest`、`windows-latest`、`macos-latest` 等 GitHub 托管临时机器上。
+- 位置：用户 Mac 的独立 Runtime clone。
+- 活跃平台：`twitter`、`weixin`。
+- 调度：LaunchAgent 每 900 秒运行一次 due check；`RunAtLoad=true`。
+- 时间：`Asia/Shanghai` 07:30—12:00，目标时间 08:00，每天最多 2 次失败尝试。
+- 默认 `auto_launch_chrome=false`，要求 Chrome 已打开且 Browser Bridge 已连接。
+- Node、npm、OpenCLI、Chrome、daemon、Extension、Connectivity 是共享健康项，失败时阻断整条流水线。X 登录和公众号公开搜索是平台本地探测，彼此独立执行；一方失败不阻断另一方，也不把 0 条写成空结果。
 
-### Codex Browser
+独立 clone 默认路径：
 
-- 当前状态：`exploration_only`。
-- 已真实验证小红书搜索/详情/评论 DOM 和搜狗微信搜索。
-- 只用于页面探索、DOM 字段确认、登录状态诊断和 OpenCLI 适配器修复。
-- 不作为每日无人值守运行时，不接入 `npm run collect:browser` 或 Cloud Workflow。
+```text
+~/Library/Application Support/AiAutoContent/runtime
+```
 
-## Chrome、扩展与登录要求
+状态、锁、外部配置和日志：
 
-Browser Collector 启动时首先真实执行 `opencli doctor`。只有 daemon、Browser Bridge Extension 和 Connectivity 都正常时才进入平台命令。
+```text
+~/Library/Application Support/AiAutoContent/state/
+~/Library/Application Support/AiAutoContent/locks/
+~/Library/Application Support/AiAutoContent/config/
+~/Library/Logs/AiAutoContent/
+```
 
-- Chrome 必须正在运行。
-- Browser Bridge 版本需要与当前 OpenCLI 兼容。
-- 用户需要提前在普通 Chrome 中登录 X 和小红书。
-- 公众号公开搜索在本次运行未要求账号登录，但搜狗或微信未来仍可能弹出人工验证。
-- 不导出 Cookie，不把 Cookie、请求头或 Session 写入项目。
-- 不自动完成验证码或安全验证。
+## 数据和安全边界
 
-## 失败与离线处理
+Browser 正式运行只写：
 
-- 本地机器离线、Chrome 关闭或 Bridge 未连接：Browser Collector 记录 `unavailable`，Cloud Collector 继续运行。
-- 单个平台失败：其他平台继续，最终状态为 `partial_success`。
-- 登录失效：记录 `login_required` 并停止该平台。
-- 安全限制、验证码或频率限制：记录 `blocked` 并停止该平台本轮所有后续请求。
-- 命令超时、JSON 解析失败和取消运行都有独立状态；超时进程会被终止。
-- Browser CLI 的 `success` 与 `partial_success` 返回 0；部分成功同时写 warning；`failed` 在 stdout 保留完整 JSON、在 stderr 写摘要并返回 2；参数或程序错误返回 1。
+- `data/browser-materials/**`
+- `data/browser-runs/**`
+- `data/weixin-articles/**`
+- `reports/browser/**`
 
-## 数据合并
+公众号以稳定 `material_id` 建立 `data/weixin-articles/YYYY-MM-DD/<material_id>/` 下载目录，同一素材重复运行目录稳定，同标题不同素材不会覆盖。下载结果先解析为绝对路径并执行 `realpath`，拒绝 `../`、符号链接逃逸、Runtime clone 外路径和非 Markdown 文件；统一素材只记录仓库相对 POSIX 路径。dry-run 保持 `content_downloaded: true` 诊断，但 `content_path: null`，命令摘要只记录 `[runtime-output]`。Markdown 顶部“原文链接”会替换为可追溯 canonical URL；只有临时参数的 URL 会被移除，正文中的普通 `signature` 单词不会被改写。
 
-- 两个通道使用统一的素材核心字段，包括 `source_platform`、`source_kind`、`collector`、`query_id`、`canonical_url`、发布时间质量、互动字段质量、使用方式和病毒性置信度。
-- Cloud Collector 继续写 `data/materials/YYYY-MM-DD.jsonl`。
-- Browser Collector 非 dry-run 时写 `data/browser-materials/YYYY-MM-DD.jsonl` 和 `data/browser-runs/`；公众号正文写入 `data/weixin-articles/`。
-- Browser Collector 在平台返回和落盘前都按稳定 `material_id` 合并；同一内容命中多个查询时保留全部查询来源，并报告 raw、unique 和 duplicate。Cloud Collector 原有 URL/内容指纹逻辑不变。
-- X 优先用 Tweet ID，小红书用 note ID，公众号优先用稳定 path/参数或精确元数据身份；临时 token、signature 和 tracking URL 不参与身份，也不进入正式 JSONL。
-- 同日重复运行通过统一合并刷新非空互动数据，不再由最后一行覆盖此前查询来源。
-- 互动缺失统一为 `null`。搜索排名只保存在来源记录语义中，不映射成互动分数。
+自动 commit 前会检查 staged paths，并扫描 URL 查询参数 `signature`、`pass_ticket`、`exportkey`、`sessionid`、`xsec_token`，以及 Cookie、Authorization、`ct0`、`auth_token`、本机绝对路径与 `.DS_Store`。已有 pending 数据 commit 也不能被默认信任：每次直接 push 前、rebase 前及 rebase 后都会按 `origin/main..HEAD` 顺序逐个验证严格标题 `chore(browser-data): collect X and WeChat YYYY-MM-DD`、真实日期、四个 Browser 数据白名单和该 commit 中现存文件的内容。白名单删除允许通过；不可读或不合规即返回 `invalid_staged_paths`，不 rebase、不 push、不访问平台。普通正文单词 `signature` 不会误报。
 
-成功接通和第二轮审计详情见 `docs/17-opencli-browser-live-validation.md`；`docs/14-opencli-live-capability-spike.md` 继续保留首次 Bridge 未连接的历史事实。
+运行前优先同步 `origin/main`。已有未推送数据 commit 时：仅 ahead 正常 push；ahead/behind 同时存在时自动 `pull --rebase origin main` 后 push；首次 push 与远端更新竞态时只恢复一次。恢复结果携带所有 pending commit 的采集日期：包含今天才跳过当天平台访问；只恢复历史日期时继续今天的健康检查和采集。冲突会执行 `git rebase --abort`，保留本地 commit，绝不 force push、reset hard、clean 或重新访问平台。
 
-## 预算与轮换
+scheduled 触发仅在 07:30—12:00 窗口判断完成状态和尝试次数，窗口外始终 `NOT_DUE`。manual 触发可在窗口外运行，但仍服从锁、当天完成和最大尝试；manual dry-run 始终执行健康检查与 Browser dry-run，不写状态、正式数据或 Git。
 
-- 每个平台每次最多 4 个关键词，不每天跑完所有词。
-- X 每个查询最多 20 条。
-- 小红书每个关键词最多 10 条、最多 3 篇详情；全局最多 3 篇评论，每篇最多 10 条一级评论。
-- 公众号每个关键词只查第 1 页、最多 10 条；全局最多下载 5 篇正文。
-- `config/platform-queries.yaml` 负责启用、优先级、轮换和预算。
+## 失败语义
 
-## 定时边界
+- `success`、`partial_success`：当天完成，不重复访问平台；部分成功保存并提交已有数据，同时发本机警告。
+- X 与公众号并行执行；任一成功、另一失败为 `partial_success`，继续保存报告和 Git 同步，两个平台都失败才为 `failed`。
+- `failed`：窗口内最多再尝试一次。
+- `login_required`、`blocked`、`unavailable`：记录真实失败，不解释为零结果。
+- `git_sync_failed`：保留本地数据 commit，下一次优先重试同步。
+- `LOCK_HELD`：另一个进程仍在运行，当前检查安全退出。
 
-本 PR 没有配置 `launchd` 或任何 Browser Collector 正式定时任务。在线验证通过不等于允许无人值守；未来如单独评估 macOS `launchd` 或专用机器系统调度器，仍需满足：
-
-1. 机器长期在线且 Chrome Profile 稳定。
-2. 先运行 preflight，失败时不继续平台请求。
-3. 与 Cloud Collector 使用不同运行日志和故障告警。
-4. 不把浏览器任务迁移到 GitHub-hosted runner。
+完整安装、卸载、状态和退出码说明见 `docs/19-local-browser-scheduler.md`。旧平台验证只存在于历史审计文档，不属于本运行时。

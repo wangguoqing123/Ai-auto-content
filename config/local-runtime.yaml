@@ -1,0 +1,27 @@
+version: 1
+timezone: Asia/Shanghai
+
+morning:
+  target_time: "08:00"
+  window_start: "07:30"
+  window_end: "12:00"
+  max_attempts: 2
+
+scheduler:
+  check_interval_seconds: 900
+
+runtime:
+  auto_launch_chrome: false
+  chrome_startup_wait_seconds: 15
+  lock_stale_minutes: 120
+
+git_sync:
+  enabled: true
+  branch: main
+  remote: origin
+
+notification:
+  enabled: true
+  notify_on_success: false
+  notify_on_partial_success: true
+  notify_on_failure: true

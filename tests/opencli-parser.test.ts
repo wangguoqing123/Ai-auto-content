@@ -4,11 +4,6 @@ import { describe, expect, it } from 'vitest';
 import { parseMetric } from '../src/collectors/opencli/parsers/metric-parser.js';
 import { parseTwitterSearch } from '../src/collectors/opencli/parsers/twitter-parser.js';
 import {
-  parseXiaohongshuComments,
-  parseXiaohongshuDetail,
-  parseXiaohongshuSearch,
-} from '../src/collectors/opencli/parsers/xiaohongshu-parser.js';
-import {
   parseWeixinDownload,
   parseWeixinResolvedUrl,
   parseWeixinSearch,
@@ -34,16 +29,6 @@ describe('OpenCLI fixture parsers', () => {
     expect(records[0]).toMatchObject({ retweets: 42, replies: 18, quotes: 7, bookmarks: 91, author_followers: 12_800 });
     expect(records[0]?.media.urls).toHaveLength(1);
     expect(records[1]).toMatchObject({ likes: null, views: null, retweets: null, replies: null, quotes: null, bookmarks: null, author_followers: null });
-  });
-
-  it('parses Xiaohongshu search, detail, and nested comment fixtures', async () => {
-    const search = parseXiaohongshuSearch(await fixture('xiaohongshu-search.json'));
-    const detail = parseXiaohongshuDetail(await fixture('xiaohongshu-detail.json'));
-    const comments = parseXiaohongshuComments(await fixture('xiaohongshu-comments.json'));
-    expect(search[0]).toMatchObject({ likes: 12_000, published_at_quality: 'inferred' });
-    expect(search[0]?.url).toContain('xsec_token=fixture-token-1');
-    expect(detail).toMatchObject({ likes: 12_000, collects: 20_000, comments: 123 });
-    expect(comments[1]).toMatchObject({ is_reply: true, reply_to: '提问者' });
   });
 
   it('parses Weixin discovery and downloaded article metadata without inventing engagement', async () => {

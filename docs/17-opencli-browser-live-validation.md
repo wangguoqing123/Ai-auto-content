@@ -5,6 +5,8 @@ updated_at: 2026-08-13
 status: verified_live_manual
 ---
 
+> 小红书能力仅为历史验证记录；自 PR #3 起已因产品风险决策退出活跃范围。
+
 # OpenCLI 浏览器采集成功验证与第二轮修正报告
 
 OpenCLI Browser Collector 已于 2026-08-13 在用户本机真实 Chrome Profile 和现有登录态下接通。X、小红书、微信公众号搜索和正文下载均取得真实返回。这里的 `verified_live_manual` 只表示本机手动链路已真实验证，不表示适合 GitHub-hosted Actions 或无人值守定时；Cloud Collector 仍是唯一正式每日运行通道，Codex Browser 仍为 `exploration_only`。

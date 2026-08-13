@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   canonicalizeWeixinArticleUrl,
-  deriveWeixinArticleId,
   deriveWeixinDiscoveryId,
+  isTraceableWeixinCanonicalUrl,
   isWeixinArticleUrl,
 } from '../src/collectors/opencli/weixin-url.js';
 
@@ -32,14 +32,23 @@ describe('Weixin article URL safety and identity', () => {
     expect(second).toBe(first);
   });
 
-  it('derives the same identity from different temporary signatures using exact article metadata', () => {
-    const metadata = {
-      accountName: '示例公众号', title: '同一篇文章', publishedAt: '2026-08-13T01:00:00.000Z', publishedAtQuality: 'exact' as const,
-    };
-    const first = deriveWeixinArticleId('https://mp.weixin.qq.com/s?signature=one&scene=1', metadata);
-    const second = deriveWeixinArticleId('https://mp.weixin.qq.com/s?signature=two&pass_ticket=secret', metadata);
-    expect(first).toBe(second);
-    expect(first).toMatch(/^metadata:[a-f0-9]{64}$/);
+  it.each([
+    'https://mp.weixin.qq.com/s?sn=stable',
+    'https://mp.weixin.qq.com/s?__biz=biz&mid=10&idx=2',
+    'https://mp.weixin.qq.com/s/stable-slug',
+  ])('recognizes traceable canonical URL %s', (url) => {
+    expect(isTraceableWeixinCanonicalUrl(url)).toBe(true);
+  });
+
+  it.each([
+    'https://mp.weixin.qq.com/s',
+    'https://mp.weixin.qq.com/s?signature=one',
+    'https://mp.weixin.qq.com/s?src=11',
+    'https://mp.weixin.qq.com/s?scene=1',
+    'https://mp.weixin.qq.com/s?pass_ticket=secret&from=timeline',
+    'https://mp.weixin.qq.com/s?__biz=biz&mid=10',
+  ])('rejects non-traceable canonical URL %s', (url) => {
+    expect(isTraceableWeixinCanonicalUrl(url)).toBe(false);
   });
 
   it('keeps inferred discovery identity stable across minutes and Shanghai calendar dates', () => {

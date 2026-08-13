@@ -73,19 +73,20 @@ describe('OpenCLI runner', () => {
   });
 
   it('recognizes security blocks', async () => {
-    const process = spawned('', 'SECURITY_BLOCK Xiaohongshu security block: risk control', 1);
-    const result = await new OpenCliRunner(process.spawn).run(['xiaohongshu', 'search', 'AI工具', '-f', 'json']);
+    const process = spawned('', 'SECURITY_BLOCK platform security block: risk control', 1);
+    const result = await new OpenCliRunner(process.spawn).run(['twitter', 'search', 'AI工具', '-f', 'json']);
     expect(result.status).toBe('blocked');
   });
 
   it('redacts temporary platform access URLs from persisted command summaries', () => {
     const summary = toCommandSummary({
-      args: ['xiaohongshu', 'note', 'https://www.xiaohongshu.com/search_result/64f123456789abcdef123456?xsec_token=secret'],
+      args: ['weixin', 'download', '--url', 'https://weixin.sogou.com/link?signature=secret&pass_ticket=hidden', '--output', '/Users/alice/runtime/data/weixin-articles'],
       status: 'command_failed', exit_code: 1, duration_ms: 1, timed_out: false, cancelled: false,
-      error: 'failed https://weixin.sogou.com/link?signature=secret&pass_ticket=hidden',
+      error: 'failed https://weixin.sogou.com/link?signature=secret&pass_ticket=hidden at /Users/alice/runtime/data/weixin-articles',
       stdout: '', stderr: '', data: null,
     });
-    expect(JSON.stringify(summary)).not.toMatch(/secret|hidden|xsec_token/);
-    expect(summary.args[2]).toBe('https://www.xiaohongshu.com/explore/64f123456789abcdef123456');
+    expect(JSON.stringify(summary)).not.toMatch(/secret|hidden|pass_ticket|\/Users\/alice/);
+    expect(summary.args[3]).toBe('https://weixin.sogou.com/link');
+    expect(summary.args[5]).toBe('[runtime-output]');
   });
 });

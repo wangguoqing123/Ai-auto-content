@@ -6,33 +6,33 @@
 
 > 系统每天运行，但不要求每天发布。没有足够高质量的题目时，后续选题阶段必须允许输出 `NO_PUBLISH`。
 
-## 当前阶段：正式 Cloud Collector + 已验证的本机 Browser Collector
+## 当前阶段：Cloud Collector + X / 微信公众号本机调度运行时
 
-Cloud Collector 是正式每日通道；OpenCLI Browser Collector 已在用户本机真实 Chrome 登录态下完成在线验证，但仍只作为本机手动通道。各模块状态如下：
+Cloud Collector 与 Local Browser Collector 是两个独立运行通道。Cloud 在 GitHub Actions 每天北京时间 09:00 运行；本机 Browser 调度器每 15 分钟做一次轻量到期检查，在北京时间 07:30—12:00 窗口内只执行一次 X 与微信公众号早晨采集。手动 `local:morning` 可在窗口外运行一次，但仍服从锁、当天已完成和最多尝试次数保护。
 
 | 模块 | 状态 | 是否每日运行 |
 |---|---|---|
 | RSS | `verified_live` | 是 |
 | AIHOT | `verified_live` | 是 |
-| OpenCLI X | `verified_live` | 否；本机手动 |
-| OpenCLI 小红书 | `verified_live` | 否；本机手动 |
-| OpenCLI 公众号 | `verified_live` | 否；本机手动 |
+| OpenCLI X | `verified_live` | 待合并后安装本机调度 |
+| OpenCLI 公众号 | `verified_live` | 待合并后安装本机调度 |
 | Codex Browser | `exploration_only` | 否 |
-
-当前唯一正式每日运行通道是 Cloud Collector：
 
 ```text
 Cloud Collector（GitHub Actions）→ RSS / AIHOT / 公开来源
-OpenCLI Browser Collector（本地手动已验证）→ X / 小红书 / 公众号
+Local Browser Collector（用户 Mac）→ X / 微信公众号
 → 限流采集并隔离单源、单平台和单条失败
 → 标准化字段和规范 URL
-→ URL 指纹 + 内容指纹跨天去重
-→ 确定性评分与阈值判断
-→ 保存 JSONL、运行日志和 Markdown 日报
-→ 仅在输出有变化时提交
+→ 保存 Browser JSONL、运行日志、公众号正文和 Markdown 日报
+→ 只暂存 Browser 数据白名单
+→ pull --rebase 后安全 push main
 ```
 
-OpenCLI Browser Collector 的代码、Fixture、失败隔离和真实 Browser Bridge 均已验证，模块状态为 `verified_live_manual`。第一轮 104 只是 raw 行数，旧输出没有唯一数；第二轮唯一一次真实 dry-run 为 104 raw、102 unique、2 duplicates，4 篇公众号正文通过最终解析。最新结果与一个公众号正文业务解析失败的事实边界见 `docs/17-opencli-browser-live-validation.md`。它仍需要本地 Chrome、Browser Bridge 和平台登录态，不能放到 GitHub-hosted runner，也没有配置 `launchd`。Codex Browser 仅用于页面探索、DOM 字段确认、登录状态诊断和适配器修复，不接入正式 Browser Pipeline。
+Local Browser Runtime 使用独立 clone：`~/Library/Application Support/AiAutoContent/runtime`。状态、锁和配置保存在 Runtime clone 外部，日志写入 `~/Library/Logs/AiAutoContent/`。默认不自动启动 Chrome；必须提前打开 Chrome、保持 X 登录并连接 Browser Bridge。安装器与 LaunchAgent 模板已经提供，但本 PR 开发和 CI 不会正式安装。
+
+Morning 的共享健康检查只以 Node、npm、OpenCLI、Chrome、daemon、Extension 和 Connectivity 判断是否阻断整条流水线。X 登录探测与公众号公开搜索探测彼此独立；单个平台失败时，另一个平台仍会采集，已有成功数据继续落盘、生成报告并安全同步 Git，只有两个平台都失败时整次 Browser Pipeline 才为 `failed`。
+
+小红书已因用户主动降低账号与自动化风险的产品决策退出采集、内容生产、发布和复盘范围。旧材料 Schema 继续兼容历史 `source_platform`，过去的实测审计文档保持原样，不得据此重新启用活跃命令。详见 `docs/18-platform-scope-decision.md`。
 
 本阶段仍不调用大模型，不开发自动选题、写作、配图或发布。
 
@@ -46,6 +46,9 @@ npm run typecheck
 npm run schema:check
 npm test
 npm run collect:fixture
+npm run local:scheduler -- --once --fixture --dry-run --now=2026-08-14T00:00:00.000Z
+npm run local:morning -- --fixture --dry-run --now=2026-08-14T06:00:00.000Z
+npm run local:install -- --dry-run
 ```
 
 正式 Cloud Collector：
@@ -64,17 +67,33 @@ AI-Auto-Content/0.2 (+https://github.com/wangguoqing123/Ai-auto-content)
 
 如拥有 AIHOT Actor UUID v4，可在 shell 或任务运行环境中配置 `AIHOT_ACTOR_ID`；`.env.example` 只提供变量模板，程序不会自动加载本地 `.env`。缺失或非法值不会阻断 Cloud Collector，也不会把 Actor 值写入日志。项目继续只访问 `https://aihot.virxact.com/api/v1/*`。
 
-以下仅为本地手动实验命令，不是每日运行入口：
+本机 Browser Runtime 命令：
 
 ```bash
 npm run opencli:install-adapters
+npm run local:check
+npm run local:morning -- --dry-run
+npm run local:scheduler -- --once
+npm run local:install -- --dry-run
+npm run local:uninstall -- --dry-run
+```
+
+`local:morning -- --dry-run` 不受调度窗口限制，仍会执行健康检查和真实 X / 公众号 Browser dry-run，但不会写状态、正式数据、报告或 Git；它仍使用运行锁。CI 只允许运行 `--fixture --dry-run`，不会访问平台、Chrome 或 OpenCLI Browser Bridge。生产安装必须由用户在 PR 合并后显式执行：
+
+```bash
+npm run local:install -- --install
+```
+
+仍保留的人工诊断命令：
+
+```bash
 npm run spike:opencli
 npm run collect:browser -- --dry-run
 ```
 
 `--dry-run` 会真实执行 preflight/采集，但不会写入正式数据目录。`collect:fixture` 只使用本地 Fixture，不访问网络。2026-08-13 本机最终 dry-run 已验证成功；后续仍必须以当次 `opencli doctor` 和平台返回为准，不能把历史成功或 Fixture 成功当成当前在线状态。
 
-Browser CLI 对 `success` 和 `partial_success` 返回退出码 0，其中部分成功会写 warning；完整失败仍在 stdout 保留 JSON 诊断，同时返回退出码 2；参数或程序错误返回退出码 1。当前未配置任何正式浏览器定时任务。
+Local Runtime 退出码：0 表示成功、部分成功、未到期、当天已完成或锁占用；1 为参数/程序错误；2 为 Browser Pipeline 完全失败；3 为环境检查失败；4 为登录失效；5 为平台 blocked；6 为 Git 同步失败；7 为非法暂存路径。
 
 ## 自动运行
 
@@ -97,12 +116,18 @@ config/platform-queries.yaml        浏览器平台关键词、预算与轮换
 data/materials/YYYY-MM-DD.jsonl     最近 7 天内及隔离区 RSS 素材
 data/browser-materials/YYYY-MM-DD.jsonl  浏览器非 dry-run 素材
 data/browser-runs/                  浏览器平台运行日志
+data/weixin-articles/YYYY-MM-DD/<material_id>/  已下载的公众号正文；同标题素材仍有独立目录
 data/state/seen-materials.json      跨天 URL 与内容指纹
 data/runs/run_*.json                每次运行及逐信源日志
 reports/materials/YYYY-MM-DD.md     每日素材日报
+reports/browser/YYYY-MM-DD.md       X / 公众号 Browser 素材日报
 ```
 
 首次运行时，7 天以前的 RSS 只写入指纹状态，不写入当天素材；发布时间未知的素材进入 `quarantined`。缺失互动字段保存为 `null`，不以 0 冒充真实数据。
+
+正式公众号正文以稳定 `material_id` 作为下载目录，重复运行仍命中同一目录，同一天标题相同但身份不同的文章不会互相覆盖。素材中的 `content_path` 只保存仓库相对 POSIX 路径；dry-run 固定为 `null`，命令摘要中的输出位置固定显示为 `[runtime-output]`。
+
+自动 push 前会逐个验证 `origin/main..HEAD` 的所有 pending commit：提交标题必须是 `chore(browser-data): collect X and WeChat YYYY-MM-DD` 且日期真实有效，变更路径只能属于四个 Browser 数据白名单，并按每个 commit 当时的文件内容扫描临时微信参数、认证信息、本机绝对路径和 `.DS_Store`。删除白名单文件允许通过；任何提交不可读或不合规都会以 `invalid_staged_paths` 停止，且不 rebase、不 push、不访问平台。恢复到的 pending 日期只有包含今天时才跳过当天采集；只恢复历史日期后仍继续今天的健康检查和采集。
 
 ## JSON Schema 数据契约
 
@@ -147,6 +172,8 @@ reports/materials/YYYY-MM-DD.md     每日素材日报
 15. `docs/15-hybrid-collector-runtime.md`
 16. `docs/16-codex-browser-runtime-spike.md`
 17. `docs/17-opencli-browser-live-validation.md`
+18. `docs/18-platform-scope-decision.md`
+19. `docs/19-local-browser-scheduler.md`
 
 发生冲突时，真实性与合规规则、人物事实库和产品知识库优先。资料不足时必须标记 `UNKNOWN`，不得自行补全。
 

@@ -55,7 +55,7 @@ describe('JSON Schema contracts', () => {
 
   it.each([
     ['X', browserMaterial()],
-    ['Xiaohongshu', browserMaterial({
+    ['deprecated historical Xiaohongshu', browserMaterial({
       sourcePlatform: 'xiaohongshu', collector: 'opencli-xiaohongshu', sourceItemId: 'note-1',
       sourceUrl: 'https://www.xiaohongshu.com/explore/note-1', canonicalUrl: 'https://www.xiaohongshu.com/explore/note-1',
     })],

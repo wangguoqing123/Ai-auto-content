@@ -10,7 +10,7 @@ export const openCliStatuses = [
 ] as const;
 
 export type OpenCliStatus = typeof openCliStatuses[number];
-export type BrowserPlatform = 'twitter' | 'xiaohongshu' | 'weixin';
+export type BrowserPlatform = 'twitter' | 'weixin';
 
 export interface OpenCliCommandSummary {
   args: string[];

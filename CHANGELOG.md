@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- 将 Browser 数据敏感扫描改为文件类型感知：JSON/JSONL 必须逐条解析并递归检查敏感键、`content_path` 与真实路径值；Markdown 允许正常 Authorization/Cookie/ct0 说明、代码路径示例和占位凭证，只拦截明确真实值、当前 home 与微信临时访问 URL。
+- 将公众号正文的临时参数检测限制到 `mp.weixin.qq.com` 和 `weixin.sogou.com`；外部域名的 `signature`、`sessionid` 等普通签名 URL 不再误报，微信与搜狗微信访问参数继续 fail closed。
+- 以稳定 `material_id` 隔离公众号正文下载目录，避免同日同标题文章互相覆盖；正式 `content_path` 保持仓库相对 POSIX 路径，dry-run 为 `null`，命令摘要隐藏本机输出路径。
+- 对 `origin/main..HEAD` 的每个 pending commit 强制校验提交标题、真实采集日期、Browser 路径白名单及 commit 时点文件内容；直接 push、rebase 前后都执行，非法或不可读提交以 `invalid_staged_paths` 停止。
+- pending 恢复结果携带全部采集日期：同日恢复跳过重复采集，只恢复历史日期后继续当天健康检查和采集。
+- 将共享健康项与平台探测隔离，X 和公众号独立探测、并行采集；单平台成功仍持久化并 Git 同步为 `partial_success`，仅双平台失败时整次为 `failed`。
+- 加固公众号正文产物：`realpath` 限定 Runtime clone、拒绝路径/符号链接逃逸与非 Markdown 文件，正式素材只保存仓库相对 POSIX `content_path`，dry-run 路径保持 `null`。
+- 清理公众号 Markdown 顶部临时“原文链接”，仅保留可追溯 canonical URL；签名型、来源型和裸 `/s` URL 即使正文下载成功也保持 unresolved/quarantined，正文中的普通 `signature` 不误报。
+- 扩展 Browser 数据暂存扫描到结构化敏感字段和微信域名临时访问参数，并确保 Materials、Run Log 和命令摘要不持久化 Runtime clone 绝对路径。
+- 增加 pending commit 与远端同时前进时的自动 rebase/push 恢复，以及首次 push 竞态的一次有界重试；冲突继续 abort 并保留本地 commit，不 force、不重新采集。
+- 区分 manual 与 scheduled 触发：`local:morning` 可在窗口外执行一次，manual dry-run 始终健康检查和 Browser dry-run；scheduled 继续严格服从窗口。第二次失败只发送一次达到上限通知，后续同日轮询静默。
+- 因用户主动降低账号与自动化风险的产品决策，将小红书从活跃采集、内容生产、发布、报告、查询配置和 Browser Pipeline 中移除；历史 Schema 与验证审计继续保留。
+- 增加 X + 微信公众号 Mac 本机调度运行时：上海时区 07:30—12:00 due window、外部状态、原子锁、环境检查、Browser 日报和安全通知。
+- 增加独立 Runtime clone、Browser 数据 Git 白名单、敏感内容扫描、pending commit 优先重试、rebase 冲突 abort 与禁止 force push 的同步逻辑。
+- 增加 LaunchAgent 模板和默认 dry-run 的安装/卸载器；PR 与 CI 不安装生产 Agent，也不访问真实 Browser 平台。
 - 在真实 Chrome Profile 下接通 OpenCLI Browser Bridge，并在线验证 X、小红书、公众号搜索与 5 篇正文下载；第一轮 dry-run 24/24 命令成功并产生 104 个 raw 行，旧输出未统计唯一数。
 - 增加 Browser 素材稳定 identity、canonical URL、跨查询统一合并，以及平台和总计的 raw/unique/duplicate 统计；同日持久化不再覆盖先前查询来源。
 - 增加 X 富搜索到内建基础搜索的受控 fallback；小红书 token URL 和公众号临时 tracking URL 不再持久化。

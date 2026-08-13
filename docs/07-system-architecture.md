@@ -93,8 +93,9 @@ status: implemented_stage_1_5
 ### 3.5 浏览器采集 MVP
 
 - `Cloud Collector` 继续运行 RSS、AIHOT 和公开无登录来源。
-- `Browser Collector` 通过 `child_process.spawn('opencli', args)` 调用 X、小红书和公众号只读命令，查询词不经过 shell 拼接。
+- `Browser Collector` 通过 `child_process.spawn('opencli', args)` 调用 X 和公众号只读命令，查询词不经过 shell 拼接。
 - 运行前必须通过 `opencli doctor`；登录失效、验证码和风险控制都会停止该平台。
+- macOS 本机调度器只在上海时区早晨窗口内运行一次，状态和锁保存在 Runtime clone 外部。
 - GitHub-hosted Workflow 永远不调用 `collect:browser`。
 - 详细运行边界见 `docs/15-hybrid-collector-runtime.md`，真实能力状态见 `docs/14-opencli-live-capability-spike.md`。
 

@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
 export const sourceTierSchema = z.enum(['primary', 'secondary', 'unverified']);
+// `xiaohongshu` is deprecated_history_only. It remains parseable solely so
+// previously committed material records keep their historical schema validity.
 export const sourcePlatformSchema = z.enum(['twitter', 'xiaohongshu', 'weixin', 'aihot', 'rss']);
 export const sourceKindSchema = z.enum(['official', 'news', 'ugc']);
 export const publishedAtQualitySchema = z.enum(['exact', 'inferred', 'unknown']);

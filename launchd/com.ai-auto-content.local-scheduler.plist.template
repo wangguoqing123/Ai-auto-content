@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.ai-auto-content.local-scheduler</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>{{WRAPPER_PATH}}</string>
+    <string>{{NODE_PATH}}</string>
+    <string>{{OPENCLI_PATH}}</string>
+    <string>{{RUNTIME_ROOT}}</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>{{RUNTIME_ROOT}}</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartInterval</key>
+  <integer>900</integer>
+  <key>StandardOutPath</key>
+  <string>{{STDOUT_PATH}}</string>
+  <key>StandardErrorPath</key>
+  <string>{{STDERR_PATH}}</string>
+</dict>
+</plist>
