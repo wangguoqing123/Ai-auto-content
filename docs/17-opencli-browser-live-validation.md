@@ -1,6 +1,6 @@
 ---
 title: OpenCLI 浏览器采集成功验证与第二轮修正报告
-version: 1.0.0
+version: 1.1.0
 updated_at: 2026-08-13
 status: verified_live_manual
 ---
@@ -96,6 +96,19 @@ npm run collect:browser -- --dry-run
 - 微信 5 次 download 命令均以进程状态成功返回，其中 4 条最终素材通过正文解析并标记 `content_downloaded: true`。另 1 次 exit 0 的正文处理没有形成通过业务解析和 schema 校验的已下载素材，因此 Collector 正确标记 `partial_success`，对应搜索素材继续保留。该次旧诊断没有把捕获的解析异常写入 `error`；本轮随后补上错误传播，但遵守“一次有界最终 dry-run”的要求，没有再次访问真实平台。
 - dry-run 清理后所有 `content_path` 均为 `null`，没有输出已删除文件路径。
 - 运行结果中未发现 `xsec_token`、微信临时 signature、`pass_ticket` 或带参数的搜狗跳转 URL。
+
+## 真实运行后的离线正确性补丁
+
+以下修正在 `browser_20260813042041` 之后仅通过 Fixture、单元测试和端到端持久化测试完成，没有再次访问 X、小红书、搜狗微信或公众号正文，也没有重新执行 Browser dry-run。上面的真实运行统计保持不变。
+
+- 公众号 discovery identity 不再依赖动态推断到分钟和秒的时间。`inferred` 时间只使用 Asia/Shanghai 日历日期，标题与摘要经过 NFKC、空白合并、trim 和 lowercase 规范化。
+- 公众号素材在搜索阶段生成主 `source_item_id/material_id`；resolve URL、正文下载、公众号名称和精确时间只补充 canonical URL、元数据与 `identity_aliases`，不更换主身份。
+- 只有搜狗标题和摘要、尚未取得可追溯微信原文 URL 的素材标记为 `source_access_status: unresolved`，进入 `quarantined`，并包含 `unresolved_source_url`；已解析原文但正文失败的搜索素材仍为 `resolved` 且保留。
+- X basic fallback 现在继承查询配置中的 `product=top/live`，同时保留 limit、语言、时间范围和排除回复/转发的 operator。
+- 平台完全失败时采用固定终端优先级：`blocked > login_required > unavailable > command_failed`；已有真实素材时仍为 `partial_success`。
+- 跨两次运行的持久化测试验证：首次 unresolved 搜索素材与第二次下载成功素材保持同一 `material_id`，最终 JSONL 只有一行，并正确升级原文 URL、作者、精确时间、正文状态与两次查询来源。
+
+这些结论是离线正确性验证，不是新的真实平台运行结果。
 
 ## 验证层级与运行建议
 

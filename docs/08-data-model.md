@@ -20,7 +20,8 @@ status: proposed
 
 云端 RSS 和浏览器来源共享以下核心素材字段：
 
-- `source_platform`、`source_kind`、`collector`、`query_id`、`query_text`、`search_rank`、`source_item_id`
+- `source_platform`、`source_kind`、`collector`、`query_id`、`query_text`、`search_rank`、`source_item_id`、`identity_aliases`
+- `source_access_status`：`resolved` 或 `unresolved`
 - `author_name`、`author_followers`
 - `title`、`excerpt`、`source_url`、`canonical_url`、`content_path`、`content_downloaded`
 - `published_at`、`published_at_quality`
@@ -41,6 +42,18 @@ status: proposed
 - `status`、`rejection_reasons`
 
 Browser 素材的 `material_id` 优先使用平台稳定 `source_item_id`，没有稳定 item ID 时才使用 `canonical_url`。同一素材命中多个查询时，当前字符串字段以去重、稳定排序后的 `query_id` 逗号列表和 `query_text` 中文分号列表保存；临时访问 token 不进入统一素材。
+
+公众号搜索素材在 discovery 阶段生成主 `source_item_id`，后续 URL 解析和正文下载不得替换它；解析出的 `slug/sn/message/metadata` 等更强身份只追加到 `identity_aliases`。相对发布时间只按 Asia/Shanghai 日历日期参与 discovery identity，不使用随运行时间漂移的分钟和秒。
+
+`accepted` 不等于“只有标题和摘要即可使用”。只有搜狗标题和摘要、尚无可追溯 `mp.weixin.qq.com` 原文 URL 的候选必须满足：
+
+- `source_access_status: unresolved`
+- `status: quarantined`
+- `rejection_reasons` 包含 `unresolved_source_url`
+- `usage_mode: structure_inspiration`
+- `viral_confidence: unverified`
+
+解析出合法微信原文 URL 后，素材升级为 `source_access_status: resolved`；即使正文下载失败，也可保留可追溯的搜索素材，并保持 `content_downloaded: false`。
 
 旧版规划字段在后续语义整理阶段按需映射：
 
