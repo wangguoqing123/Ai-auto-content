@@ -5,6 +5,8 @@ updated_at: 2026-08-12
 status: experimental_manual_only
 ---
 
+> 小红书能力仅为历史验证记录；自 PR #3 起已因产品风险决策退出活跃范围。
+
 > 后续成功接通与去重修正结果见 `docs/17-opencli-browser-live-validation.md`。
 
 # OpenCLI 实时能力验证报告

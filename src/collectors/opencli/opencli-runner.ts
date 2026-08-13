@@ -174,10 +174,6 @@ function redactCommandArgument(value: string): string {
   try {
     const url = new URL(value);
     const host = url.hostname.toLocaleLowerCase();
-    if (/(^|\.)xiaohongshu\.com$/.test(host)) {
-      const noteId = url.pathname.match(/\/(?:search_result|explore|note)\/([0-9a-f]{24})/i)?.[1];
-      return noteId ? `https://www.xiaohongshu.com/explore/${noteId.toLocaleLowerCase()}` : 'https://www.xiaohongshu.com/';
-    }
     if (host === 'weixin.sogou.com' && url.pathname === '/link') return 'https://weixin.sogou.com/link';
     if (host === 'mp.weixin.qq.com' && /^\/s(?:\/|$)/.test(url.pathname)) {
       const clean = new URL(`https://mp.weixin.qq.com${url.pathname}`);

@@ -12,7 +12,6 @@
       "type": "object",
       "properties": {
         "wechat": {"type": ["object", "null"]},
-        "xiaohongshu": {"type": ["object", "null"]},
         "x": {"type": ["object", "null"]}
       },
       "additionalProperties": false

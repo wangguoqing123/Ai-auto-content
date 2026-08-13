@@ -2,7 +2,7 @@ project:
   name: AI Auto Content
   version: 0.2.0
   owner: 七天假
-  updated_at: 2026-08-12
+  updated_at: 2026-08-13
 
 account:
   primary_identity: 互联网产品经理
@@ -38,7 +38,6 @@ product:
 
 platforms:
   - wechat_official_account
-  - xiaohongshu
   - x
   - wechat_visuals
 

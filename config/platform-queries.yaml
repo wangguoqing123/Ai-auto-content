@@ -55,22 +55,6 @@ twitter:
       priority: 60
       enabled: true
 
-xiaohongshu:
-  max_queries_per_run: 4
-  max_results_per_query: 10
-  max_details_per_query: 2
-  max_comment_notes_per_run: 2
-  max_comments_per_note: 10
-  queries:
-    - id: ai-tools-xhs
-      query: AI工具
-      priority: 100
-      enabled: true
-    - id: ai-coding-xhs
-      query: AI编程
-      priority: 90
-      enabled: true
-
 weixin:
   max_queries_per_run: 4
   max_results_per_query: 10

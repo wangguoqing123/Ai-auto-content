@@ -15,17 +15,6 @@ export interface TwitterCollectorConfig {
   queries: TwitterQueryConfig[];
 }
 
-export interface XiaohongshuQueryConfig extends PlatformQuery {}
-
-export interface XiaohongshuCollectorConfig {
-  max_queries_per_run: number;
-  max_results_per_query: number;
-  max_details_per_query: number;
-  max_comment_notes_per_run: number;
-  max_comments_per_note: number;
-  queries: XiaohongshuQueryConfig[];
-}
-
 export interface WeixinQueryConfig extends PlatformQuery {}
 
 export interface WeixinCollectorConfig {
@@ -38,6 +27,5 @@ export interface WeixinCollectorConfig {
 export interface PlatformQueriesConfig {
   version: number;
   twitter: TwitterCollectorConfig;
-  xiaohongshu: XiaohongshuCollectorConfig;
   weixin: WeixinCollectorConfig;
 }

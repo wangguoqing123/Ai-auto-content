@@ -6,7 +6,6 @@ import type { BrowserPlatform, BrowserPlatformResult } from './collectors/opencl
 import { OpenCliRunner, toCommandSummary } from './collectors/opencli/opencli-runner.js';
 import { TwitterCollector } from './collectors/opencli/twitter-collector.js';
 import { WeixinCollector } from './collectors/opencli/weixin-collector.js';
-import { XiaohongshuCollector } from './collectors/opencli/xiaohongshu-collector.js';
 import { deduplicateUnifiedMaterials } from './collectors/opencli/merge-materials.js';
 import type { PlatformQueriesConfig } from './collectors/opencli/platform-config.js';
 import { unifiedMaterialSchema, type UnifiedMaterial } from './types.js';
@@ -35,6 +34,8 @@ export interface BrowserPipelineResult {
   materials_count: number;
   duplicate_materials_count: number;
 }
+
+export const ACTIVE_BROWSER_PLATFORMS = ['twitter', 'weixin'] as const satisfies readonly BrowserPlatform[];
 
 function unavailablePlatform(platform: BrowserPlatform, now: Date, preflight: ReturnType<typeof toCommandSummary>): BrowserPlatformResult {
   return {
@@ -84,19 +85,18 @@ export async function runBrowserPipeline(options: BrowserPipelineOptions): Promi
   let temporaryDirectory: string | null = null;
 
   if (preflightResult.status !== 'success') {
-    platforms = (['twitter', 'xiaohongshu', 'weixin'] as const).map((platform) => unavailablePlatform(platform, now, preflight));
+    platforms = ACTIVE_BROWSER_PLATFORMS.map((platform) => unavailablePlatform(platform, now, preflight));
   } else {
     const outputDirectory = options.dryRun
       ? (temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), 'ai-auto-content-weixin-')))
       : path.join(options.rootDir, 'data', 'weixin-articles', date);
     const collectors = options.collectors ?? [
       new TwitterCollector(runner, config.twitter),
-      new XiaohongshuCollector(runner, config.xiaohongshu),
       new WeixinCollector(runner, config.weixin, outputDirectory),
     ];
     const settled = await Promise.allSettled(collectors.map((collector) => collector.collect(now, options.signal)));
     platforms = settled.map((entry, index) => entry.status === 'fulfilled' ? entry.value : {
-      platform: (['twitter', 'xiaohongshu', 'weixin'] as const)[index] ?? 'twitter',
+      platform: ACTIVE_BROWSER_PLATFORMS[index] ?? 'twitter',
       status: 'command_failed',
       started_at: startedAt,
       finished_at: new Date().toISOString(),

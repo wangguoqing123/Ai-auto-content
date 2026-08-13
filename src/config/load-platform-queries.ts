@@ -27,21 +27,13 @@ const platformQueriesSchema = z.object({
       minimum_views: z.number().int().nonnegative(),
     })),
   }),
-  xiaohongshu: z.object({
-    max_queries_per_run: positiveBudget.max(4),
-    max_results_per_query: positiveBudget.max(10),
-    max_details_per_query: positiveBudget.max(3),
-    max_comment_notes_per_run: positiveBudget.max(3),
-    max_comments_per_note: positiveBudget.max(10),
-    queries: z.array(baseQuery),
-  }),
   weixin: z.object({
     max_queries_per_run: positiveBudget.max(4),
     max_results_per_query: positiveBudget.max(10),
     max_downloads_per_run: positiveBudget.max(5),
     queries: z.array(baseQuery),
   }),
-});
+}).strict();
 
 export async function loadPlatformQueries(rootDir = process.cwd()): Promise<PlatformQueriesConfig> {
   const contents = await readFile(path.join(rootDir, 'config', 'platform-queries.yaml'), 'utf8');

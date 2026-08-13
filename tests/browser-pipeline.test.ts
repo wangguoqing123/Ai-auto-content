@@ -42,13 +42,12 @@ describe('browser pipeline isolation', () => {
       config,
       now: new Date('2026-08-12T00:00:00.000Z'),
       collectors: [
-        { collect: async () => platform('twitter') },
         { collect: async () => { throw new Error('isolated fixture failure'); } },
         { collect: async () => platform('weixin') },
       ],
     });
     expect(result.status).toBe('partial_success');
-    expect(result.platforms.map((entry) => entry.status)).toEqual(['success', 'command_failed', 'success']);
+    expect(result.platforms.map((entry) => entry.status)).toEqual(['command_failed', 'success']);
   });
 
   it('reports raw, unique, and duplicate material counts after pipeline-wide deduplication', async () => {
@@ -67,7 +66,6 @@ describe('browser pipeline isolation', () => {
       now: new Date('2026-08-13T00:00:00.000Z'),
       collectors: [
         { collect: async () => platformResult('twitter', duplicateRows, 2) },
-        { collect: async () => platform('xiaohongshu') },
         { collect: async () => platform('weixin') },
       ],
     });
@@ -93,11 +91,10 @@ describe('browser pipeline isolation', () => {
       now: new Date('2026-08-13T00:00:00.000Z'),
       collectors: [
         { collect: async () => platform('twitter') },
-        { collect: async () => platform('xiaohongshu') },
         { collect: async () => platformResult('weixin', [article]) },
       ],
     });
-    expect(result.platforms[2]?.materials[0]).toMatchObject({ content_path: null, content_downloaded: true });
+    expect(result.platforms[1]?.materials[0]).toMatchObject({ content_path: null, content_downloaded: true });
   });
 
   it('merges repeated same-day persistence without losing query provenance or fresh metrics', async () => {

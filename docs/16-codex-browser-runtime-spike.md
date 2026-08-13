@@ -7,6 +7,8 @@ validation: live_checked
 recommendation: use_for_exploration_only
 ---
 
+> 小红书能力仅为历史验证记录；自 PR #3 起已因产品风险决策退出活跃范围。
+
 # Codex 浏览器采集运行时真实验证报告
 
 ## 结论摘要
