@@ -11,6 +11,9 @@ function platform(platformName: BrowserPlatformResult['platform'], status: OpenC
     finished_at: '2026-08-12T00:00:01.000Z',
     commands: [],
     materials: [],
+    raw_materials_count: 0,
+    materials_count: 0,
+    duplicate_materials_count: 0,
     missing_fields: [],
     error: status === 'success' ? null : `${platformName} unavailable`,
   };
@@ -38,7 +41,9 @@ function result(
     },
     status,
     platforms: names.map((name, index) => platform(name, platformStatuses[index] ?? 'success')),
+    raw_materials_count: 0,
     materials_count: 0,
+    duplicate_materials_count: 0,
   };
 }
 

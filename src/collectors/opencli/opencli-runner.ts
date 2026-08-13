@@ -158,5 +158,43 @@ export class OpenCliRunner {
 
 export function toCommandSummary(result: OpenCliRunResult): OpenCliCommandSummary {
   const { args, status, exit_code, duration_ms, timed_out, cancelled, error } = result;
-  return { args, status, exit_code, duration_ms, timed_out, cancelled, error };
+  return {
+    args: args.map(redactCommandArgument),
+    status,
+    exit_code,
+    duration_ms,
+    timed_out,
+    cancelled,
+    error: error ? redactSensitiveText(error) : null,
+  };
+}
+
+function redactCommandArgument(value: string): string {
+  if (!/^https:\/\//i.test(value)) return value;
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLocaleLowerCase();
+    if (/(^|\.)xiaohongshu\.com$/.test(host)) {
+      const noteId = url.pathname.match(/\/(?:search_result|explore|note)\/([0-9a-f]{24})/i)?.[1];
+      return noteId ? `https://www.xiaohongshu.com/explore/${noteId.toLocaleLowerCase()}` : 'https://www.xiaohongshu.com/';
+    }
+    if (host === 'weixin.sogou.com' && url.pathname === '/link') return 'https://weixin.sogou.com/link';
+    if (host === 'mp.weixin.qq.com' && /^\/s(?:\/|$)/.test(url.pathname)) {
+      const clean = new URL(`https://mp.weixin.qq.com${url.pathname}`);
+      for (const key of ['__biz', 'mid', 'idx', 'sn']) {
+        const parameter = url.searchParams.get(key);
+        if (parameter) clean.searchParams.set(key, parameter);
+      }
+      return clean.toString();
+    }
+    return value;
+  } catch {
+    return value;
+  }
+}
+
+function redactSensitiveText(value: string): string {
+  return value
+    .replace(/https:\/\/[^\s"'<>]+/gi, (url) => redactCommandArgument(url))
+    .replace(/([?&](?:xsec_token|signature|pass_ticket|exportkey|sessionid)=)[^&\s]+/gi, '$1[redacted]');
 }

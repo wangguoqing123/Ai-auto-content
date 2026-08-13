@@ -26,6 +26,9 @@ jobs:
       - name: Type-check
         run: npm run typecheck
 
+      - name: Check JSON Schema drift
+        run: npm run schema:check
+
       - name: Run tests
         run: npm test
 

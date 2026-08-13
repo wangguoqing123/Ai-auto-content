@@ -1,5 +1,6 @@
 import type { UnifiedMaterial } from '../../types.js';
 import { createBrowserMaterial } from './material-factory.js';
+import { deduplicateUnifiedMaterials } from './merge-materials.js';
 import {
   summarizePlatformStatus,
   terminalPlatformStatus,
@@ -15,10 +16,7 @@ import {
   parseXiaohongshuSearch,
   type XiaohongshuComment,
 } from './parsers/xiaohongshu-parser.js';
-
-function noteIdFromUrl(rawUrl: string): string {
-  return rawUrl.match(/\/(?:search_result|explore|note)\/([0-9a-f]{24})/i)?.[1] ?? '';
-}
+import { canonicalizeXiaohongshuUrl, deriveXiaohongshuNoteId } from './xiaohongshu-url.js';
 
 function topQuestions(comments: XiaohongshuComment[]): string[] {
   return comments
@@ -36,7 +34,7 @@ export class XiaohongshuCollector {
 
   async collect(now = new Date(), signal?: AbortSignal): Promise<BrowserPlatformResult> {
     const commands = [];
-    const materials: UnifiedMaterial[] = [];
+    const rawMaterials: UnifiedMaterial[] = [];
     const failures: OpenCliStatus[] = [];
     let commentNotes = 0;
     let hardStop = false;
@@ -111,17 +109,19 @@ export class XiaohongshuCollector {
           .filter(Boolean)
           .join('\n')
           .slice(0, 1_000);
-        materials.push(createBrowserMaterial({
+        const canonicalUrl = canonicalizeXiaohongshuUrl(candidate.url);
+        rawMaterials.push(createBrowserMaterial({
           sourcePlatform: 'xiaohongshu',
           collector: 'opencli-xiaohongshu',
           queryId: query.id,
           queryText: query.query,
           searchRank: candidate.rank,
-          sourceItemId: noteIdFromUrl(candidate.url),
+          sourceItemId: deriveXiaohongshuNoteId(candidate.url),
           authorName: detail.author || candidate.author,
           title: detail.title || candidate.title,
           excerpt,
-          sourceUrl: candidate.url,
+          sourceUrl: canonicalUrl,
+          canonicalUrl,
           publishedAt: candidate.published_at,
           publishedAtQuality: 'inferred',
           collectedAt: now.toISOString(),
@@ -137,13 +137,17 @@ export class XiaohongshuCollector {
       }
     }
 
+    const materials = deduplicateUnifiedMaterials(rawMaterials);
     return {
       platform: 'xiaohongshu',
-      status: summarizePlatformStatus(commands.filter((command) => command.status === 'success').length, failures),
+      status: summarizePlatformStatus(materials.length, failures),
       started_at: now.toISOString(),
       finished_at: new Date().toISOString(),
       commands,
       materials,
+      raw_materials_count: rawMaterials.length,
+      materials_count: materials.length,
+      duplicate_materials_count: rawMaterials.length - materials.length,
       missing_fields: ['author_followers', 'views', 'shares', 'reposts', 'quotes', 'bookmarks'],
       error: [...commands].reverse().find((command) => command.error)?.error ?? null,
     };

@@ -50,6 +50,7 @@ describe('daily report', () => {
       title: 'AI video guide',
       source_url: url,
       content_path: null,
+      content_downloaded: false,
       canonical_url: url,
       author: null,
       published_at: '2026-08-12T00:00:00.000Z',

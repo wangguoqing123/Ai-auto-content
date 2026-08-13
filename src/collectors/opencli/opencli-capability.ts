@@ -29,6 +29,9 @@ export interface BrowserPlatformResult {
   finished_at: string;
   commands: OpenCliCommandSummary[];
   materials: UnifiedMaterial[];
+  raw_materials_count: number;
+  materials_count: number;
+  duplicate_materials_count: number;
   missing_fields: string[];
   error: string | null;
 }
@@ -37,8 +40,10 @@ export function terminalPlatformStatus(status: OpenCliStatus): boolean {
   return status === 'login_required' || status === 'blocked' || status === 'unavailable';
 }
 
-export function summarizePlatformStatus(successes: number, failures: OpenCliStatus[]): OpenCliStatus {
+const FAILURE_PRIORITY: OpenCliStatus[] = ['blocked', 'login_required', 'unavailable', 'command_failed', 'partial_success'];
+
+export function summarizePlatformStatus(materialsCount: number, failures: OpenCliStatus[]): OpenCliStatus {
   if (failures.length === 0) return 'success';
-  if (successes > 0) return 'partial_success';
-  return failures[0] ?? 'command_failed';
+  if (materialsCount > 0) return 'partial_success';
+  return FAILURE_PRIORITY.find((status) => failures.includes(status)) ?? 'command_failed';
 }

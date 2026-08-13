@@ -5,6 +5,8 @@ updated_at: 2026-08-12
 status: experimental_manual_only
 ---
 
+> 后续成功接通与去重修正结果见 `docs/17-opencli-browser-live-validation.md`。
+
 # OpenCLI 实时能力验证报告
 
 OpenCLI Browser Collector 当前模块状态为 `experimental_manual_only`：代码与 Fixture 已完成，但 Browser Bridge 和三个平台的 OpenCLI 在线链路尚未真实验证。Cloud Collector 为 `verified_live`，Codex Browser 为 `exploration_only`，两者不能替代 OpenCLI 的 Browser Bridge 验收。

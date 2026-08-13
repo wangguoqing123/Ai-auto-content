@@ -32,8 +32,9 @@ function stringArray(value: unknown): string[] {
 
 export function parseTwitterSearch(payload: unknown): TwitterRecord[] {
   if (!Array.isArray(payload)) throw new Error('Twitter search payload must be an array');
-  return payload.map((value, index) => {
-    if (!value || typeof value !== 'object') throw new Error(`Twitter row ${index} is not an object`);
+  const records: TwitterRecord[] = [];
+  for (const value of payload) {
+    if (!value || typeof value !== 'object') continue;
     const row = value as Record<string, unknown>;
     const id = text(row.id) || text(row.tweet_id);
     const authorValue = row.author;
@@ -42,8 +43,8 @@ export function parseTwitterSearch(payload: unknown): TwitterRecord[] {
       : text(authorValue);
     const body = text(row.text) || text(row.full_text);
     const url = text(row.url) || (id ? `https://x.com/i/status/${id}` : '');
-    if (!id || !body || !url) throw new Error(`Twitter row ${index} is missing id, text, or url`);
-    return {
+    if (!id || !body || !url) continue;
+    records.push({
       id,
       author,
       author_followers: metricWhenPresent(row, 'author_followers', 'followers'),
@@ -61,6 +62,8 @@ export function parseTwitterSearch(payload: unknown): TwitterRecord[] {
         urls: stringArray(row.media_urls),
         posters: stringArray(row.media_posters),
       },
-    };
-  });
+    });
+  }
+  if (payload.length > 0 && records.length === 0) throw new Error('Twitter search payload contains no valid rows');
+  return records;
 }

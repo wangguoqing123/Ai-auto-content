@@ -1,7 +1,7 @@
 ---
 title: 来源能力矩阵
 version: 1.0.0
-updated_at: 2026-08-12
+updated_at: 2026-08-13
 status: live_checked
 ---
 
@@ -12,7 +12,7 @@ status: live_checked
 | 运行时 | 状态 | 当前用途 | 是否每日运行 |
 |---|---|---|---|
 | Cloud Collector | `verified_live` | RSS / Atom + AIHOT v1 | 是；GitHub Actions 的唯一正式通道 |
-| OpenCLI Browser Collector | `experimental_manual_only` | 本地手动 preflight、Fixture 和待验证的平台采集 | 否 |
+| OpenCLI Browser Collector | `verified_live_manual` | 本机真实 Chrome 登录态下的受控采集 | 否；当前只手动运行 |
 | Codex Browser | `exploration_only` | 页面探索、DOM 字段确认、登录诊断、适配器修复 | 否；不接入正式 Browser Pipeline |
 
 下表的来源验证状态只使用 `verified_live`、`verified_fixture_only`、`login_required`、`manual_verification_required`、`temporarily_blocked`、`unsupported`。
@@ -21,11 +21,11 @@ status: live_checked
 |---|---|---|---|---|---|---|
 | RSS | 是；标题、链接、摘要、发布时间 | 仅有界摘要，不保存全文 | 否 | 否 | 无 | `verified_live` |
 | AIHOT | 是；精选、热点、分类和搜索 | 否；v1 只有摘要与原始链接 | 否 | 否 | 无 | `verified_live` |
-| X | OpenCLI 搜索命令与富字段适配器已注册 | 帖子正文 | 目标字段已实现，但本机未完成在线取数 | 否 | Chrome 中登录 X | `manual_verification_required` |
-| 小红书 | 搜索 Fixture 与命令 schema 已验证 | 详情 Fixture 与命令 schema 已验证 | 点赞、收藏、评论 Fixture 已验证 | 一级评论与楼中楼 Fixture 已验证 | Chrome 中登录小红书 | `manual_verification_required` |
-| 公众号搜索 | 搜狗微信搜索 Fixture 与命令 schema 已验证 | 否 | 无可验证互动数据 | 否 | 不要求账号，但要求 Browser Bridge | `manual_verification_required` |
-| 公众号正文 | 通过文章 URL 下载 Markdown 的 Fixture 与命令 schema 已验证 | 是，待本机在线验证 | 无 | 否 | Browser Bridge；部分文章会要求人工环境验证 | `manual_verification_required` |
+| X | 最新真实搜索为 80 raw / 78 unique / 2 duplicate | 帖子正文 | 粉丝、点赞、转发、回复、引用、书签、浏览量已在线取得；富搜索失败可回退基础字段 | 否 | Chrome 中登录 X | `verified_live` |
+| 小红书 | 最新真实搜索为 4 raw / 4 unique / 0 duplicate | 4 篇详情真实读取 | 点赞、收藏、评论已在线取得 | 2 组一级评论和楼中楼真实读取 | Chrome 中登录小红书 | `verified_live` |
+| 公众号搜索 | 最新真实搜索为 20 raw / 20 unique / 0 duplicate | 否 | 不提供可验证互动数据 | 否 | Browser Bridge；本次未要求账号登录 | `verified_live` |
+| 公众号正文 | 最新一次 5 个下载命令退出成功，4 篇通过最终正文解析 | 是 | 无 | 否 | Browser Bridge；部分文章可能业务失败或要求人工验证 | `verified_live` |
 
-`manual_verification_required` 的直接原因不是 Fixture 失败，而是 2026-08-12 实机 `opencli doctor` 返回 Browser Bridge 扩展未连接，因此登录态和在线返回字段均无法核实。详见 `docs/14-opencli-live-capability-spike.md`。
+上述浏览器来源的 `verified_live` 证据来自 2026-08-13 本机运行；运行时整体仍是 `verified_live_manual`，未配置无人值守调度。首次 Bridge 未连接记录保留在 `docs/14-opencli-live-capability-spike.md`，后续成功接通与去重修正见 `docs/17-opencli-browser-live-validation.md`。
 
-Codex Browser 已真实读取小红书搜索、详情、评论和搜狗微信搜索 DOM，但这只证明页面探索能力，不证明 OpenCLI 生产链路已接通。其真实边界见 `docs/16-codex-browser-runtime-spike.md`。
+Codex Browser 的历史 DOM 探索结果不作为本次 OpenCLI 证据；OpenCLI 结论来自 Browser Bridge 命令和最终 dry-run。Codex Browser 边界见 `docs/16-codex-browser-runtime-spike.md`。

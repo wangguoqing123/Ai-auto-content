@@ -15,7 +15,9 @@
     "spike:opencli": "tsx scripts/opencli-live-spike.ts",
     "opencli:install-adapters": "tsx scripts/install-opencli-adapters.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "schema:generate": "tsx scripts/generate-json-schemas.ts",
+    "schema:check": "tsx scripts/generate-json-schemas.ts --check"
   },
   "dependencies": {
     "p-limit": "^7.1.1",
@@ -25,6 +27,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.3.0",
+    "ajv": "^8.20.0",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"

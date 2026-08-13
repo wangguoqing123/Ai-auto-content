@@ -7,7 +7,7 @@ describe('GitHub workflows', () => {
   it('defines PR validation without live browser collection', async () => {
     const text = await readFile(path.join(process.cwd(), '.github', 'workflows', 'pr-validation.yml'), 'utf8');
     expect(() => parse(text)).not.toThrow();
-    for (const command of ['npm ci', 'npm run typecheck', 'npm test', 'npm run collect:fixture']) expect(text).toContain(command);
+    for (const command of ['npm ci', 'npm run typecheck', 'npm run schema:check', 'npm test', 'npm run collect:fixture']) expect(text).toContain(command);
     expect(text).not.toContain('collect:browser');
     expect(text).not.toContain('spike:opencli');
   });

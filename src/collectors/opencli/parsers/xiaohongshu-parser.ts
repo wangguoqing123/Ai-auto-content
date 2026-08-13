@@ -37,7 +37,10 @@ function valueText(value: unknown): string {
 export function hasXsecToken(rawUrl: string): boolean {
   try {
     const url = new URL(rawUrl);
-    return /(^|\.)xiaohongshu\.com$/i.test(url.hostname) && Boolean(url.searchParams.get('xsec_token'));
+    return url.protocol === 'https:' && !url.username && !url.password
+      && /(^|\.)xiaohongshu\.com$/i.test(url.hostname)
+      && /\/(?:search_result|explore|note)\/[0-9a-f]{24}(?:\/)?$/i.test(url.pathname)
+      && Boolean(url.searchParams.get('xsec_token'));
   } catch {
     return false;
   }
@@ -52,12 +55,13 @@ function inferredDate(value: unknown): string | null {
 
 export function parseXiaohongshuSearch(payload: unknown): XiaohongshuSearchRecord[] {
   if (!Array.isArray(payload)) throw new Error('Xiaohongshu search payload must be an array');
-  return payload.map((value, index) => {
-    if (!value || typeof value !== 'object') throw new Error(`Xiaohongshu search row ${index} is invalid`);
+  const records: XiaohongshuSearchRecord[] = [];
+  for (const [index, value] of payload.entries()) {
+    if (!value || typeof value !== 'object') continue;
     const row = value as Record<string, unknown>;
     const url = valueText(row.url);
-    if (!valueText(row.title) || !hasXsecToken(url)) throw new Error(`Xiaohongshu search row ${index} lacks title or xsec_token URL`);
-    return {
+    if (!valueText(row.title) || !hasXsecToken(url)) continue;
+    records.push({
       rank: parseMetric(row.rank) ?? index + 1,
       title: valueText(row.title),
       author: valueText(row.author),
@@ -65,8 +69,10 @@ export function parseXiaohongshuSearch(payload: unknown): XiaohongshuSearchRecor
       published_at: inferredDate(row.published_at),
       published_at_quality: 'inferred',
       url,
-    };
-  });
+    });
+  }
+  if (payload.length > 0 && records.length === 0) throw new Error('Xiaohongshu search payload contains no valid rows');
+  return records;
 }
 
 export function parseXiaohongshuDetail(payload: unknown): XiaohongshuDetail {
