@@ -62,7 +62,12 @@ describe('Weixin collector live response flow', () => {
       content_downloaded: true,
       published_at: '2026-08-13T01:01:00.000Z',
       published_at_quality: 'exact',
+      source_access_status: 'resolved',
+      status: 'accepted',
     });
+    expect(result.materials[0]?.identity_aliases).toEqual(expect.arrayContaining([
+      expect.stringMatching(/^metadata:/),
+    ]));
     expect(JSON.stringify(result)).not.toContain('search-secret');
     expect(JSON.stringify(result)).not.toContain('download-secret');
   });
@@ -99,11 +104,34 @@ describe('Weixin collector live response flow', () => {
     expect(result.materials[0]).toMatchObject({
       collector: 'opencli-weixin-search',
       source_url: 'https://mp.weixin.qq.com/s',
+      source_access_status: 'resolved',
+      status: 'accepted',
       content_path: null,
       content_downloaded: false,
       published_at: '2026-08-13T01:00:00.000Z',
       published_at_quality: 'exact',
     });
+  });
+
+  it('quarantines an unresolved Sogou discovery without persisting its tokenized redirect', async () => {
+    const runner = { run: async (args: readonly string[]) => {
+      if (args[1] === 'search') return commandResult(args, 'success', [searchRow('unresolved-secret')]);
+      throw new Error(`Unexpected command: ${args.join(' ')}`);
+    } } as unknown as OpenCliRunner;
+    const noDownloads = { ...config(), max_downloads_per_run: 0 };
+    const result = await new WeixinCollector(runner, noDownloads, '/tmp/fixture').collect(new Date('2026-08-13T03:00:00.000Z'));
+    expect(result.materials).toHaveLength(1);
+    expect(result.materials[0]).toMatchObject({
+      source_url: 'https://weixin.sogou.com/link',
+      canonical_url: 'https://weixin.sogou.com/link',
+      source_access_status: 'unresolved',
+      status: 'quarantined',
+      rejection_reasons: ['unresolved_source_url'],
+      content_downloaded: false,
+      usage_mode: 'structure_inspiration',
+      viral_confidence: 'unverified',
+    });
+    expect(JSON.stringify(result)).not.toContain('unresolved-secret');
   });
 
   it('falls back to the valid search time when the article time is unknown', async () => {

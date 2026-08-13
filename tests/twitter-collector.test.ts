@@ -45,6 +45,10 @@ describe('Twitter collector rich search fallback', () => {
     } } as unknown as OpenCliRunner;
     const result = await new TwitterCollector(runner, config()).collect(new Date('2026-08-13T03:00:00.000Z'));
     expect(calls.map((args) => args[1])).toEqual(['search-rich', 'search']);
+    expect(calls[1]).toEqual(expect.arrayContaining([
+      '--product', 'top', '--limit', '5',
+    ]));
+    expect(calls[1]?.[2]).toContain('AI tools lang:en since:2026-08-10 -filter:replies -filter:nativeretweets');
     expect(result.status).toBe('partial_success');
     expect(result.materials[0]).toMatchObject({
       collector: 'opencli-twitter-basic',
@@ -52,6 +56,32 @@ describe('Twitter collector rich search fallback', () => {
       engagement: { likes: 12, views: 600, comments: null, reposts: null, quotes: null, bookmarks: null },
     });
     expect(result.missing_fields).toEqual(expect.arrayContaining(['author_followers', 'retweets', 'replies', 'quotes', 'bookmarks']));
+  });
+
+  it('preserves product=live and all search operators in basic fallback', async () => {
+    const calls: string[][] = [];
+    const liveOnly = { ...config(), queries: [config(2).queries[1]!] };
+    const runner = { run: async (args: readonly string[]) => {
+      calls.push([...args]);
+      return args[1] === 'search-rich'
+        ? commandResult(args, 'command_failed', null, 'GraphQL Operation changed')
+        : commandResult(args, 'success', [row]);
+    } } as unknown as OpenCliRunner;
+    await new TwitterCollector(runner, liveOnly).collect(new Date('2026-08-13T03:00:00.000Z'));
+    expect(calls[1]).toEqual(expect.arrayContaining(['--product', 'live', '--limit', '5']));
+    expect(calls[1]?.[2]).toContain('AI coding lang:en since:2026-08-10 -filter:replies -filter:nativeretweets');
+  });
+
+  it.each([
+    ['login_required', 'Not logged into x.com'],
+    ['blocked', 'CAPTCHA required'],
+  ] as const)('lets fallback terminal status %s override the earlier rich failure', async (status, error) => {
+    const runner = { run: async (args: readonly string[]) => args[1] === 'search-rich'
+      ? commandResult(args, 'command_failed', null, 'GraphQL Operation changed')
+      : commandResult(args, status, null, error) } as unknown as OpenCliRunner;
+    const result = await new TwitterCollector(runner, config()).collect(new Date('2026-08-13T03:00:00.000Z'));
+    expect(result.status).toBe(status);
+    expect(result.materials).toHaveLength(0);
   });
 
   it('uses basic search after a rich payload parser failure', async () => {

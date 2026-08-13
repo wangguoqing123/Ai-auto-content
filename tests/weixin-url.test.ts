@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   canonicalizeWeixinArticleUrl,
   deriveWeixinArticleId,
+  deriveWeixinDiscoveryId,
   isWeixinArticleUrl,
 } from '../src/collectors/opencli/weixin-url.js';
 
@@ -39,5 +40,45 @@ describe('Weixin article URL safety and identity', () => {
     const second = deriveWeixinArticleId('https://mp.weixin.qq.com/s?signature=two&pass_ticket=secret', metadata);
     expect(first).toBe(second);
     expect(first).toMatch(/^metadata:[a-f0-9]{64}$/);
+  });
+
+  it('keeps inferred discovery identity stable when the inferred minute changes within one Shanghai date', () => {
+    const first = deriveWeixinDiscoveryId({
+      title: '同一篇文章', summary: '同一段摘要',
+      publishedAt: '2026-08-13T01:00:00.000Z', publishedAtQuality: 'inferred',
+    });
+    const tenMinutesLater = deriveWeixinDiscoveryId({
+      title: '同一篇文章', summary: '同一段摘要',
+      publishedAt: '2026-08-13T01:10:00.000Z', publishedAtQuality: 'inferred',
+    });
+    const differentRelativeLabelSameDate = deriveWeixinDiscoveryId({
+      title: '同一篇文章', summary: '同一段摘要',
+      publishedAt: '2026-08-13T00:00:00.000Z', publishedAtQuality: 'inferred',
+    });
+    expect(tenMinutesLater).toBe(first);
+    expect(differentRelativeLabelSameDate).toBe(first);
+  });
+
+  it('normalizes title and summary while keeping exact identity deterministic', () => {
+    const normalized = deriveWeixinDiscoveryId({
+      title: 'AI 工具', summary: '一段 摘要',
+      publishedAt: '2026-08-13T01:00:00.000Z', publishedAtQuality: 'exact',
+    });
+    const variant = deriveWeixinDiscoveryId({
+      title: '  ＡＩ　工具  ', summary: ' 一段   摘要 ',
+      publishedAt: '2026-08-13T01:00:00.000Z', publishedAtQuality: 'exact',
+    });
+    expect(variant).toBe(normalized);
+    expect(deriveWeixinDiscoveryId({
+      title: '不同标题', summary: '一段 摘要',
+      publishedAt: '2026-08-13T01:00:00.000Z', publishedAtQuality: 'exact',
+    })).not.toBe(normalized);
+    expect(deriveWeixinDiscoveryId({
+      title: 'AI 工具', summary: '明显不同的摘要',
+      publishedAt: null, publishedAtQuality: 'unknown',
+    })).not.toBe(deriveWeixinDiscoveryId({
+      title: 'AI 工具', summary: '一段 摘要',
+      publishedAt: null, publishedAtQuality: 'unknown',
+    }));
   });
 });
