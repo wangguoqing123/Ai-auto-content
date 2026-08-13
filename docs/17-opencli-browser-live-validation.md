@@ -1,6 +1,6 @@
 ---
 title: OpenCLI 浏览器采集成功验证与第二轮修正报告
-version: 1.1.0
+version: 1.2.0
 updated_at: 2026-08-13
 status: verified_live_manual
 ---
@@ -109,6 +109,18 @@ npm run collect:browser -- --dry-run
 - 跨两次运行的持久化测试验证：首次 unresolved 搜索素材与第二次下载成功素材保持同一 `material_id`，最终 JSONL 只有一行，并正确升级原文 URL、作者、精确时间、正文状态与两次查询来源。
 
 这些结论是离线正确性验证，不是新的真实平台运行结果。
+
+## 合并前数据契约同步
+
+本节是在 `browser_20260813042041` 之后完成的纯离线收口，没有再次访问 X、小红书、搜狗微信、微信公众号正文、OpenCLI Browser Bridge 或任何真实浏览器平台；真实运行的 104 raw / 102 unique / 2 duplicate 和 4 篇正文统计保持不变。
+
+- 新增 `schemas/unified-material.schema.json`，与 Browser 和跨来源核心 `unifiedMaterialSchema` 同步。
+- `schemas/material-card.schema.json` 改为从 `materialSchema` 生成，补齐 `identity_aliases`、`source_access_status` 和 `content_downloaded`。
+- 新增 `npm run schema:generate` 和纯离线 `npm run schema:check`；PR CI 会在临时目录重新生成两份 Schema 并检查漂移。
+- 增加 Ajv 2020 契约测试，覆盖 Cloud、X、小红书、已解析与 unresolved 公众号素材，以及缺失字段、非法值和额外字段拒绝。
+- 公众号 `inferred` 与 `unknown` discovery identity 不再依赖分钟、小时、上海日期或任何当前运行时间；只有规范为 UTC 的 `exact` 时间参与身份。
+
+以上结果来自 Schema 契约、Fixture 和单元测试，不是新的真实平台采集。
 
 ## 验证层级与运行建议
 

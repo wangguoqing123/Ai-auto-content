@@ -43,6 +43,7 @@ OpenCLI Browser Collector 的代码、Fixture、失败隔离和真实 Browser Br
 ```bash
 npm ci
 npm run typecheck
+npm run schema:check
 npm test
 npm run collect:fixture
 ```
@@ -102,6 +103,13 @@ reports/materials/YYYY-MM-DD.md     每日素材日报
 ```
 
 首次运行时，7 天以前的 RSS 只写入指纹状态，不写入当天素材；发布时间未知的素材进入 `quarantined`。缺失互动字段保存为 `null`，不以 0 冒充真实数据。
+
+## JSON Schema 数据契约
+
+- `schemas/unified-material.schema.json`：Browser Collector 和跨来源核心素材契约，对应 `unifiedMaterialSchema`。
+- `schemas/material-card.schema.json`：Cloud Material 完整契约，对应 `materialSchema`。
+
+两份提交文件都从 `src/types.ts` 中的 Zod Schema 生成。修改运行时模型后执行 `npm run schema:generate` 更新文件；`npm run schema:check` 会在临时目录重新生成并比较，发现漂移时返回非零退出码。PR CI 会运行该检查，过程不访问真实平台或网络。
 
 ## 项目目标
 
