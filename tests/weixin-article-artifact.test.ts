@@ -64,11 +64,46 @@ describe('Weixin downloaded article artifact safety', () => {
     expect(cleaned).toContain('Internal body.');
   });
 
-  it('rejects sensitive URL query parameters while allowing the normal word signature', async () => {
+  it('restricts sensitive access-query detection to Weixin and Sogou Weixin URLs', async () => {
     expect(hasSensitiveWeixinAccessQuery('The document signature is useful.')).toBe(false);
-    expect(hasSensitiveWeixinAccessQuery('https://example.com/?signature=secret')).toBe(true);
-    expect(hasSensitiveWeixinAccessQuery('https://example.com/?pass_ticket=secret')).toBe(true);
-    const item = await fixture('# Fixture\n\nBody URL: https://example.com/?xsec_token=secret\n');
+    expect(hasSensitiveWeixinAccessQuery('https://example.com/?signature=demo')).toBe(false);
+    expect(hasSensitiveWeixinAccessQuery('https://s3.example.com/file?signature=demo')).toBe(false);
+    expect(hasSensitiveWeixinAccessQuery('https://api.example.com/?sessionid=document-example')).toBe(false);
+    expect(hasSensitiveWeixinAccessQuery('https://mp.weixin.qq.com/s/stable-slug')).toBe(false);
+    expect(hasSensitiveWeixinAccessQuery('https://mp.weixin.qq.com/s?sn=stable')).toBe(false);
+    expect(hasSensitiveWeixinAccessQuery('https://mp.weixin.qq.com/s?__biz=biz&mid=1&idx=1')).toBe(false);
+    for (const key of [
+      'signature', 'pass_ticket', 'exportkey', 'sessionid', 'scene', 'src', 'from',
+      'clicktime', 'enterid', 'subscene', 'ascene', 'wx_header',
+    ]) expect(hasSensitiveWeixinAccessQuery(`https://mp.weixin.qq.com/s?${key}=secret`)).toBe(true);
+    expect(hasSensitiveWeixinAccessQuery('https://weixin.sogou.com/link?signature=secret')).toBe(true);
+    expect(hasSensitiveWeixinAccessQuery('https://mp.weixin.qq.com/s?sn=stable&amp;pass_ticket=secret')).toBe(true);
+  });
+
+  it('normalizes technical article content with external signed URLs and path examples', async () => {
+    const markdown = [
+      '# Fixture',
+      '',
+      'Authorization header is required.',
+      'Use Cookie-based sessions.',
+      'No ct0 cookie was found.',
+      'Write the file to /tmp/output.',
+      'Example path: /home/example/project.',
+      'https://example.com/?signature=demo',
+      'https://api.example.com/?sessionid=document-example',
+      '',
+    ].join('\n');
+    const item = await fixture(markdown);
+    await expect(normalizeWeixinArticleArtifact({
+      ...item,
+      accessUrl: 'https://mp.weixin.qq.com/s/stable-slug',
+      canonicalUrl: 'https://mp.weixin.qq.com/s/stable-slug',
+    })).resolves.toBe('data/weixin-articles/2026-08-14/article/article.md');
+    expect(await readFile(item.savedPath, 'utf8')).toBe(markdown);
+  });
+
+  it('rejects a temporary Weixin URL that remains in the article body', async () => {
+    const item = await fixture('# Fixture\n\nBody URL: https://mp.weixin.qq.com/s?signature=secret\n');
     await expect(normalizeWeixinArticleArtifact({
       ...item,
       accessUrl: 'https://mp.weixin.qq.com/s/stable-slug',

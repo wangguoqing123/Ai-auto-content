@@ -1,6 +1,6 @@
-import os from 'node:os';
 import path from 'node:path';
 import { runCommand, type CommandResult } from './process.js';
+import { assertSafeBrowserDataFile } from './sensitive-content.js';
 import type { LocalRuntimeConfig } from './types.js';
 
 export const AUTOMATED_DATA_PATHS = [
@@ -52,11 +52,11 @@ function validCollectionDate(value: string): boolean {
 }
 
 function assertSafeContent(file: string, content: string): void {
-  const homeDirectory = os.homedir();
-  const sensitive = /[?&](?:signature|pass_ticket|exportkey|sessionid|xsec_token)=|\bCookie\b|\bAuthorization\b|\bct0\b|auth_token|\.DS_Store/i;
-  const localAbsolutePath = /(?:~\/|\/Users\/[^/\s]+\/|\/home\/[^/\s]+\/|\/private\/var\/|\/var\/folders\/|\/tmp\/|\/Volumes\/|[a-z]:\\)/i;
-  if (sensitive.test(content) || content.includes(homeDirectory) || localAbsolutePath.test(content)) {
-    throw new GitSyncError(`Sensitive content detected in Browser data file: ${file}`, 'invalid_staged_paths');
+  try {
+    assertSafeBrowserDataFile(file, content);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new GitSyncError(message, 'invalid_staged_paths');
   }
 }
 

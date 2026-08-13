@@ -3,7 +3,21 @@ import { readFile, realpath, rename, stat, unlink, writeFile } from 'node:fs/pro
 import path from 'node:path';
 import { canonicalizeWeixinArticleUrl, isTraceableWeixinCanonicalUrl, isWeixinArticleUrl } from './weixin-url.js';
 
-const SENSITIVE_ACCESS_QUERY = /[?&](?:signature|pass_ticket|exportkey|sessionid|xsec_token)=/i;
+const URL_IN_TEXT = /https?:\/\/[^\s<>"'`]+/gi;
+const SENSITIVE_ACCESS_QUERY_KEYS = new Set([
+  'signature',
+  'pass_ticket',
+  'exportkey',
+  'sessionid',
+  'scene',
+  'src',
+  'from',
+  'clicktime',
+  'enterid',
+  'subscene',
+  'ascene',
+  'wx_header',
+]);
 const WINDOWS_ABSOLUTE_PATH = /^[a-z]:[\\/]/i;
 const ORIGINAL_LINK = /^(\s*(?:>\s*)?(?:[-*]\s*)?(?:\*\*|__)?原文链接(?:\*\*|__)?\s*[:：]\s*)(.*)$/;
 const TOP_METADATA = /^(?:\s*$|\s*---\s*$|\s*#{1,6}\s+.+|\s*>\s*.*|\s*(?:[-*]\s*)?(?:\*\*|__)?(?:标题|公众号|作者|发布时间|原文链接)(?:\*\*|__)?\s*[:：].*)$/;
@@ -55,7 +69,21 @@ async function atomicRewrite(filePath: string, content: string): Promise<void> {
 }
 
 export function hasSensitiveWeixinAccessQuery(value: string): boolean {
-  return SENSITIVE_ACCESS_QUERY.test(value);
+  for (const match of value.matchAll(URL_IN_TEXT)) {
+    try {
+      const url = new URL(match[0].replaceAll('&amp;', '&'));
+      const hostname = url.hostname.toLocaleLowerCase().replace(/\.$/, '');
+      const isWeixinHost = hostname === 'mp.weixin.qq.com' || hostname.endsWith('.mp.weixin.qq.com');
+      const isSogouWeixinHost = hostname === 'weixin.sogou.com' || hostname.endsWith('.weixin.sogou.com');
+      if (!(isWeixinHost || isSogouWeixinHost)) continue;
+      if ([...url.searchParams.keys()].some((key) => SENSITIVE_ACCESS_QUERY_KEYS.has(key.toLocaleLowerCase()))) {
+        return true;
+      }
+    } catch {
+      // Ignore malformed URL-looking article text; only parsed Weixin URLs are access-query evidence.
+    }
+  }
+  return false;
 }
 
 export async function normalizeWeixinArticleArtifact(

@@ -251,6 +251,32 @@ describe('morning task orchestration', () => {
     expect(deps.syncData).toHaveBeenCalledTimes(1);
   });
 
+  it('commits WeChat partial success when X login fails with a normal no-ct0 error', async () => {
+    const env = await environment();
+    const twitter = platformResult('twitter', []);
+    twitter.status = 'login_required';
+    twitter.error = 'X login failed because no ct0 cookie was found';
+    const weixin = platformResult('weixin', [browserMaterialForPlatform('weixin')]);
+    const partial = pipeline('partial_success');
+    partial.platforms = [twitter, weixin];
+    partial.materials_count = 1;
+    partial.raw_materials_count = 1;
+    const deps = dependencies(vi.fn(async () => partial));
+    deps.syncData.mockResolvedValueOnce({
+      status: 'pushed', commit: 'c'.repeat(40), recoveredCollectionDates: [],
+    });
+
+    const execution = await runMorningTask({ ...env, now, config }, deps);
+    expect(execution).toMatchObject({
+      status: 'partial_success', collected: true, gitCommit: 'c'.repeat(40), runId: partial.run_id,
+    });
+    expect(deps.writeReport).toHaveBeenCalledWith(env.repositoryRoot, partial);
+    expect(deps.syncData).toHaveBeenCalledWith(env.repositoryRoot, '2026-08-14', config);
+    expect((await readSchedulerState(env.paths.stateFile))?.tasks.morning).toMatchObject({
+      last_status: 'partial_success', last_collection_status: 'partial_success', last_run_id: partial.run_id,
+    });
+  });
+
   it('returns exit code 7 for an invalid staged path', async () => {
     const env = await environment();
     const deps = dependencies();

@@ -31,8 +31,8 @@ LaunchAgent 不是只在 08:00 触发一次，而是 `RunAtLoad=true`、`StartIn
 5. 共享健康检查只以 Node >=20、npm、兼容 OpenCLI 1.x >=1.8.6、Chrome、daemon、Extension 和 Connectivity 阻断整条流水线。项目 adapter 与平台探测单独记录；X 登录和公众号公开搜索彼此独立探测，任何一方失败都不跳过另一方。
 6. 并行运行 X 与微信公众号 Browser Pipeline。一个平台失败、另一个成功时整次为 `partial_success`，仍保存和同步成功数据；只有两者都失败时才为 `failed`。
 7. 保存 Browser Materials、Run Log、公众号正文和 Browser 日报。公众号正文下载目录固定为 `data/weixin-articles/YYYY-MM-DD/<material_id>/`，同一素材重复运行稳定，同标题不同素材不会覆盖；产物必须经 `realpath` 验证位于 Runtime clone 的 `data/weixin-articles/**`，素材中的 `content_path` 只保存仓库相对 POSIX 路径，dry-run 为 `null`，命令摘要以 `[runtime-output]` 代替本机路径。
-8. 公众号 Markdown 只改写顶部元数据中的“原文链接”：可追溯 URL 写入去参数后的 canonical URL，不可追溯临时 URL 删除；正文不做字符串替换。随后重新读取并扫描敏感查询参数。
-9. 只暂存白名单路径，扫描敏感内容，创建数据 commit。
+8. 公众号 Markdown 只改写顶部元数据中的“原文链接”：可追溯 URL 写入去参数后的 canonical URL，不可追溯临时 URL 删除；正文不做字符串替换。随后重新读取，从正文 URL 中只检查 `mp.weixin.qq.com` 与 `weixin.sogou.com` 的临时访问参数；外部域名的 `signature`、`sessionid` 等技术示例不误报。
+9. 只暂存白名单路径，按文件类型扫描后创建数据 commit：Browser JSON/JSONL 必须真实解析并递归检查敏感键、`content_path` 和路径值；报告与公众号 Markdown 允许正常的 Authorization/Cookie/ct0 说明、代码路径示例和外部签名 URL，只拒绝当前真实 home、微信临时访问 URL 与明确的真实凭证赋值。
 10. 再次验证完整 pending 范围；`git pull --rebase origin main` 后重验并正常 push。冲突 abort 并保留本地 commit，绝不 force、reset hard 或重新采集。
 11. 原子更新外部状态，按需发送本机通知，并在 `finally` 中释放锁。
 
@@ -70,6 +70,8 @@ npm run local:uninstall -- --uninstall
 状态文件：`~/Library/Application Support/AiAutoContent/state/scheduler-state.json`。损坏状态不会被静默覆盖。
 
 pending 恢复返回其中所有采集日期。恢复日期包含当天时，Morning 以当天外部状态确认结果并跳过平台，避免重复采集；仅包含历史日期时，仍继续执行当天共享健康检查和双平台 Pipeline。
+
+文件类型感知扫描也用于所有 pending commit 的 commit 时点内容。JSON/JSONL 中名为 `authorization`、`cookie`、`ct0`、`auth_token`、`pass_ticket`、`exportkey`、`sessionid`、`xsec_token` 的非空真实值会被拒绝，`[redacted]`、`[not available]` 和普通错误描述允许；`content_path` 只能是 `null` 或 `data/weixin-articles/**` 下的仓库相对 POSIX 路径。Markdown 中出现裸词或 `/tmp/output`、`/home/example` 等文章示例不构成泄露证据。
 
 通知标题固定为 `AI Auto Content`。Bridge 不可用、登录失效、blocked、部分成功、达到重试上限、Git 失败或写入失败时发送安全摘要；完整错误留在本机日志。第二次失败达到上限时发送一次 `Morning task reached maximum attempts`，之后的同日轮询静默返回；次日重新允许运行。通知失败不改变主任务结果。
 

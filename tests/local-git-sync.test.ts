@@ -90,25 +90,49 @@ describe('runtime Git path and content safety', () => {
   });
 
   it.each([
-    'https://example.com/?xsec_token=secret',
-    'https://example.com/?signature=secret',
-    'https://example.com/?pass_ticket=secret',
-    'https://example.com/?exportkey=secret',
-    'https://example.com/?sessionid=secret',
-    'Cookie: secret',
-    'Authorization: secret',
-    'ct0 secret',
-    'auth_token=secret',
-    '/Users/alice/private',
-  ])('refuses sensitive staged content: %s', async (secret) => {
+    'https://mp.weixin.qq.com/s?signature=secret',
+    'https://mp.weixin.qq.com/s?pass_ticket=secret',
+    'https://weixin.sogou.com/link?signature=secret',
+    'Authorization: Bearer real-secret',
+    'Cookie: auth_token=real-secret',
+    'ct0=real-secret',
+    `${os.homedir()}/private`,
+  ])('refuses genuinely sensitive staged Markdown: %s', async (secret) => {
     const repo = await repository();
     await writeAllowed(repo.root, `${secret}\n`);
     await expect(commitAndPushBrowserData(repo.root, '2026-08-14', config)).rejects.toBeInstanceOf(GitSyncError);
   });
 
-  it('does not treat the normal word signature as sensitive staged content', async () => {
+  it('commits technical Markdown without false positives from auth words, path examples, or external signed URLs', async () => {
     const repo = await repository();
-    await writeAllowed(repo.root, 'A document signature can be useful.\n');
+    await writeAllowed(repo.root, [
+      'Authorization header is required.',
+      'Use Cookie-based sessions.',
+      'No ct0 cookie was found.',
+      'Write temporary data to /tmp/output.',
+      'Example path: /home/example/project.',
+      'https://example.com/file?signature=demo',
+      'https://s3.example.com/object?signature=demo',
+      'https://api.example.com/?sessionid=document-example',
+      '',
+    ].join('\n'));
+    const article = path.join(repo.root, 'data', 'weixin-articles', '2026-08-14', 'mat_x', 'article.md');
+    await mkdir(path.dirname(article), { recursive: true });
+    await writeFile(article, 'Authorization: Bearer YOUR_TOKEN\nCookie: auth_token=<TOKEN>\n');
+    await expect(commitAndPushBrowserData(repo.root, '2026-08-14', config)).resolves.toMatchObject({ status: 'pushed' });
+  });
+
+  it('commits structured platform errors without treating error prose as credentials', async () => {
+    const repo = await repository();
+    const runFile = path.join(repo.root, 'data', 'browser-runs', 'browser_fixture.json');
+    await mkdir(path.dirname(runFile), { recursive: true });
+    await writeFile(runFile, `${JSON.stringify({
+      status: 'partial_success',
+      platforms: [
+        { platform: 'twitter', status: 'login_required', error: 'X login failed because no ct0 cookie was found' },
+        { platform: 'weixin', status: 'success', error: null },
+      ],
+    }, null, 2)}\n`);
     await expect(commitAndPushBrowserData(repo.root, '2026-08-14', config)).resolves.toMatchObject({ status: 'pushed' });
   });
 
@@ -289,11 +313,11 @@ describe('runtime Git path and content safety', () => {
       await commitBrowserData(root, '2026-08-14');
     }],
     ['authentication content', async (root: string) => {
-      await writeAllowed(root, 'Cookie secret; Authorization bearer-value\n');
+      await writeAllowed(root, 'Authorization: Bearer real-secret\nCookie: auth_token=real-secret\n');
       await commitBrowserData(root, '2026-08-14');
     }],
     ['local absolute path', async (root: string) => {
-      await writeAllowed(root, '/Users/alice/runtime/private.md\n');
+      await writeAllowed(root, `${os.homedir()}/runtime/private.md\n`);
       await commitBrowserData(root, '2026-08-14');
     }],
     ['invalid subject', async (root: string) => {
