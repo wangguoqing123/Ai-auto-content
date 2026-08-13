@@ -81,8 +81,34 @@ export function deriveWeixinArticleId(rawUrl: string, metadata?: WeixinIdentityM
   return `url:${digest(canonical)}`;
 }
 
-export function deriveWeixinSearchId(title: string, publishedAt: string | null): string {
-  return `search:${digest(`${normalizedIdentityPart(title)}\n${publishedAt ?? ''}`)}`;
+function shanghaiDate(value: string | null): string {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+export interface WeixinDiscoveryIdentity {
+  title: string;
+  summary: string;
+  publishedAt: string | null;
+  publishedAtQuality: 'exact' | 'inferred' | 'unknown';
+}
+
+export function deriveWeixinDiscoveryId(input: WeixinDiscoveryIdentity): string {
+  const title = normalizedIdentityPart(input.title);
+  const summary = normalizedIdentityPart(input.summary).slice(0, 500);
+  const stableTime = input.publishedAtQuality === 'exact'
+    ? input.publishedAt ?? ''
+    : input.publishedAtQuality === 'inferred' ? shanghaiDate(input.publishedAt) : '';
+  return `discovery:${digest(`${title}\n${summary}\n${stableTime}`)}`;
 }
 
 export function sanitizeWeixinDiscoveryUrl(rawUrl: string): string {

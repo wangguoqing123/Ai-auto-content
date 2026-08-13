@@ -19,7 +19,7 @@ import {
 import {
   canonicalizeWeixinArticleUrl,
   deriveWeixinArticleId,
-  deriveWeixinSearchId,
+  deriveWeixinDiscoveryId,
   isSogouWeixinRedirectUrl,
   isWeixinArticleUrl,
   sanitizeWeixinDiscoveryUrl,
@@ -43,20 +43,23 @@ function isResolvableArticle(url: string): boolean {
 }
 
 function discoverySourceItemId(record: WeixinSearchRecord): string {
-  if (isWeixinArticleUrl(record.url)) {
-    const derived = deriveWeixinArticleId(record.url, {
-      accountName: '',
-      title: record.title,
-      publishedAt: record.publish_time,
-      publishedAtQuality: record.published_at_quality,
-    });
-    if (!derived.startsWith('url:')) return derived;
-  }
-  return deriveWeixinSearchId(record.title, record.publish_time);
+  return deriveWeixinDiscoveryId({
+    title: record.title,
+    summary: record.summary,
+    publishedAt: record.publish_time,
+    publishedAtQuality: record.published_at_quality,
+  });
 }
 
 function discoveryMaterial(record: Discovery, now: Date): UnifiedMaterial {
   const canonicalUrl = sanitizeWeixinDiscoveryUrl(record.url);
+  const resolved = isWeixinArticleUrl(record.url);
+  const identityAliases = resolved ? [deriveWeixinArticleId(record.url, {
+    accountName: '',
+    title: record.title,
+    publishedAt: record.publish_time,
+    publishedAtQuality: record.published_at_quality,
+  })] : [];
   return createBrowserMaterial({
     sourcePlatform: 'weixin',
     collector: 'opencli-weixin-search',
@@ -64,6 +67,8 @@ function discoveryMaterial(record: Discovery, now: Date): UnifiedMaterial {
     queryText: record.queryText,
     searchRank: record.rank,
     sourceItemId: discoverySourceItemId(record),
+    identityAliases,
+    sourceAccessStatus: resolved ? 'resolved' : 'unresolved',
     authorName: '',
     title: record.title,
     excerpt: record.summary.slice(0, 1_000),
@@ -75,6 +80,8 @@ function discoveryMaterial(record: Discovery, now: Date): UnifiedMaterial {
     engagement: {},
     usageMode: 'structure_inspiration',
     viralConfidence: 'unverified',
+    status: resolved ? 'accepted' : 'quarantined',
+    rejectionReasons: resolved ? [] : ['unresolved_source_url'],
   });
 }
 
@@ -183,7 +190,9 @@ export class WeixinCollector {
           queryId: existingProvisional.query_id,
           queryText: existingProvisional.query_text,
           searchRank: existingProvisional.search_rank,
-          sourceItemId: resolvedIdentity.startsWith('url:') ? discoverySourceItemId(candidate) : resolvedIdentity,
+          sourceItemId: existingProvisional.source_item_id,
+          identityAliases: [...existingProvisional.identity_aliases, resolvedIdentity],
+          sourceAccessStatus: 'resolved',
           authorName: '',
           title: candidate.title,
           excerpt: candidate.summary.slice(0, 1_000),
@@ -195,8 +204,12 @@ export class WeixinCollector {
           engagement: {},
           usageMode: 'structure_inspiration',
           viralConfidence: 'unverified',
+          status: 'accepted',
+          rejectionReasons: [],
         });
-        materialById.delete(existingProvisional.material_id);
+        if (resolvedSearch.material_id !== existingProvisional.material_id) {
+          throw new Error('Weixin material identity changed during URL resolution');
+        }
         store(resolvedSearch);
 
         const download = await this.runner.run([
@@ -230,7 +243,9 @@ export class WeixinCollector {
             queryId: resolvedExisting.query_id,
             queryText: resolvedExisting.query_text,
             searchRank: resolvedExisting.search_rank,
-            sourceItemId: finalIdentity.startsWith('url:') ? resolvedExisting.source_item_id : finalIdentity,
+            sourceItemId: resolvedExisting.source_item_id,
+            identityAliases: [...resolvedExisting.identity_aliases, finalIdentity],
+            sourceAccessStatus: 'resolved',
             authorName: article.account_name,
             title: article.title || candidate.title,
             excerpt: candidate.summary.slice(0, 1_000),
@@ -244,8 +259,12 @@ export class WeixinCollector {
             engagement: {},
             usageMode: 'structure_inspiration',
             viralConfidence: 'unverified',
+            status: 'accepted',
+            rejectionReasons: [],
           });
-          materialById.delete(resolvedExisting.material_id);
+          if (material.material_id !== resolvedExisting.material_id) {
+            throw new Error('Weixin material identity changed during article download');
+          }
           store(material);
         } catch (error) {
           failures.push('command_failed');
@@ -257,7 +276,7 @@ export class WeixinCollector {
     const materials = deduplicateUnifiedMaterials([...materialById.values()]);
     return {
       platform: 'weixin',
-      status: summarizePlatformStatus(commands.filter((command) => command.status === 'success').length, failures),
+      status: summarizePlatformStatus(materials.length, failures),
       started_at: now.toISOString(),
       finished_at: new Date().toISOString(),
       commands,

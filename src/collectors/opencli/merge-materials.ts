@@ -72,6 +72,15 @@ export function mergeUnifiedMaterial(existing: UnifiedMaterial, incoming: Unifie
   const engagement = engagementSchema.parse(Object.fromEntries(
     METRICS.map((key) => [key, maximumNullable(left.engagement[key], right.engagement[key])]),
   ));
+  const sourceAccessStatus: UnifiedMaterial['source_access_status'] = left.source_access_status === 'resolved'
+    || right.source_access_status === 'resolved' ? 'resolved' : 'unresolved';
+  const rejectionReasons = [...new Set([...left.rejection_reasons, ...right.rejection_reasons])]
+    .filter((reason) => sourceAccessStatus === 'unresolved' || reason !== 'unresolved_source_url')
+    .sort();
+  const status: UnifiedMaterial['status'] = sourceAccessStatus === 'unresolved'
+    ? 'quarantined'
+    : left.status === 'accepted' || right.status === 'accepted' ? 'accepted'
+      : left.status === 'quarantined' || right.status === 'quarantined' ? 'quarantined' : 'rejected';
 
   return unifiedMaterialSchema.parse({
     ...preferred,
@@ -81,6 +90,8 @@ export function mergeUnifiedMaterial(existing: UnifiedMaterial, incoming: Unifie
       : right.search_rank === null ? left.search_rank
         : Math.min(left.search_rank, right.search_rank),
     source_item_id: moreComplete(left.source_item_id, right.source_item_id),
+    identity_aliases: [...new Set([...left.identity_aliases, ...right.identity_aliases])].sort(),
+    source_access_status: sourceAccessStatus,
     author_name: moreComplete(left.author_name, right.author_name),
     author_followers: maximumNullable(left.author_followers, right.author_followers),
     title: moreComplete(left.title, right.title),
@@ -94,9 +105,8 @@ export function mergeUnifiedMaterial(existing: UnifiedMaterial, incoming: Unifie
     collected_at: incomingIsNewer ? right.collected_at : left.collected_at,
     engagement,
     metric_quality: metricQuality(engagement),
-    status: left.status === 'accepted' || right.status === 'accepted' ? 'accepted'
-      : left.status === 'quarantined' || right.status === 'quarantined' ? 'quarantined' : 'rejected',
-    rejection_reasons: [...new Set([...left.rejection_reasons, ...right.rejection_reasons])].sort(),
+    status,
+    rejection_reasons: rejectionReasons,
   });
 }
 

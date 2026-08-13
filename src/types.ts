@@ -7,6 +7,7 @@ export const publishedAtQualitySchema = z.enum(['exact', 'inferred', 'unknown'])
 export const metricQualitySchema = z.enum(['complete', 'partial', 'unavailable']);
 export const usageModeSchema = z.enum(['fact_source', 'trend_signal', 'structure_inspiration', 'reference_only']);
 export const viralConfidenceSchema = z.enum(['verified', 'likely', 'candidate', 'unverified']);
+export const sourceAccessStatusSchema = z.enum(['resolved', 'unresolved']);
 
 export const engagementSchema = z.object({
   views: z.number().int().nonnegative().nullable(),
@@ -28,6 +29,8 @@ export const unifiedMaterialSchema = z.object({
   query_text: z.string(),
   search_rank: z.number().int().positive().nullable(),
   source_item_id: z.string(),
+  identity_aliases: z.array(z.string().min(1)).default([]),
+  source_access_status: sourceAccessStatusSchema.default('resolved'),
   author_name: z.string(),
   author_followers: z.number().int().nonnegative().nullable(),
   title: z.string().min(1),

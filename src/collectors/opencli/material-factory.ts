@@ -11,6 +11,8 @@ export interface BrowserMaterialInput {
   queryText?: string;
   searchRank?: number | null;
   sourceItemId: string;
+  identityAliases?: string[];
+  sourceAccessStatus?: UnifiedMaterial['source_access_status'];
   authorName: string;
   authorFollowers?: number | null;
   title: string;
@@ -48,6 +50,8 @@ export function createBrowserMaterial(input: BrowserMaterialInput): UnifiedMater
     query_text: input.queryText ?? '',
     search_rank: input.searchRank ?? null,
     source_item_id: sourceItemId,
+    identity_aliases: [...new Set(input.identityAliases ?? [])].filter(Boolean).sort(),
+    source_access_status: input.sourceAccessStatus ?? 'resolved',
     author_name: input.authorName,
     author_followers: input.authorFollowers ?? null,
     title: input.title,
