@@ -151,17 +151,21 @@ describe('browser pipeline isolation', () => {
       max_queries_per_run: 1, max_results_per_query: 1, max_downloads_per_run: 1,
       queries: [{ id: 'second-query', query: 'AI编程', priority: 1, enabled: true }],
     };
-    const searchRow = {
+    const inferredSearchRow = {
       rank: 1, page: 1, title: '跨运行稳定文章',
       url: 'https://weixin.sogou.com/link?signature=temporary',
       summary: '同一段稳定摘要', publish_time: '2小时前',
     };
+    const exactSearchRow = {
+      ...inferredSearchRow,
+      publish_time: '2026年8月13日 09:00',
+    };
     const firstRunner = { run: async (args: readonly string[]) => {
-      if (args[1] === 'search') return commandResult(args, 'success', [searchRow]);
+      if (args[1] === 'search') return commandResult(args, 'success', [inferredSearchRow]);
       throw new Error(`Unexpected first-run command: ${args.join(' ')}`);
     } } as unknown as OpenCliRunner;
     const secondRunner = { run: async (args: readonly string[]) => {
-      if (args[1] === 'search') return commandResult(args, 'success', [searchRow]);
+      if (args[1] === 'search') return commandResult(args, 'success', [exactSearchRow]);
       if (args[1] === 'resolve-article-url') return commandResult(args, 'success', [{
         url: 'https://mp.weixin.qq.com/s?__biz=biz&mid=10&idx=1&sn=stable&signature=temporary',
       }]);
@@ -188,6 +192,7 @@ describe('browser pipeline isolation', () => {
       expect(firstMaterial).toMatchObject({
         source_access_status: 'unresolved', status: 'quarantined',
         rejection_reasons: ['unresolved_source_url'], content_downloaded: false,
+        published_at_quality: 'inferred',
       });
       await persistBrowserResult(rootDir, '2026-08-13', wrap('browser_20260813030000', first));
 
@@ -222,6 +227,7 @@ describe('browser pipeline isolation', () => {
         query_id: 'first-query,second-query',
         query_text: 'AI工具；AI编程',
       });
+      expect(persisted.identity_aliases).toEqual(expect.arrayContaining(['sn:biz:stable']));
     } finally {
       await rm(rootDir, { recursive: true, force: true });
     }

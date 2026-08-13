@@ -71,33 +71,40 @@ describe('Weixin article URL safety and identity', () => {
     expect(oneDayAgo).toBe(twentyThreeHoursAgo);
   });
 
-  it('uses the same fuzzy identity for inferred and unknown publication times', () => {
+  it('keeps inferred discovery identity stable when exact metadata becomes available', () => {
     const inferred = deriveWeixinDiscoveryId({
       title: '同一篇文章', summary: '同一段摘要',
       publishedAt: '2026-08-13T03:00:00.000Z', publishedAtQuality: 'inferred',
     });
-    const unknown = deriveWeixinDiscoveryId({
-      title: '同一篇文章', summary: '同一段摘要',
-      publishedAt: null, publishedAtQuality: 'unknown',
-    });
-    expect(unknown).toBe(inferred);
-  });
-
-  it('normalizes exact time to UTC and keeps different exact times distinct', () => {
     const exact = deriveWeixinDiscoveryId({
       title: '同一篇文章', summary: '同一段摘要',
       publishedAt: '2026-08-13T01:00:00.000Z', publishedAtQuality: 'exact',
     });
-    const sameInstant = deriveWeixinDiscoveryId({
+    expect(exact).toBe(inferred);
+  });
+
+  it('keeps unknown discovery identity stable when exact metadata becomes available', () => {
+    const unknown = deriveWeixinDiscoveryId({
       title: '同一篇文章', summary: '同一段摘要',
-      publishedAt: '2026-08-13T09:00:00+08:00', publishedAtQuality: 'exact',
+      publishedAt: null, publishedAtQuality: 'unknown',
     });
-    const differentInstant = deriveWeixinDiscoveryId({
+    const exact = deriveWeixinDiscoveryId({
       title: '同一篇文章', summary: '同一段摘要',
-      publishedAt: '2026-08-13T01:00:01.000Z', publishedAtQuality: 'exact',
+      publishedAt: '2026-08-13T01:00:00.000Z', publishedAtQuality: 'exact',
     });
-    expect(sameInstant).toBe(exact);
-    expect(differentInstant).not.toBe(exact);
+    expect(exact).toBe(unknown);
+  });
+
+  it('does not use exact publication time in discovery identity', () => {
+    const first = deriveWeixinDiscoveryId({
+      title: '同一篇文章', summary: '同一段摘要',
+      publishedAt: '2026-08-13T01:00:00.000Z', publishedAtQuality: 'exact',
+    });
+    const oneMinuteLater = deriveWeixinDiscoveryId({
+      title: '同一篇文章', summary: '同一段摘要',
+      publishedAt: '2026-08-13T01:01:00.000Z', publishedAtQuality: 'exact',
+    });
+    expect(oneMinuteLater).toBe(first);
   });
 
   it('normalizes title and summary while keeping exact identity deterministic', () => {
