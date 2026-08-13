@@ -15,11 +15,22 @@ afterEach(async () => Promise.all(roots.splice(0).map((root) => rm(root, { recur
 async function articleArtifact(content = '# Fixture article\n\n> 原文链接: https://mp.weixin.qq.com/s?signature=secret&pass_ticket=hidden\n\nBody uses the word signature normally.\n') {
   const repositoryRoot = await mkdtemp(path.join(os.tmpdir(), 'weixin-collector-'));
   const outputDirectory = path.join(repositoryRoot, 'data', 'weixin-articles', '2026-08-13');
-  const savedPath = path.join(outputDirectory, 'fixture', 'article.md');
+  const savedPaths: string[] = [];
   roots.push(repositoryRoot);
-  await mkdir(path.dirname(savedPath), { recursive: true });
-  await writeFile(savedPath, content);
-  return { repositoryRoot, outputDirectory, savedPath };
+  return {
+    repositoryRoot,
+    outputDirectory,
+    savedPaths,
+    save: async (args: readonly string[], body = content) => {
+      const downloadRoot = args[args.indexOf('--output') + 1];
+      if (!downloadRoot) throw new Error('Missing fixture output directory');
+      const savedPath = path.join(downloadRoot, 'fixture', 'article.md');
+      await mkdir(path.dirname(savedPath), { recursive: true });
+      await writeFile(savedPath, body);
+      savedPaths.push(savedPath);
+      return savedPath;
+    },
+  };
 }
 
 function config(queryCount = 1): WeixinCollectorConfig {
@@ -58,7 +69,7 @@ describe('Weixin collector live response flow', () => {
         }]);
         if (args[1] === 'download') return commandResult(args, 'success', [{
           title: 'Fixture article', author: 'Fixture account', publish_time: '2026年8月13日 09:01',
-          status: 'success', size: '1 KB', saved: artifact.savedPath,
+          status: 'success', size: '1 KB', saved: await artifact.save(args),
         }]);
         throw new Error(`Unexpected OpenCLI command: ${args.join(' ')}`);
       },
@@ -78,7 +89,7 @@ describe('Weixin collector live response flow', () => {
       author_name: 'Fixture account',
       source_url: 'https://weixin.sogou.com/link',
       canonical_url: 'https://weixin.sogou.com/link',
-      content_path: 'data/weixin-articles/2026-08-13/fixture/article.md',
+      content_path: `data/weixin-articles/2026-08-13/${result.materials[0]?.material_id}/fixture/article.md`,
       content_downloaded: true,
       published_at: '2026-08-13T01:01:00.000Z',
       published_at_quality: 'exact',
@@ -91,7 +102,7 @@ describe('Weixin collector live response flow', () => {
     ]));
     expect(JSON.stringify(result)).not.toContain('search-secret');
     expect(JSON.stringify(result)).not.toContain('download-secret');
-    const markdown = await readFile(artifact.savedPath, 'utf8');
+    const markdown = await readFile(artifact.savedPaths[0]!, 'utf8');
     expect(markdown).not.toContain('原文链接');
     expect(markdown).not.toMatch(/[?&](?:signature|pass_ticket)=/);
     expect(markdown).toContain('word signature normally');
@@ -106,7 +117,7 @@ describe('Weixin collector live response flow', () => {
       if (args[1] === 'resolve-article-url') return commandResult(args, 'success', [{ url: 'https://mp.weixin.qq.com/s?sn=stable&signature=resolved' }]);
       if (args[1] === 'download') return commandResult(args, 'success', [{
         title: 'Fixture article', author: 'Fixture account', publish_time: '2026-08-13T01:00:00.000Z',
-        status: 'success', saved: artifact.savedPath,
+        status: 'success', saved: await artifact.save(args),
       }]);
       throw new Error(`Unexpected command: ${args.join(' ')}`);
     } } as unknown as OpenCliRunner;
@@ -175,7 +186,7 @@ describe('Weixin collector live response flow', () => {
       if (args[1] === 'resolve-article-url') return commandResult(args, 'success', [{ url: 'https://mp.weixin.qq.com/s/stable-slug?signature=resolved' }]);
       if (args[1] === 'download') return commandResult(args, 'success', [{
         title: 'Fixture article', author: 'Fixture account', publish_time: 'not-a-date',
-        status: 'success', saved: artifact.savedPath,
+        status: 'success', saved: await artifact.save(args),
       }]);
       throw new Error(`Unexpected command: ${args.join(' ')}`);
     } } as unknown as OpenCliRunner;
@@ -195,7 +206,7 @@ describe('Weixin collector live response flow', () => {
       if (args[1] === 'resolve-article-url') return commandResult(args, 'success', [{ url: 'https://mp.weixin.qq.com/s?sn=stable&signature=temporary' }]);
       if (args[1] === 'download') return commandResult(args, 'success', [{
         title: 'Fixture article', author: 'Fixture account', publish_time: '2026年8月13日 09:01',
-        status: 'success', saved: artifact.savedPath,
+        status: 'success', saved: await artifact.save(args),
       }]);
       throw new Error(`Unexpected command: ${args.join(' ')}`);
     } } as unknown as OpenCliRunner;

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- 以稳定 `material_id` 隔离公众号正文下载目录，避免同日同标题文章互相覆盖；正式 `content_path` 保持仓库相对 POSIX 路径，dry-run 为 `null`，命令摘要隐藏本机输出路径。
+- 对 `origin/main..HEAD` 的每个 pending commit 强制校验提交标题、真实采集日期、Browser 路径白名单及 commit 时点文件内容；直接 push、rebase 前后都执行，非法或不可读提交以 `invalid_staged_paths` 停止。
+- pending 恢复结果携带全部采集日期：同日恢复跳过重复采集，只恢复历史日期后继续当天健康检查和采集。
+- 将共享健康项与平台探测隔离，X 和公众号独立探测、并行采集；单平台成功仍持久化并 Git 同步为 `partial_success`，仅双平台失败时整次为 `failed`。
 - 加固公众号正文产物：`realpath` 限定 Runtime clone、拒绝路径/符号链接逃逸与非 Markdown 文件，正式素材只保存仓库相对 POSIX `content_path`，dry-run 路径保持 `null`。
 - 清理公众号 Markdown 顶部临时“原文链接”，仅保留可追溯 canonical URL；签名型、来源型和裸 `/s` URL 即使正文下载成功也保持 unresolved/quarantined，正文中的普通 `signature` 不误报。
 - 扩展 Browser 数据暂存扫描到 `signature/pass_ticket/exportkey/sessionid/xsec_token` URL 查询参数，并确保 Materials、Run Log 和命令摘要不持久化 Runtime clone 绝对路径。

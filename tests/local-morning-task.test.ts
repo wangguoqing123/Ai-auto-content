@@ -10,7 +10,7 @@ import { runMorningTask } from '../src/local-runtime/morning-task.js';
 import { createRuntimePaths } from '../src/local-runtime/paths.js';
 import { readSchedulerState } from '../src/local-runtime/runtime-state.js';
 import type { LocalRuntimeConfig } from '../src/local-runtime/types.js';
-import { platformResult } from './opencli-test-helpers.js';
+import { browserMaterial, platformResult } from './opencli-test-helpers.js';
 
 const roots: string[] = [];
 let config: LocalRuntimeConfig;
@@ -25,11 +25,15 @@ async function environment() {
   return { repositoryRoot, paths: createRuntimePaths(home) };
 }
 
-function pipeline(status: BrowserPipelineResult['status'], platformStatus: 'success' | 'command_failed' = 'success'): BrowserPipelineResult {
+function pipeline(
+  status: BrowserPipelineResult['status'],
+  platformStatus: 'success' | 'command_failed' = 'success',
+  date = '2026-08-14',
+): BrowserPipelineResult {
   const platforms = [platformResult('twitter', []), platformResult('weixin', [])];
   for (const entry of platforms) entry.status = platformStatus;
   return {
-    run_id: `browser_${status}`, collection_date: '2026-08-14', dry_run: false,
+    run_id: `browser_${date.replaceAll('-', '')}_${status}`, collection_date: date, dry_run: false,
     started_at: '2026-08-14T00:00:00.000Z', finished_at: '2026-08-14T00:00:01.000Z',
     preflight: { args: ['doctor'], status: 'success', exit_code: 0, duration_ms: 1, timed_out: false, cancelled: false, error: null },
     status, platforms, raw_materials_count: 0, materials_count: 0, duplicate_materials_count: 0,
@@ -38,16 +42,28 @@ function pipeline(status: BrowserPipelineResult['status'], platformStatus: 'succ
 
 function dependencies(runPipeline = vi.fn(async () => pipeline('success'))) {
   return {
-    healthCheck: vi.fn(async () => ({ status: 'success', checks: [], error: null } as HealthCheckResult)),
+    healthCheck: vi.fn(async () => ({
+      status: 'success', checks: [], error: null, platforms: { twitter: null, weixin: null },
+    } as HealthCheckResult)),
     runPipeline,
-    prepareRepository: vi.fn(async () => ({ status: 'ready', commit: null, skipCollection: false } as GitSyncResult)),
-    syncData: vi.fn(async () => ({ status: 'no_changes', commit: null, skipCollection: false } as GitSyncResult)),
+    prepareRepository: vi.fn(async () => ({ status: 'ready', commit: null, recoveredCollectionDates: [] } as GitSyncResult)),
+    syncData: vi.fn(async () => ({ status: 'no_changes', commit: null, recoveredCollectionDates: [] } as GitSyncResult)),
     writeReport: vi.fn(async () => '/tmp/report.md'),
     notify: vi.fn(async () => true),
   };
 }
 
 const now = new Date('2026-08-14T00:00:00.000Z');
+
+function browserMaterialForPlatform(platform: 'twitter' | 'weixin') {
+  return platform === 'twitter' ? browserMaterial() : browserMaterial({
+    sourcePlatform: 'weixin',
+    collector: 'opencli-weixin',
+    sourceItemId: 'weixin-fixture',
+    sourceUrl: 'https://mp.weixin.qq.com/s/stable-fixture',
+    canonicalUrl: 'https://mp.weixin.qq.com/s/stable-fixture',
+  });
+}
 
 describe('morning task orchestration', () => {
   it('persists success and does not collect twice on the same day', async () => {
@@ -116,6 +132,7 @@ describe('morning task orchestration', () => {
     }, deps);
     expect(execution).toMatchObject({ outcome: 'COMPLETED', collected: true });
     expect(deps.healthCheck).toHaveBeenCalledTimes(1);
+    expect(deps.healthCheck).toHaveBeenCalledWith(config, { platformProbes: false });
     expect(deps.runPipeline).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true }));
     expect(deps.prepareRepository).not.toHaveBeenCalled();
     expect(deps.syncData).not.toHaveBeenCalled();
@@ -165,7 +182,9 @@ describe('morning task orchestration', () => {
   it('does not invoke the Browser Pipeline after a failed health check', async () => {
     const env = await environment();
     const deps = dependencies();
-    deps.healthCheck.mockResolvedValue({ status: 'unavailable', checks: [], error: 'Bridge unavailable' });
+    deps.healthCheck.mockResolvedValue({
+      status: 'unavailable', checks: [], error: 'Bridge unavailable', platforms: { twitter: null, weixin: null },
+    });
     const execution = await runMorningTask({ ...env, now, config }, deps);
     expect(execution).toMatchObject({ status: 'unavailable', exitCode: 3, collected: false });
     expect(deps.runPipeline).not.toHaveBeenCalled();
@@ -177,10 +196,59 @@ describe('morning task orchestration', () => {
     deps.syncData.mockRejectedValueOnce(new GitSyncError('push failed', 'git_sync_failed'));
     const first = await runMorningTask({ ...env, now, config }, deps);
     expect(first).toMatchObject({ status: 'git_sync_failed', exitCode: 6, collected: true });
-    deps.prepareRepository.mockResolvedValueOnce({ status: 'pending_pushed', commit: 'a'.repeat(40), skipCollection: true });
+    deps.prepareRepository.mockResolvedValueOnce({
+      status: 'pending_pushed', commit: 'a'.repeat(40), recoveredCollectionDates: ['2026-08-14'],
+    });
     const second = await runMorningTask({ ...env, now, config }, deps);
     expect(second).toMatchObject({ status: 'success', collected: false, gitCommit: 'a'.repeat(40) });
     expect(deps.runPipeline).toHaveBeenCalledTimes(1);
+  });
+
+  it('pushes a historical pending commit and still collects the current day', async () => {
+    const env = await environment();
+    const runPipeline = vi.fn()
+      .mockResolvedValueOnce(pipeline('success', 'success', '2026-08-14'))
+      .mockResolvedValueOnce(pipeline('success', 'success', '2026-08-15'));
+    const deps = dependencies(runPipeline);
+    deps.syncData.mockRejectedValueOnce(new GitSyncError('push failed', 'git_sync_failed'));
+
+    const first = await runMorningTask({ ...env, now, config }, deps);
+    expect(first).toMatchObject({ status: 'git_sync_failed', collected: true });
+    deps.prepareRepository.mockResolvedValueOnce({
+      status: 'pending_pushed', commit: 'b'.repeat(40), recoveredCollectionDates: ['2026-08-14'],
+    });
+    const second = await runMorningTask({
+      ...env, now: new Date('2026-08-15T00:00:00.000Z'), config,
+    }, deps);
+
+    expect(second).toMatchObject({ status: 'success', collected: true, runId: 'browser_20260815_success' });
+    expect(runPipeline).toHaveBeenCalledTimes(2);
+    const state = await readSchedulerState(env.paths.stateFile);
+    expect(state?.tasks.morning).toMatchObject({
+      date: '2026-08-15', last_status: 'success', last_run_id: 'browser_20260815_success',
+    });
+  });
+
+  it.each([
+    ['login_required', 'weixin'],
+    ['blocked', 'weixin'],
+    ['blocked', 'twitter'],
+  ] as const)('persists partial data when one platform is %s and %s succeeds', async (failedStatus, successfulPlatform) => {
+    const env = await environment();
+    const failedPlatform = successfulPlatform === 'weixin' ? 'twitter' : 'weixin';
+    const failed = platformResult(failedPlatform, []);
+    failed.status = failedStatus;
+    const succeeded = platformResult(successfulPlatform, [browserMaterialForPlatform(successfulPlatform)]);
+    const partial = pipeline('partial_success');
+    partial.platforms = failedPlatform === 'twitter' ? [failed, succeeded] : [succeeded, failed];
+    partial.materials_count = 1;
+    partial.raw_materials_count = 1;
+    const deps = dependencies(vi.fn(async () => partial));
+
+    const execution = await runMorningTask({ ...env, now, config }, deps);
+    expect(execution).toMatchObject({ status: 'partial_success', collected: true });
+    expect(deps.writeReport).toHaveBeenCalledTimes(1);
+    expect(deps.syncData).toHaveBeenCalledTimes(1);
   });
 
   it('returns exit code 7 for an invalid staged path', async () => {
@@ -188,5 +256,15 @@ describe('morning task orchestration', () => {
     const deps = dependencies();
     deps.syncData.mockRejectedValueOnce(new GitSyncError('src change', 'invalid_staged_paths'));
     expect(await runMorningTask({ ...env, now, config }, deps)).toMatchObject({ status: 'git_sync_failed', exitCode: 7 });
+  });
+
+  it('does not access platforms when pending commit inspection fails', async () => {
+    const env = await environment();
+    const deps = dependencies();
+    deps.prepareRepository.mockRejectedValueOnce(new GitSyncError('unsafe pending commit', 'invalid_staged_paths'));
+    const execution = await runMorningTask({ ...env, now, config }, deps);
+    expect(execution).toMatchObject({ status: 'git_sync_failed', exitCode: 7, collected: false });
+    expect(deps.healthCheck).not.toHaveBeenCalled();
+    expect(deps.runPipeline).not.toHaveBeenCalled();
   });
 });

@@ -20,7 +20,13 @@ export class GitSyncError extends Error {
 export interface GitSyncResult {
   status: 'ready' | 'pending_pushed' | 'no_changes' | 'pushed';
   commit: string | null;
-  skipCollection: boolean;
+  recoveredCollectionDates: string[];
+}
+
+export interface PendingBrowserCommit {
+  sha: string;
+  collectionDate: string;
+  files: string[];
 }
 
 type Execute = typeof runCommand;
@@ -37,6 +43,21 @@ async function git(execute: Execute, root: string, args: readonly string[], allo
 
 function parseNameList(value: string): string[] {
   return value.split('\0').filter(Boolean);
+}
+
+function validCollectionDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function assertSafeContent(file: string, content: string): void {
+  const homeDirectory = os.homedir();
+  const sensitive = /[?&](?:signature|pass_ticket|exportkey|sessionid|xsec_token)=|\bCookie\b|\bAuthorization\b|\bct0\b|auth_token|\.DS_Store/i;
+  const localAbsolutePath = /(?:~\/|\/Users\/[^/\s]+\/|\/home\/[^/\s]+\/|\/private\/var\/|\/var\/folders\/|\/tmp\/|\/Volumes\/|[a-z]:\\)/i;
+  if (sensitive.test(content) || content.includes(homeDirectory) || localAbsolutePath.test(content)) {
+    throw new GitSyncError(`Sensitive content detected in Browser data file: ${file}`, 'invalid_staged_paths');
+  }
 }
 
 export function isAutomatedDataPath(filePath: string): boolean {
@@ -68,16 +89,62 @@ async function assertOnlyAutomatedChanges(execute: Execute, repositoryRoot: stri
 }
 
 async function scanStagedContent(execute: Execute, repositoryRoot: string, files: string[]): Promise<void> {
-  const homeDirectory = os.homedir();
-  const sensitive = /[?&](?:signature|pass_ticket|exportkey|sessionid|xsec_token)=|\bCookie:|\bAuthorization:|\bct0\b|auth_token|\.DS_Store/i;
   for (const file of files) {
     if (!isAutomatedDataPath(file)) throw new GitSyncError(`Invalid staged path: ${file}`, 'invalid_staged_paths');
     const shown = await git(execute, repositoryRoot, ['show', `:${file}`], true);
     if (shown.exitCode !== 0) continue;
-    if (sensitive.test(shown.stdout) || shown.stdout.includes(homeDirectory) || /\/Users\/[^/\s]+\//.test(shown.stdout)) {
-      throw new GitSyncError(`Sensitive content detected in staged file: ${file}`, 'invalid_staged_paths');
-    }
+    assertSafeContent(file, shown.stdout);
   }
+}
+
+export async function inspectPendingBrowserCommits(
+  repositoryRoot: string,
+  remoteRef: string,
+  execute: Execute = runCommand,
+): Promise<PendingBrowserCommit[]> {
+  try {
+    const revisions = (await git(execute, repositoryRoot, ['rev-list', '--reverse', `${remoteRef}..HEAD`]))
+      .stdout.split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
+    const pending: PendingBrowserCommit[] = [];
+    for (const sha of revisions) {
+      if (!/^[a-f0-9]{40}$/i.test(sha)) {
+        throw new GitSyncError('Unable to parse pending Browser data commit SHA', 'invalid_staged_paths');
+      }
+      const subject = (await git(execute, repositoryRoot, ['show', '-s', '--format=%s', sha])).stdout.trim();
+      const subjectMatch = subject.match(/^chore\(browser-data\): collect X and WeChat (\d{4}-\d{2}-\d{2})$/);
+      const collectionDate = subjectMatch?.[1] ?? '';
+      if (!subjectMatch || !validCollectionDate(collectionDate)) {
+        throw new GitSyncError(`Invalid pending Browser data commit subject: ${sha}`, 'invalid_staged_paths');
+      }
+      const files = parseNameList((await git(execute, repositoryRoot, [
+        'diff-tree', '--root', '--no-commit-id', '--name-only', '-r', '-z', sha,
+      ])).stdout);
+      if (files.length === 0 || files.some((file) => !isAutomatedDataPath(file))) {
+        throw new GitSyncError(`Pending commit contains non-whitelisted paths: ${sha}`, 'invalid_staged_paths');
+      }
+      const deleted = new Set(parseNameList((await git(execute, repositoryRoot, [
+        'diff-tree', '--root', '--no-commit-id', '--name-only', '--diff-filter=D', '-r', '-z', sha,
+      ])).stdout));
+      for (const file of files) {
+        if (deleted.has(file)) continue;
+        const shown = await git(execute, repositoryRoot, ['show', `${sha}:${file}`], true);
+        if (shown.exitCode !== 0) {
+          throw new GitSyncError(`Unable to read pending Browser data file: ${sha}:${file}`, 'invalid_staged_paths');
+        }
+        assertSafeContent(file, shown.stdout);
+      }
+      pending.push({ sha, collectionDate, files });
+    }
+    return pending;
+  } catch (error) {
+    if (error instanceof GitSyncError && error.kind === 'invalid_staged_paths') throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    throw new GitSyncError(`Unable to inspect pending Browser data commits: ${message}`, 'invalid_staged_paths');
+  }
+}
+
+function recoveredDates(pending: PendingBrowserCommit[]): string[] {
+  return [...new Set(pending.map((commit) => commit.collectionDate))].sort();
 }
 
 async function preservedPendingCommitError(
@@ -96,23 +163,26 @@ async function rebaseAndPushPendingCommit(
   config: LocalRuntimeConfig,
   originalCommit: string,
   fetchFirst: boolean,
-): Promise<string> {
+): Promise<{ commit: string; pending: PendingBrowserCommit[] }> {
   if (fetchFirst) {
     const fetched = await git(execute, repositoryRoot, ['fetch', config.git_sync.remote, config.git_sync.branch], true);
     if (fetched.exitCode !== 0) {
       throw new GitSyncError(`Fetch failed; local data commit ${originalCommit} was preserved`, 'git_sync_failed');
     }
   }
+  const remoteRef = `${config.git_sync.remote}/${config.git_sync.branch}`;
+  const beforeRebase = await inspectPendingBrowserCommits(repositoryRoot, remoteRef, execute);
   const rebase = await git(execute, repositoryRoot, ['pull', '--rebase', config.git_sync.remote, config.git_sync.branch], true);
   if (rebase.exitCode !== 0) {
     return preservedPendingCommitError(execute, repositoryRoot, originalCommit, 'Rebase failed');
   }
   const rebasedCommit = (await git(execute, repositoryRoot, ['rev-parse', 'HEAD'])).stdout.trim();
+  const afterRebase = await inspectPendingBrowserCommits(repositoryRoot, remoteRef, execute);
   const push = await git(execute, repositoryRoot, ['push', config.git_sync.remote, config.git_sync.branch], true);
   if (push.exitCode !== 0) {
     throw new GitSyncError(`Push failed; local data commit ${rebasedCommit || originalCommit} was preserved`, 'git_sync_failed');
   }
-  return rebasedCommit;
+  return { commit: rebasedCommit, pending: [...beforeRebase, ...afterRebase] };
 }
 
 export async function prepareRuntimeRepository(
@@ -120,7 +190,7 @@ export async function prepareRuntimeRepository(
   config: LocalRuntimeConfig,
   execute: Execute = runCommand,
 ): Promise<GitSyncResult> {
-  if (!config.git_sync.enabled) return { status: 'ready', commit: null, skipCollection: false };
+  if (!config.git_sync.enabled) return { status: 'ready', commit: null, recoveredCollectionDates: [] };
   const branch = (await git(execute, repositoryRoot, ['branch', '--show-current'])).stdout.trim();
   if (branch !== config.git_sync.branch) {
     throw new GitSyncError(`Runtime repository must be on ${config.git_sync.branch}; found ${branch || 'detached HEAD'}`, 'git_sync_failed');
@@ -134,20 +204,28 @@ export async function prepareRuntimeRepository(
   const behind = counts[0] ?? 0;
   const ahead = counts[1] ?? 0;
   if (ahead > 0) {
+    const remoteRef = `${config.git_sync.remote}/${config.git_sync.branch}`;
+    let pending = await inspectPendingBrowserCommits(repositoryRoot, remoteRef, execute);
     const originalCommit = (await git(execute, repositoryRoot, ['rev-parse', 'HEAD'])).stdout.trim();
     let commit: string;
     if (behind > 0) {
-      commit = await rebaseAndPushPendingCommit(execute, repositoryRoot, config, originalCommit, false);
+      const recovered = await rebaseAndPushPendingCommit(execute, repositoryRoot, config, originalCommit, false);
+      commit = recovered.commit;
+      pending = recovered.pending;
     } else {
       const push = await git(execute, repositoryRoot, ['push', config.git_sync.remote, config.git_sync.branch], true);
-      commit = push.exitCode === 0
-        ? originalCommit
-        : await rebaseAndPushPendingCommit(execute, repositoryRoot, config, originalCommit, true);
+      if (push.exitCode === 0) {
+        commit = originalCommit;
+      } else {
+        const recovered = await rebaseAndPushPendingCommit(execute, repositoryRoot, config, originalCommit, true);
+        commit = recovered.commit;
+        pending = recovered.pending;
+      }
     }
-    return { status: 'pending_pushed', commit, skipCollection: true };
+    return { status: 'pending_pushed', commit, recoveredCollectionDates: recoveredDates(pending) };
   }
   if (behind > 0) await git(execute, repositoryRoot, ['merge', '--ff-only', `${config.git_sync.remote}/${config.git_sync.branch}`]);
-  return { status: 'ready', commit: null, skipCollection: false };
+  return { status: 'ready', commit: null, recoveredCollectionDates: [] };
 }
 
 export async function commitAndPushBrowserData(
@@ -156,22 +234,26 @@ export async function commitAndPushBrowserData(
   config: LocalRuntimeConfig,
   execute: Execute = runCommand,
 ): Promise<GitSyncResult> {
-  if (!config.git_sync.enabled) return { status: 'no_changes', commit: null, skipCollection: false };
+  if (!config.git_sync.enabled) return { status: 'no_changes', commit: null, recoveredCollectionDates: [] };
   await assertOnlyAutomatedChanges(execute, repositoryRoot);
   for (const allowedPath of AUTOMATED_DATA_PATHS) {
     await git(execute, repositoryRoot, ['add', '-A', '--', allowedPath], true);
   }
   const staged = parseNameList((await git(execute, repositoryRoot, ['diff', '--cached', '--name-only', '-z'])).stdout);
-  if (staged.length === 0) return { status: 'no_changes', commit: null, skipCollection: false };
+  if (staged.length === 0) return { status: 'no_changes', commit: null, recoveredCollectionDates: [] };
   await scanStagedContent(execute, repositoryRoot, staged);
   await git(execute, repositoryRoot, ['commit', '-m', `chore(browser-data): collect X and WeChat ${date}`]);
   const commit = (await git(execute, repositoryRoot, ['rev-parse', 'HEAD'])).stdout.trim();
+  const remoteRef = `${config.git_sync.remote}/${config.git_sync.branch}`;
+  await inspectPendingBrowserCommits(repositoryRoot, remoteRef, execute);
   const rebase = await git(execute, repositoryRoot, ['pull', '--rebase', config.git_sync.remote, config.git_sync.branch], true);
   if (rebase.exitCode !== 0) {
     await git(execute, repositoryRoot, ['rebase', '--abort'], true);
     throw new GitSyncError(`Rebase failed; local data commit ${commit} was preserved`, 'git_sync_failed');
   }
+  await inspectPendingBrowserCommits(repositoryRoot, remoteRef, execute);
   const push = await git(execute, repositoryRoot, ['push', config.git_sync.remote, config.git_sync.branch], true);
   if (push.exitCode !== 0) throw new GitSyncError(`Push failed; local data commit ${commit} was preserved`, 'git_sync_failed');
-  return { status: 'pushed', commit, skipCollection: false };
+  const pushedCommit = (await git(execute, repositoryRoot, ['rev-parse', 'HEAD'])).stdout.trim();
+  return { status: 'pushed', commit: pushedCommit, recoveredCollectionDates: [] };
 }

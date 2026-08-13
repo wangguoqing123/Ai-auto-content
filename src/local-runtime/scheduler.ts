@@ -46,7 +46,12 @@ export async function runLocalRuntimeCli(args: string[], repositoryRoot = proces
     const config = await loadLocalRuntimeConfig(repositoryRoot, options.fixture ? undefined : paths.configFile);
     if (options.command === 'check') {
       const health = options.fixture
-        ? { status: 'success', checks: [{ name: 'fixture_environment', ok: true, detail: 'offline fixture' }], error: null }
+        ? {
+          status: 'success',
+          checks: [{ name: 'fixture_environment', ok: true, detail: 'offline fixture' }],
+          error: null,
+          platforms: { twitter: null, weixin: null },
+        }
         : await runHealthCheck(config);
       process.stdout.write(`${JSON.stringify({ command: 'check', dry_run: options.dryRun, fixture: options.fixture, health }, null, 2)}\n`);
       return health.status === 'success' ? 0 : health.status === 'login_required' ? 4 : health.status === 'blocked' ? 5 : 3;

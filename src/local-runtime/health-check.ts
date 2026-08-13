@@ -4,6 +4,7 @@ import path from 'node:path';
 import { OpenCliRunner } from '../collectors/opencli/opencli-runner.js';
 import { runCommand, type CommandResult } from './process.js';
 import type { LocalRuntimeConfig } from './types.js';
+import type { BrowserPlatform } from '../collectors/opencli/opencli-capability.js';
 
 export type HealthStatus = 'success' | 'failed' | 'unavailable' | 'login_required' | 'blocked';
 
@@ -17,6 +18,7 @@ export interface HealthCheckResult {
   status: HealthStatus;
   checks: HealthCheckItem[];
   error: string | null;
+  platforms: Record<BrowserPlatform, HealthStatus | null>;
 }
 
 export interface HealthCheckDependencies {
@@ -82,6 +84,7 @@ export async function runHealthCheck(
   const homeDirectory = dependencies.homeDirectory ?? os.homedir();
   const checks: HealthCheckItem[] = [];
   const statuses: HealthStatus[] = [];
+  const platforms: Record<BrowserPlatform, HealthStatus | null> = { twitter: null, weixin: null };
   const nodeMajor = Number(process.versions.node.split('.')[0]);
   checks.push({ name: 'node', ok: nodeMajor >= 20, detail: `v${process.versions.node}` });
   if (nodeMajor < 20) statuses.push('failed');
@@ -95,13 +98,18 @@ export async function runHealthCheck(
   checks.push({ name: 'opencli', ok: opencliOk, detail: opencliOk ? opencli.stdout.trim() : 'requires compatible 1.x >= 1.8.6' });
   if (!opencliOk) statuses.push('unavailable');
 
-  const adapterPaths = [
-    path.join(homeDirectory, '.opencli', 'clis', 'twitter', 'search-rich.js'),
-    path.join(homeDirectory, '.opencli', 'clis', 'weixin', 'resolve-article-url.js'),
-  ];
-  const adaptersOk = (await Promise.all(adapterPaths.map(fileExists))).every(Boolean);
-  checks.push({ name: 'project_adapters', ok: adaptersOk, detail: adaptersOk ? 'installed' : 'run npm run opencli:install-adapters during setup' });
-  if (!adaptersOk) statuses.push('unavailable');
+  const adapterPaths = {
+    twitter: path.join(homeDirectory, '.opencli', 'clis', 'twitter', 'search-rich.js'),
+    weixin: path.join(homeDirectory, '.opencli', 'clis', 'weixin', 'resolve-article-url.js'),
+  };
+  for (const platform of ['twitter', 'weixin'] as const) {
+    const installed = await fileExists(adapterPaths[platform]);
+    checks.push({
+      name: `${platform}_adapter`,
+      ok: installed,
+      detail: installed ? 'installed' : 'optional adapter missing; collector will use its own fallback or failure semantics',
+    });
+  }
 
   let chrome = await execute('/usr/bin/pgrep', ['-x', 'Google Chrome'], { timeoutMs: 5_000 });
   if (!commandOk(chrome) && config.runtime.auto_launch_chrome && process.platform === 'darwin') {
@@ -118,14 +126,14 @@ export async function runHealthCheck(
 
   if (statuses.length > 0) {
     const status = failureStatus(statuses);
-    return { status, checks, error: checks.filter((check) => !check.ok).map((check) => check.name).join(', ') };
+    return { status, checks, error: checks.filter((check) => !check.ok && !check.name.endsWith('_adapter')).map((check) => check.name).join(', '), platforms };
   }
 
   const doctorResult = await runner.run(['doctor'], { parseJson: false, timeoutMs: 15_000 });
   const doctor = parseDoctorOutput(`${doctorResult.stdout}\n${doctorResult.stderr}`);
   for (const [name, ok] of Object.entries(doctor)) checks.push({ name: `opencli_${name}`, ok, detail: ok ? 'OK' : 'not OK' });
   if (doctorResult.status !== 'success' || !doctor.daemon || !doctor.extension || !doctor.connectivity) {
-    return { status: 'unavailable', checks, error: 'OpenCLI daemon, Extension, or Connectivity is not ready' };
+    return { status: 'unavailable', checks, error: 'OpenCLI daemon, Extension, or Connectivity is not ready', platforms };
   }
 
   if (dependencies.platformProbes !== false) {
@@ -133,14 +141,14 @@ export async function runHealthCheck(
       'twitter', 'search', 'AI', '--product', 'live', '--limit', '1', '-f', 'json',
     ], { timeoutMs: 30_000 });
     checks.push({ name: 'x_login', ok: twitter.status === 'success', detail: twitter.status });
-    if (twitter.status !== 'success') statuses.push(healthStatusFromOpenCli(twitter.status));
-    if (twitter.status === 'success') {
-      const weixin = await runner.run([
-        'weixin', 'search', 'AI', '--page', '1', '--limit', '1', '-f', 'json',
-      ], { timeoutMs: 30_000 });
-      checks.push({ name: 'weixin_public_search', ok: weixin.status === 'success', detail: weixin.status });
-      if (weixin.status !== 'success') statuses.push(healthStatusFromOpenCli(weixin.status));
-    }
+    platforms.twitter = healthStatusFromOpenCli(twitter.status);
+    if (twitter.status !== 'success') statuses.push(platforms.twitter);
+    const weixin = await runner.run([
+      'weixin', 'search', 'AI', '--page', '1', '--limit', '1', '-f', 'json',
+    ], { timeoutMs: 30_000 });
+    checks.push({ name: 'weixin_public_search', ok: weixin.status === 'success', detail: weixin.status });
+    platforms.weixin = healthStatusFromOpenCli(weixin.status);
+    if (weixin.status !== 'success') statuses.push(platforms.weixin);
   }
 
   const status = failureStatus(statuses);
@@ -148,5 +156,6 @@ export async function runHealthCheck(
     status,
     checks,
     error: status === 'success' ? null : checks.filter((check) => !check.ok).map((check) => `${check.name}:${check.detail}`).join(', '),
+    platforms,
   };
 }

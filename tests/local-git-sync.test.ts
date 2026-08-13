@@ -2,7 +2,14 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { AUTOMATED_DATA_PATHS, commitAndPushBrowserData, GitSyncError, isAutomatedDataPath, prepareRuntimeRepository } from '../src/local-runtime/git-sync.js';
+import {
+  AUTOMATED_DATA_PATHS,
+  commitAndPushBrowserData,
+  GitSyncError,
+  inspectPendingBrowserCommits,
+  isAutomatedDataPath,
+  prepareRuntimeRepository,
+} from '../src/local-runtime/git-sync.js';
 import { runCommand } from '../src/local-runtime/process.js';
 import { loadLocalRuntimeConfig } from '../src/local-runtime/config.js';
 import type { LocalRuntimeConfig } from '../src/local-runtime/types.js';
@@ -41,6 +48,12 @@ async function writeAllowed(root: string, text = 'safe browser report\n'): Promi
   const file = path.join(root, 'reports', 'browser', '2026-08-14.md');
   await mkdir(path.dirname(file), { recursive: true });
   await writeFile(file, text);
+}
+
+async function commitBrowserData(root: string, date: string, message?: string): Promise<string> {
+  await git(root, 'add', '-A', '--', 'reports/browser');
+  await git(root, 'commit', '-m', message ?? `chore(browser-data): collect X and WeChat ${date}`);
+  return git(root, 'rev-parse', 'HEAD');
 }
 
 describe('runtime Git path and content safety', () => {
@@ -133,13 +146,15 @@ describe('runtime Git path and content safety', () => {
     expect(await git(repo.root, 'status', '--short')).toBe('');
   });
 
-  it('pushes a pending local commit first and tells the caller not to recollect', async () => {
+  it('inspects and pushes a valid pending Browser data commit with its collection date', async () => {
     const repo = await repository();
     await writeAllowed(repo.root);
-    await git(repo.root, 'add', 'reports/browser/2026-08-14.md');
-    await git(repo.root, 'commit', '-m', 'pending browser data');
+    await commitBrowserData(repo.root, '2026-08-14');
+    await expect(inspectPendingBrowserCommits(repo.root, 'origin/main')).resolves.toMatchObject([{
+      collectionDate: '2026-08-14', files: ['reports/browser/2026-08-14.md'],
+    }]);
     const result = await prepareRuntimeRepository(repo.root, config);
-    expect(result).toMatchObject({ status: 'pending_pushed', skipCollection: true });
+    expect(result).toMatchObject({ status: 'pending_pushed', recoveredCollectionDates: ['2026-08-14'] });
     expect(await git(repo.root, 'rev-list', '--count', 'origin/main..HEAD')).toBe('0');
   });
 
@@ -151,9 +166,7 @@ describe('runtime Git path and content safety', () => {
     await git(other, 'config', 'user.email', 'other@example.com');
 
     await writeAllowed(repo.root, 'pending local report\n');
-    await git(repo.root, 'add', 'reports/browser/2026-08-14.md');
-    await git(repo.root, 'commit', '-m', 'pending browser data');
-    const originalCommit = await git(repo.root, 'rev-parse', 'HEAD');
+    const originalCommit = await commitBrowserData(repo.root, '2026-08-14');
 
     await writeFile(path.join(other, 'remote.txt'), 'remote advance\n');
     await git(other, 'add', 'remote.txt');
@@ -161,16 +174,13 @@ describe('runtime Git path and content safety', () => {
     await git(other, 'push', 'origin', 'main');
 
     const result = await prepareRuntimeRepository(repo.root, config);
-    let pipelineCalls = 0;
-    if (!result.skipCollection) pipelineCalls += 1;
-    expect(result).toMatchObject({ status: 'pending_pushed', skipCollection: true });
+    expect(result).toMatchObject({ status: 'pending_pushed', recoveredCollectionDates: ['2026-08-14'] });
     expect(result.commit).toMatch(/^[a-f0-9]{40}$/);
     expect(result.commit).not.toBe(originalCommit);
-    expect(pipelineCalls).toBe(0);
     await git(repo.root, 'fetch', 'origin', 'main');
     expect(await git(repo.root, 'rev-list', '--count', 'origin/main..HEAD')).toBe('0');
     const subjects = await git(repo.root, 'log', '--format=%s', '-3', 'origin/main');
-    expect(subjects).toContain('pending browser data');
+    expect(subjects).toContain('chore(browser-data): collect X and WeChat 2026-08-14');
     expect(subjects).toContain('remote advance');
   });
 
@@ -186,9 +196,7 @@ describe('runtime Git path and content safety', () => {
     await git(other, 'config', 'user.email', 'other@example.com');
 
     await writeAllowed(repo.root, 'pending local edit\n');
-    await git(repo.root, 'add', 'reports/browser/2026-08-14.md');
-    await git(repo.root, 'commit', '-m', 'pending conflicting browser data');
-    const pendingCommit = await git(repo.root, 'rev-parse', 'HEAD');
+    const pendingCommit = await commitBrowserData(repo.root, '2026-08-14');
 
     await writeAllowed(other, 'remote conflicting edit\n');
     await git(other, 'add', 'reports/browser/2026-08-14.md');
@@ -213,8 +221,7 @@ describe('runtime Git path and content safety', () => {
     await git(other, 'config', 'user.name', 'Other');
     await git(other, 'config', 'user.email', 'other@example.com');
     await writeAllowed(repo.root, 'pending race report\n');
-    await git(repo.root, 'add', 'reports/browser/2026-08-14.md');
-    await git(repo.root, 'commit', '-m', 'pending race data');
+    await commitBrowserData(repo.root, '2026-08-14');
     let injectedRace = false;
     let pushAttempts = 0;
     const execute: typeof runCommand = async (command, args, options) => {
@@ -232,10 +239,83 @@ describe('runtime Git path and content safety', () => {
     };
 
     const result = await prepareRuntimeRepository(repo.root, config, execute);
-    expect(result).toMatchObject({ status: 'pending_pushed', skipCollection: true });
+    expect(result).toMatchObject({ status: 'pending_pushed', recoveredCollectionDates: ['2026-08-14'] });
     expect(pushAttempts).toBe(2);
     const subjects = await git(repo.root, 'log', '--format=%s', '-3');
-    expect(subjects).toContain('pending race data');
+    expect(subjects).toContain('chore(browser-data): collect X and WeChat 2026-08-14');
     expect(subjects).toContain('racing remote advance');
+  });
+
+  it('recovers multiple valid Browser data commits and carries every collection date', async () => {
+    const repo = await repository();
+    await writeAllowed(repo.root, 'first date\n');
+    await commitBrowserData(repo.root, '2026-08-14');
+    const second = path.join(repo.root, 'reports', 'browser', '2026-08-15.md');
+    await writeFile(second, 'second date\n');
+    await commitBrowserData(repo.root, '2026-08-15');
+    await expect(prepareRuntimeRepository(repo.root, config)).resolves.toMatchObject({
+      status: 'pending_pushed', recoveredCollectionDates: ['2026-08-14', '2026-08-15'],
+    });
+  });
+
+  it('allows a valid pending commit to delete an allowlisted Browser data file', async () => {
+    const repo = await repository();
+    await writeAllowed(repo.root, 'obsolete report\n');
+    await git(repo.root, 'add', 'reports/browser/2026-08-14.md');
+    await git(repo.root, 'commit', '-m', 'fixture report baseline');
+    await git(repo.root, 'push', 'origin', 'main');
+    await rm(path.join(repo.root, 'reports', 'browser', '2026-08-14.md'));
+    await commitBrowserData(repo.root, '2026-08-14');
+    await expect(prepareRuntimeRepository(repo.root, config)).resolves.toMatchObject({
+      status: 'pending_pushed', recoveredCollectionDates: ['2026-08-14'],
+    });
+  });
+
+  it.each([
+    ['source path', async (root: string) => {
+      await mkdir(path.join(root, 'src'), { recursive: true });
+      await writeFile(path.join(root, 'src', 'index.ts'), 'export {};\n');
+      await git(root, 'add', 'src/index.ts');
+      await git(root, 'commit', '-m', 'chore(browser-data): collect X and WeChat 2026-08-14');
+    }],
+    ['config path', async (root: string) => {
+      await mkdir(path.join(root, 'config'), { recursive: true });
+      await writeFile(path.join(root, 'config', 'project.yaml'), 'unsafe: true\n');
+      await git(root, 'add', 'config/project.yaml');
+      await git(root, 'commit', '-m', 'chore(browser-data): collect X and WeChat 2026-08-14');
+    }],
+    ['temporary signature URL', async (root: string) => {
+      await writeAllowed(root, 'https://mp.weixin.qq.com/s?signature=secret\n');
+      await commitBrowserData(root, '2026-08-14');
+    }],
+    ['authentication content', async (root: string) => {
+      await writeAllowed(root, 'Cookie secret; Authorization bearer-value\n');
+      await commitBrowserData(root, '2026-08-14');
+    }],
+    ['local absolute path', async (root: string) => {
+      await writeAllowed(root, '/Users/alice/runtime/private.md\n');
+      await commitBrowserData(root, '2026-08-14');
+    }],
+    ['invalid subject', async (root: string) => {
+      await writeAllowed(root);
+      await commitBrowserData(root, '2026-08-14', 'pending browser data');
+    }],
+    ['invalid date', async (root: string) => {
+      await writeAllowed(root);
+      await commitBrowserData(root, '2026-02-30', 'chore(browser-data): collect X and WeChat 2026-02-30');
+    }],
+  ] as const)('refuses unsafe pending commit: %s', async (_label, arrange) => {
+    const repo = await repository();
+    await arrange(repo.root);
+    const pendingCommit = await git(repo.root, 'rev-parse', 'HEAD');
+    const commands: string[][] = [];
+    const execute: typeof runCommand = async (command, args, options) => {
+      commands.push([command, ...args]);
+      return runCommand(command, args, options);
+    };
+    await expect(prepareRuntimeRepository(repo.root, config, execute)).rejects.toMatchObject({ kind: 'invalid_staged_paths' });
+    expect(commands.some((command) => command.includes('push'))).toBe(false);
+    expect(commands.flat().join(' ')).not.toContain('--force');
+    expect(await git(repo.root, 'rev-parse', 'HEAD')).toBe(pendingCommit);
   });
 });

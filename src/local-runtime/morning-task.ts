@@ -34,7 +34,7 @@ export interface MorningTaskDependencies {
   readState?: typeof readSchedulerState;
   writeState?: typeof writeSchedulerState;
   acquireLock?: typeof acquireRuntimeLock;
-  healthCheck?: (config: LocalRuntimeConfig) => Promise<HealthCheckResult>;
+  healthCheck?: typeof runHealthCheck;
   runPipeline?: (options: BrowserPipelineOptions) => Promise<BrowserPipelineResult>;
   prepareRepository?: (root: string, config: LocalRuntimeConfig) => Promise<GitSyncResult>;
   syncData?: (root: string, date: string, config: LocalRuntimeConfig) => Promise<GitSyncResult>;
@@ -84,6 +84,7 @@ function fixtureHealth(): HealthCheckResult {
       { name: 'platform_access', ok: true, detail: 'not accessed' },
     ],
     error: null,
+    platforms: { twitter: null, weixin: null },
   };
 }
 
@@ -216,8 +217,10 @@ export async function runMorningTask(
         await notifyFailure('git_sync_failed', gitError.message);
         return result('FAILED', 'git_sync_failed', gitError.kind === 'invalid_staged_paths' ? 7 : 6, date, { error: gitError.message });
       }
-      if (prepared.skipCollection) {
-        const completion = activeState.tasks.morning.last_collection_status ?? 'success';
+      if (prepared.recoveredCollectionDates.includes(date)) {
+        const completion: CompletedCollectionStatus = activeState.tasks.morning.last_collection_status === 'partial_success'
+          ? 'partial_success'
+          : 'success';
         activeState.tasks.morning.last_status = completion;
         activeState.tasks.morning.last_error = null;
         if (!dryRun) await writeState(paths.stateFile, activeState);
@@ -226,7 +229,7 @@ export async function runMorningTask(
       }
     }
 
-    const health = options.fixture ? fixtureHealth() : await healthCheck(config);
+    const health = options.fixture ? fixtureHealth() : await healthCheck(config, { platformProbes: false });
     if (health.status !== 'success') {
       const failure = healthFailure(health);
       activeState.tasks.morning.last_status = failure.status;
@@ -252,7 +255,7 @@ export async function runMorningTask(
     }
 
     const collectionStatus: CompletedCollectionStatus = browserResult.status;
-    let gitResult: GitSyncResult = { status: 'no_changes', commit: null, skipCollection: false };
+    let gitResult: GitSyncResult = { status: 'no_changes', commit: null, recoveredCollectionDates: [] };
     if (!dryRun) {
       await reportWriter(options.repositoryRoot, browserResult);
       try {

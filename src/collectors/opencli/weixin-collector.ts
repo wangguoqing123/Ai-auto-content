@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { UnifiedMaterial } from '../../types.js';
 import { createBrowserMaterial } from './material-factory.js';
 import { deduplicateUnifiedMaterials, mergeUnifiedMaterial } from './merge-materials.js';
@@ -220,10 +221,11 @@ export class WeixinCollector {
         }
         store(resolvedSearch);
 
+        const articleOutputDirectory = path.join(this.outputDirectory, existingProvisional.material_id);
         const download = await this.runner.run([
           'weixin', 'download',
           '--url', articleAccessUrl,
-          '--output', this.outputDirectory,
+          '--output', articleOutputDirectory,
           '--download-images', 'false',
           '-f', 'json',
         ], { signal, timeoutMs: 60_000 });
@@ -241,7 +243,7 @@ export class WeixinCollector {
           const publishedAtQuality = useArticleTime ? article.published_at_quality : candidate.published_at_quality;
           const contentPath = await normalizeWeixinArticleArtifact({
             repositoryRoot: this.repositoryRoot,
-            outputDirectory: this.outputDirectory,
+            outputDirectory: articleOutputDirectory,
             savedPath: article.markdown_path ?? '',
             accessUrl: articleAccessUrl,
             canonicalUrl: traceable ? canonicalUrl : null,

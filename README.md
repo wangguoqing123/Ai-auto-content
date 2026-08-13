@@ -30,6 +30,8 @@ Local Browser Collector（用户 Mac）→ X / 微信公众号
 
 Local Browser Runtime 使用独立 clone：`~/Library/Application Support/AiAutoContent/runtime`。状态、锁和配置保存在 Runtime clone 外部，日志写入 `~/Library/Logs/AiAutoContent/`。默认不自动启动 Chrome；必须提前打开 Chrome、保持 X 登录并连接 Browser Bridge。安装器与 LaunchAgent 模板已经提供，但本 PR 开发和 CI 不会正式安装。
 
+Morning 的共享健康检查只以 Node、npm、OpenCLI、Chrome、daemon、Extension 和 Connectivity 判断是否阻断整条流水线。X 登录探测与公众号公开搜索探测彼此独立；单个平台失败时，另一个平台仍会采集，已有成功数据继续落盘、生成报告并安全同步 Git，只有两个平台都失败时整次 Browser Pipeline 才为 `failed`。
+
 小红书已因用户主动降低账号与自动化风险的产品决策退出采集、内容生产、发布和复盘范围。旧材料 Schema 继续兼容历史 `source_platform`，过去的实测审计文档保持原样，不得据此重新启用活跃命令。详见 `docs/18-platform-scope-decision.md`。
 
 本阶段仍不调用大模型，不开发自动选题、写作、配图或发布。
@@ -114,7 +116,7 @@ config/platform-queries.yaml        浏览器平台关键词、预算与轮换
 data/materials/YYYY-MM-DD.jsonl     最近 7 天内及隔离区 RSS 素材
 data/browser-materials/YYYY-MM-DD.jsonl  浏览器非 dry-run 素材
 data/browser-runs/                  浏览器平台运行日志
-data/weixin-articles/YYYY-MM-DD/    已下载的公众号正文；素材只记录仓库相对 POSIX 路径
+data/weixin-articles/YYYY-MM-DD/<material_id>/  已下载的公众号正文；同标题素材仍有独立目录
 data/state/seen-materials.json      跨天 URL 与内容指纹
 data/runs/run_*.json                每次运行及逐信源日志
 reports/materials/YYYY-MM-DD.md     每日素材日报
@@ -122,6 +124,10 @@ reports/browser/YYYY-MM-DD.md       X / 公众号 Browser 素材日报
 ```
 
 首次运行时，7 天以前的 RSS 只写入指纹状态，不写入当天素材；发布时间未知的素材进入 `quarantined`。缺失互动字段保存为 `null`，不以 0 冒充真实数据。
+
+正式公众号正文以稳定 `material_id` 作为下载目录，重复运行仍命中同一目录，同一天标题相同但身份不同的文章不会互相覆盖。素材中的 `content_path` 只保存仓库相对 POSIX 路径；dry-run 固定为 `null`，命令摘要中的输出位置固定显示为 `[runtime-output]`。
+
+自动 push 前会逐个验证 `origin/main..HEAD` 的所有 pending commit：提交标题必须是 `chore(browser-data): collect X and WeChat YYYY-MM-DD` 且日期真实有效，变更路径只能属于四个 Browser 数据白名单，并按每个 commit 当时的文件内容扫描临时微信参数、认证信息、本机绝对路径和 `.DS_Store`。删除白名单文件允许通过；任何提交不可读或不合规都会以 `invalid_staged_paths` 停止，且不 rebase、不 push、不访问平台。恢复到的 pending 日期只有包含今天时才跳过当天采集；只恢复历史日期后仍继续今天的健康检查和采集。
 
 ## JSON Schema 数据契约
 

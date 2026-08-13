@@ -33,7 +33,7 @@ Local Browser ── 用户 Mac 08:00 目标窗口 ── X / 公众号 ─┘
 - 调度：LaunchAgent 每 900 秒运行一次 due check；`RunAtLoad=true`。
 - 时间：`Asia/Shanghai` 07:30—12:00，目标时间 08:00，每天最多 2 次失败尝试。
 - 默认 `auto_launch_chrome=false`，要求 Chrome 已打开且 Browser Bridge 已连接。
-- X 登录、公众号公开搜索入口、daemon、Extension、Connectivity 任一失败时，不把 0 条写成空结果。
+- Node、npm、OpenCLI、Chrome、daemon、Extension、Connectivity 是共享健康项，失败时阻断整条流水线。X 登录和公众号公开搜索是平台本地探测，彼此独立执行；一方失败不阻断另一方，也不把 0 条写成空结果。
 
 独立 clone 默认路径：
 
@@ -59,17 +59,18 @@ Browser 正式运行只写：
 - `data/weixin-articles/**`
 - `reports/browser/**`
 
-公众号下载结果先解析为绝对路径并执行 `realpath`，拒绝 `../`、符号链接逃逸、Runtime clone 外路径和非 Markdown 文件；统一素材只记录 `data/weixin-articles/.../*.md` 形式的仓库相对 POSIX 路径。dry-run 保持 `content_downloaded: true` 诊断，但 `content_path: null`。Markdown 顶部“原文链接”会替换为可追溯 canonical URL；只有临时参数的 URL 会被移除，正文中的普通 `signature` 单词不会被改写。
+公众号以稳定 `material_id` 建立 `data/weixin-articles/YYYY-MM-DD/<material_id>/` 下载目录，同一素材重复运行目录稳定，同标题不同素材不会覆盖。下载结果先解析为绝对路径并执行 `realpath`，拒绝 `../`、符号链接逃逸、Runtime clone 外路径和非 Markdown 文件；统一素材只记录仓库相对 POSIX 路径。dry-run 保持 `content_downloaded: true` 诊断，但 `content_path: null`，命令摘要只记录 `[runtime-output]`。Markdown 顶部“原文链接”会替换为可追溯 canonical URL；只有临时参数的 URL 会被移除，正文中的普通 `signature` 单词不会被改写。
 
-自动 commit 前会再次检查 staged paths，并扫描 URL 查询参数 `signature`、`pass_ticket`、`exportkey`、`sessionid`、`xsec_token`，以及 Cookie、Authorization、`ct0`、`auth_token`、本地用户目录与 `.DS_Store`。发现任何一项即拒绝提交；普通正文单词 `signature` 不会误报。
+自动 commit 前会检查 staged paths，并扫描 URL 查询参数 `signature`、`pass_ticket`、`exportkey`、`sessionid`、`xsec_token`，以及 Cookie、Authorization、`ct0`、`auth_token`、本机绝对路径与 `.DS_Store`。已有 pending 数据 commit 也不能被默认信任：每次直接 push 前、rebase 前及 rebase 后都会按 `origin/main..HEAD` 顺序逐个验证严格标题 `chore(browser-data): collect X and WeChat YYYY-MM-DD`、真实日期、四个 Browser 数据白名单和该 commit 中现存文件的内容。白名单删除允许通过；不可读或不合规即返回 `invalid_staged_paths`，不 rebase、不 push、不访问平台。普通正文单词 `signature` 不会误报。
 
-运行前优先同步 `origin/main`。已有未推送数据 commit 时：仅 ahead 正常 push；ahead/behind 同时存在时自动 `pull --rebase origin main` 后 push；首次 push 与远端更新竞态时只恢复一次。三种成功路径都跳过重新采集并返回 rebase 后的新 HEAD；冲突会执行 `git rebase --abort`，保留本地 commit，绝不 force push、reset hard、clean 或重新访问平台。
+运行前优先同步 `origin/main`。已有未推送数据 commit 时：仅 ahead 正常 push；ahead/behind 同时存在时自动 `pull --rebase origin main` 后 push；首次 push 与远端更新竞态时只恢复一次。恢复结果携带所有 pending commit 的采集日期：包含今天才跳过当天平台访问；只恢复历史日期时继续今天的健康检查和采集。冲突会执行 `git rebase --abort`，保留本地 commit，绝不 force push、reset hard、clean 或重新访问平台。
 
 scheduled 触发仅在 07:30—12:00 窗口判断完成状态和尝试次数，窗口外始终 `NOT_DUE`。manual 触发可在窗口外运行，但仍服从锁、当天完成和最大尝试；manual dry-run 始终执行健康检查与 Browser dry-run，不写状态、正式数据或 Git。
 
 ## 失败语义
 
 - `success`、`partial_success`：当天完成，不重复访问平台；部分成功保存并提交已有数据，同时发本机警告。
+- X 与公众号并行执行；任一成功、另一失败为 `partial_success`，继续保存报告和 Git 同步，两个平台都失败才为 `failed`。
 - `failed`：窗口内最多再尝试一次。
 - `login_required`、`blocked`、`unavailable`：记录真实失败，不解释为零结果。
 - `git_sync_failed`：保留本地数据 commit，下一次优先重试同步。

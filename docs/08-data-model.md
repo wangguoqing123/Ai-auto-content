@@ -49,7 +49,7 @@ Browser 素材的 `material_id` 优先使用平台稳定 `source_item_id`，没�
 
 公众号 canonical URL 只有满足以下任一条件才可追溯：`/s/<stable-slug>`、包含 `sn`，或同时包含 `__biz + mid + idx`。只有 `signature`、`src`、`scene` 等临时参数，或清理后只剩 `https://mp.weixin.qq.com/s`，都不能升级为 resolved。即使正文下载成功，这类素材也保持 `content_downloaded: true`、`source_access_status: unresolved`、`status: quarantined`，并包含 `unresolved_source_url`；其 Markdown 不保留临时访问 URL。
 
-正式公众号 `content_path` 必须是从仓库根开始的相对 POSIX 路径，例如 `data/weixin-articles/2026-08-14/foo/foo.md`。绝对路径、home 简写、Windows 绝对路径、父目录跳转、符号链接逃逸和非 Markdown 文件均被拒绝。dry-run 的 `content_path` 固定为 `null`，但成功下载仍记录 `content_downloaded: true`。Browser Materials 与 Run Log 不持久化 Runtime clone 的本机绝对路径。
+正式公众号正文以稳定 `material_id` 作为下载目录；同一素材重复运行目录不变，同一天标题相同但身份不同的文章仍写入不同目录，不会覆盖。`content_path` 必须是从仓库根开始的相对 POSIX 路径，例如 `data/weixin-articles/2026-08-14/<material_id>/foo.md`。绝对路径、home 简写、Windows 绝对路径、父目录跳转、符号链接逃逸和非 Markdown 文件均被拒绝。dry-run 的 `content_path` 固定为 `null`，但成功下载仍记录 `content_downloaded: true`。Browser Materials、Run Log 与命令摘要不持久化 Runtime clone 的本机绝对路径。
 
 机器可读契约由 Zod 模型生成并提交：
 
@@ -58,7 +58,7 @@ Browser 素材的 `material_id` 优先使用平台稳定 `source_item_id`，没�
 
 两份 JSON Schema 均使用 Draft 2020-12、`additionalProperties: false`，并要求序列化输出包含 `identity_aliases`、`source_access_status` 和 `content_downloaded`。旧 Cloud JSON 行先经过 `materialSchema.parse`，由 Zod 补成 `[]`、`resolved` 和 `false` 后再持久化。`npm run schema:check` 会在临时目录重新生成并比对提交文件，防止运行时模型与契约再次漂移。
 
-本机调度状态不进入 Git，固定保存在 `~/Library/Application Support/AiAutoContent/state/scheduler-state.json`。`success` 与 `partial_success` 都表示当天 morning 已完成；`failed` 可在窗口内按配置重试，`git_sync_failed` 保留已采集数据和本地 commit，下一次先重试 push 而不重新访问平台。
+本机调度状态不进入 Git，固定保存在 `~/Library/Application Support/AiAutoContent/state/scheduler-state.json`。`success` 与 `partial_success` 都表示当天 morning 已完成；`failed` 可在窗口内按配置重试，`git_sync_failed` 保留已采集数据和本地 commit。下一次先校验并恢复 pending commit；仅当恢复日期包含当天时才根据状态跳过当天采集，只恢复历史日期则继续当前日期任务。
 
 `accepted` 不等于“只有标题和摘要即可使用”。只有搜狗标题和摘要、尚无可追溯 `mp.weixin.qq.com` 原文 URL 的候选必须满足：
 
