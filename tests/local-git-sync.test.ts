@@ -24,7 +24,7 @@ async function repository(): Promise<{ root: string; remote: string }> {
   roots.push(root);
   const remote = path.join(root, 'remote.git');
   const runtime = path.join(root, 'runtime');
-  await git(root, 'init', '--bare', remote);
+  await git(root, 'init', '--bare', '--initial-branch=main', remote);
   await mkdir(runtime);
   await git(runtime, 'init', '-b', 'main');
   await git(runtime, 'config', 'user.name', 'Fixture');
