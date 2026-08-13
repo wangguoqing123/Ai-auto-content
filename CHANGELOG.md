@@ -2,7 +2,12 @@
 
 ## Unreleased
 
-- 在真实 Chrome Profile 下接通 OpenCLI Browser Bridge，并在线验证 X、小红书、公众号搜索与 5 篇正文下载；最终 dry-run 24/24 命令成功、返回 104 条材料。
+- 在真实 Chrome Profile 下接通 OpenCLI Browser Bridge，并在线验证 X、小红书、公众号搜索与 5 篇正文下载；第一轮 dry-run 24/24 命令成功并产生 104 个 raw 行，旧输出未统计唯一数。
+- 增加 Browser 素材稳定 identity、canonical URL、跨查询统一合并，以及平台和总计的 raw/unique/duplicate 统计；同日持久化不再覆盖先前查询来源。
+- 增加 X 富搜索到内建基础搜索的受控 fallback；小红书 token URL 和公众号临时 tracking URL 不再持久化。
+- 修复公众号相对时间以 Unix epoch 推断的问题，严格拒绝非法日历日期；dry-run 清理正文后不再返回失效 `content_path`。
+- 保留 `docs/14` 首次 Bridge 未连接的历史报告，并将后续成功接通和第二轮修正迁移到 `docs/17`。
+- 第二轮唯一一次真实 dry-run 得到 104 raw / 102 unique / 2 duplicate；X 为 80/78/2，小红书为 4/4/0，公众号为 20/20/0，4 篇正文通过最终解析。
 - 增加搜狗微信结果到公众号正文 URL 的只读解析适配器，支持相对时间和中文发布时间，并拒绝退出码为 0 的业务失败下载结果。
 - 修复 X 富字段适配器的公共 Web bearer 发现：优先复用当前 OpenCLI 版本集中维护的公共 token，页面扫描仅作后备。
 - 增加已真实验证的 RSS / AIHOT v1 Cloud Collector；它是当前唯一正式每日运行通道。

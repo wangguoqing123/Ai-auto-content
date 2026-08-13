@@ -22,7 +22,7 @@ status: proposed
 
 - `source_platform`、`source_kind`、`collector`、`query_id`、`query_text`、`search_rank`、`source_item_id`
 - `author_name`、`author_followers`
-- `title`、`excerpt`、`source_url`、`content_path`
+- `title`、`excerpt`、`source_url`、`canonical_url`、`content_path`、`content_downloaded`
 - `published_at`、`published_at_quality`
 - `engagement`；缺失值必须为 `null`
 - `metric_quality`、`usage_mode`、`viral_confidence`
@@ -39,6 +39,8 @@ status: proposed
 - `relevance_score`、`freshness_score`、`evidence_score`、`overall_score`
 - `fingerprint`、`content_fingerprint`
 - `status`、`rejection_reasons`
+
+Browser 素材的 `material_id` 优先使用平台稳定 `source_item_id`，没有稳定 item ID 时才使用 `canonical_url`。同一素材命中多个查询时，当前字符串字段以去重、稳定排序后的 `query_id` 逗号列表和 `query_text` 中文分号列表保存；临时访问 token 不进入统一素材。
 
 旧版规划字段在后续语义整理阶段按需映射：
 

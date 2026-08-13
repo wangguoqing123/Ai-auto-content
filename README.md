@@ -32,7 +32,7 @@ OpenCLI Browser Collector（本地手动已验证）→ X / 小红书 / 公众�
 → 仅在输出有变化时提交
 ```
 
-OpenCLI Browser Collector 的代码、Fixture、失败隔离和真实 Browser Bridge 均已验证，模块状态为 `verified_live_manual`。最终 dry-run 的 24 个命令全部成功，X、小红书和公众号共返回 104 条材料，其中 5 篇公众号正文完成临时 Markdown 下载。它仍需要本地 Chrome、Browser Bridge 和平台登录态，不能放到 GitHub-hosted runner，也没有配置 `launchd`。Codex Browser 仅用于页面探索、DOM 字段确认、登录状态诊断和适配器修复，不接入正式 Browser Pipeline。
+OpenCLI Browser Collector 的代码、Fixture、失败隔离和真实 Browser Bridge 均已验证，模块状态为 `verified_live_manual`。第一轮 104 只是 raw 行数，旧输出没有唯一数；第二轮唯一一次真实 dry-run 为 104 raw、102 unique、2 duplicates，4 篇公众号正文通过最终解析。最新结果与一个公众号正文业务解析失败的事实边界见 `docs/17-opencli-browser-live-validation.md`。它仍需要本地 Chrome、Browser Bridge 和平台登录态，不能放到 GitHub-hosted runner，也没有配置 `launchd`。Codex Browser 仅用于页面探索、DOM 字段确认、登录状态诊断和适配器修复，不接入正式 Browser Pipeline。
 
 本阶段仍不调用大模型，不开发自动选题、写作、配图或发布。
 
@@ -138,6 +138,7 @@ reports/materials/YYYY-MM-DD.md     每日素材日报
 14. `docs/14-opencli-live-capability-spike.md`
 15. `docs/15-hybrid-collector-runtime.md`
 16. `docs/16-codex-browser-runtime-spike.md`
+17. `docs/17-opencli-browser-live-validation.md`
 
 发生冲突时，真实性与合规规则、人物事实库和产品知识库优先。资料不足时必须标记 `UNKNOWN`，不得自行补全。
 

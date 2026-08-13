@@ -67,11 +67,15 @@ Browser Collector 启动时首先真实执行 `opencli doctor`。只有 daemon�
 
 ## 数据合并
 
-- 两个通道使用统一的素材核心字段，包括 `source_platform`、`source_kind`、`collector`、`query_id`、发布时间质量、互动字段质量、使用方式和病毒性置信度。
+- 两个通道使用统一的素材核心字段，包括 `source_platform`、`source_kind`、`collector`、`query_id`、`canonical_url`、发布时间质量、互动字段质量、使用方式和病毒性置信度。
 - Cloud Collector 继续写 `data/materials/YYYY-MM-DD.jsonl`。
 - Browser Collector 非 dry-run 时写 `data/browser-materials/YYYY-MM-DD.jsonl` 和 `data/browser-runs/`；公众号正文写入 `data/weixin-articles/`。
-- 后续消费端按 `material_id` 合并；URL 和内容指纹继续用于跨来源去重。
+- Browser Collector 在平台返回和落盘前都按稳定 `material_id` 合并；同一内容命中多个查询时保留全部查询来源，并报告 raw、unique 和 duplicate。Cloud Collector 原有 URL/内容指纹逻辑不变。
+- X 优先用 Tweet ID，小红书用 note ID，公众号优先用稳定 path/参数或精确元数据身份；临时 token、signature 和 tracking URL 不参与身份，也不进入正式 JSONL。
+- 同日重复运行通过统一合并刷新非空互动数据，不再由最后一行覆盖此前查询来源。
 - 互动缺失统一为 `null`。搜索排名只保存在来源记录语义中，不映射成互动分数。
+
+成功接通和第二轮审计详情见 `docs/17-opencli-browser-live-validation.md`；`docs/14-opencli-live-capability-spike.md` 继续保留首次 Bridge 未连接的历史事实。
 
 ## 预算与轮换
 
