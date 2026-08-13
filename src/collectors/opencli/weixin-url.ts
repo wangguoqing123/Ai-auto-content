@@ -81,13 +81,6 @@ export function deriveWeixinArticleId(rawUrl: string, metadata?: WeixinIdentityM
   return `url:${digest(canonical)}`;
 }
 
-function normalizedExactTime(value: string | null): string {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toISOString();
-}
-
 export interface WeixinDiscoveryIdentity {
   title: string;
   summary: string;
@@ -98,10 +91,7 @@ export interface WeixinDiscoveryIdentity {
 export function deriveWeixinDiscoveryId(input: WeixinDiscoveryIdentity): string {
   const title = normalizedIdentityPart(input.title);
   const summary = normalizedIdentityPart(input.summary).slice(0, 500);
-  const stableTime = input.publishedAtQuality === 'exact'
-    ? normalizedExactTime(input.publishedAt)
-    : '';
-  return `discovery:${digest(`${title}\n${summary}\n${stableTime}`)}`;
+  return `discovery:${digest(`${title}\n${summary}`)}`;
 }
 
 export function sanitizeWeixinDiscoveryUrl(rawUrl: string): string {
