@@ -73,6 +73,7 @@ describe('OpenCLI fixture parsers', () => {
       title: download.title,
       excerpt: search[0]?.summary ?? '',
       sourceUrl: resolvedUrl,
+      canonicalUrl: resolvedUrl,
       publishedAt: download.publish_time,
       publishedAtQuality: download.published_at_quality,
       collectedAt: '2026-08-12T01:00:00.000Z',
@@ -89,5 +90,34 @@ describe('OpenCLI fixture parsers', () => {
     expect(() => parseWeixinDownload([{
       title: 'Error', author: '-', publish_time: '-', status: 'invalid URL', saved: '-',
     }])).toThrow('did not succeed');
+  });
+
+  it.each([
+    ['2小时前', '2026-08-13T01:00:00.000Z', 'inferred'],
+    ['3天前', '2026-08-10T03:00:00.000Z', 'inferred'],
+    ['2026年8月13日 09:01', '2026-08-13T01:01:00.000Z', 'exact'],
+    ['2026-08-13T01:01:00.000Z', '2026-08-13T01:01:00.000Z', 'exact'],
+  ])('normalizes Weixin download time %s', (publishTime, expected, quality) => {
+    const parsed = parseWeixinDownload([{
+      title: 'Fixture', author: 'Account', publish_time: publishTime, status: 'success', saved: '/tmp/article.md',
+    }], new Date('2026-08-13T03:00:00.000Z'));
+    expect(parsed.publish_time).toBe(expected);
+    expect(parsed.published_at_quality).toBe(quality);
+    expect(parsed.publish_time).not.toMatch(/^19(?:69|70)-/);
+  });
+
+  it.each(['2026-02-31', '2026年2月31日 09:00', '2026-08-13 25:70', '2026-02-31T01:00:00.000Z'])('rejects invalid calendar time %s', (publishTime) => {
+    const parsed = parseWeixinDownload([{
+      title: 'Fixture', author: 'Account', publish_time: publishTime, status: 'success', saved: '/tmp/article.md',
+    }], new Date('2026-08-13T03:00:00.000Z'));
+    expect(parsed).toMatchObject({ publish_time: null, published_at_quality: 'unknown' });
+  });
+
+  it('isolates one malformed Twitter row when valid rows remain', () => {
+    const records = parseTwitterSearch([{ unexpected: true }, {
+      id: 'valid-id', author: 'fixture', text: 'valid text', url: 'https://x.com/i/status/valid-id',
+    }]);
+    expect(records).toHaveLength(1);
+    expect(records[0]?.id).toBe('valid-id');
   });
 });

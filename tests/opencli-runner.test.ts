@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import type { ChildProcess, SpawnOptions } from 'node:child_process';
 import { describe, expect, it, vi } from 'vitest';
-import { OpenCliRunner, type SpawnOpenCli } from '../src/collectors/opencli/opencli-runner.js';
+import { OpenCliRunner, toCommandSummary, type SpawnOpenCli } from '../src/collectors/opencli/opencli-runner.js';
 
 class FakeChild extends EventEmitter {
   readonly stdout = new PassThrough();
@@ -76,5 +76,16 @@ describe('OpenCLI runner', () => {
     const process = spawned('', 'SECURITY_BLOCK Xiaohongshu security block: risk control', 1);
     const result = await new OpenCliRunner(process.spawn).run(['xiaohongshu', 'search', 'AI工具', '-f', 'json']);
     expect(result.status).toBe('blocked');
+  });
+
+  it('redacts temporary platform access URLs from persisted command summaries', () => {
+    const summary = toCommandSummary({
+      args: ['xiaohongshu', 'note', 'https://www.xiaohongshu.com/search_result/64f123456789abcdef123456?xsec_token=secret'],
+      status: 'command_failed', exit_code: 1, duration_ms: 1, timed_out: false, cancelled: false,
+      error: 'failed https://weixin.sogou.com/link?signature=secret&pass_ticket=hidden',
+      stdout: '', stderr: '', data: null,
+    });
+    expect(JSON.stringify(summary)).not.toMatch(/secret|hidden|xsec_token/);
+    expect(summary.args[2]).toBe('https://www.xiaohongshu.com/explore/64f123456789abcdef123456');
   });
 });
