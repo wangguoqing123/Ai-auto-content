@@ -1,0 +1,419 @@
+version: 2
+updated_at: 2026-08-14
+
+evidence_basis:
+  - user_confirmation_2026_08_14
+  - product_poster_2026_08_14
+  - member_directory_screenshot_2026_08_14
+
+product:
+  id: ai-never-fall-behind-club
+  name: AI 不掉队俱乐部
+  brand_line: 七天假的 AI 实战社群
+  owner: 七天假
+  product_type: long_term_practice_learning_community
+
+positioning:
+  primary: "AI 不掉队俱乐部，是一个面向已经开始接触 AI、但还没有稳定用起来的人，以学习路径、基础课程、工具实操、完整项目、真实案例和社群交流，帮助用户把 AI 逐步接入内容、工作和真实业务的长期实践学习社群。"
+  core_promise: 不是追每一个新工具，而是把 AI 真正用起来。
+  transformation:
+    from:
+      - 收藏很多 AI 工具和教程。
+      - 会基础对话，但输出不稳定。
+      - 会单个工具，却不会完成完整任务。
+      - 每次使用都从零开始。
+      - 不知道先学什么、后学什么。
+      - 一个人摸索，遇到问题不知道怎样继续。
+    to:
+      - 能按真实结果选择工具。
+      - 能稳定完成日常任务。
+      - 能拆解复杂任务。
+      - 能把多个工具组成工作流。
+      - 能把跑通的方法沉淀成 Skill、模板或可复用流程。
+      - 能把 AI 接入内容、工作和真实业务。
+  final_goal: 把 AI 稳定接入自己的内容、工作和真实业务。
+
+audience:
+  primary:
+    - 已经开始接触 AI，但还没有稳定用起来、没有形成完整方法和工作流的人。
+  suitable_for:
+    - 会基础对话，但希望输出更稳定的人。
+    - 学过单个工具，但希望完成真实任务和完整项目的人。
+    - 希望把 AI 接入内容、工作或真实业务的人。
+    - 愿意亲手实践、检查结果并持续迭代的人。
+    - 希望在遇到具体问题时进入社群交流的人。
+  not_suitable_for:
+    - 只想购买后自动获得收入或业务结果的人。
+    - 需要一对一代做、即时响应或固定服务 SLA 的人。
+    - 不愿实践，只想收藏更多工具和教程的人。
+    - 主要需求是模型训练、算法研究或论文研究的人。
+
+learning_method:
+  first_use_instruction: 先选择未来 2～4 周最想完成的一个成果，一次只走一条路径。
+  principles:
+    - id: practice_first
+      name: 实践优先，用结果判断工具。
+      explanation: 不追最新模型和最长工具清单，以真实任务结果判断工具是否值得使用。
+    - id: ask_ai_first
+      name: 遇事不决，先问 AI。
+      explanation: 先把目标、背景和资料交给 AI，帮助梳理、尝试和排查；AI 解决不了，再带具体问题进入社群交流。
+    - id: share_real_practice
+      name: 真实实践，值得被分享。
+      explanation: 分享什么有效、哪里卡住、哪些地方失败、最后怎样调整；真实过程比漂亮结果更有价值。
+
+mechanisms:
+  - id: membership_knowledge_base
+    name: 会员知识库
+    facts:
+      - 提供工具、方法、教程和案例。
+      - 可以表达“持续更新”。
+    constraints:
+      - 不能自动表达具体更新频率、每周新增数量或固定更新时间。
+  - id: clear_learning_path
+    name: 清晰学习路径
+    facts:
+      - 第一次进入时，先选择未来 2～4 周最想完成的一个结果。
+      - 一次只走一条学习路径。
+      - 不是先把所有工具学一遍。
+    constraints: []
+  - id: real_project_practice
+    name: 真实项目拆解
+    facts:
+      - 强调真实任务、真实过程和可复用实践。
+      - 可以展示失败点和调整过程。
+    constraints:
+      - 使用“跑通过、真实项目、能够复用、实测有效”等表达时，必须绑定具体项目证据。
+  - id: community_exchange
+    name: 社群交流同行
+    facts:
+      - 可以在群内提问和交流。
+      - 遇到问题可以带到社群讨论。
+    constraints:
+      - 当前不能承诺固定回复时间、固定答疑场次或即时响应 SLA。
+
+learning_architecture:
+  shared_foundation:
+    - id: ai_foundation_cognition
+      name: AI 基础认知
+      topics:
+        - AI 模型、工具、智能体和工作流的基本区别。
+        - 工具选择。
+        - AI 能做什么、不能做什么。
+    - id: stable_ai_usage
+      name: 稳定使用 AI
+      topics:
+        - 提示词基本结构。
+        - 上下文和参考资料。
+        - 复杂任务拆解。
+        - 检查、纠正和迭代 AI 输出。
+    - id: agents_and_workflows
+      name: 智能体与工作流
+      topics:
+        - 知识库。
+        - Skill。
+        - MCP。
+        - 多工具协同。
+        - 可重复运行的工作流。
+  practice_tracks:
+    - id: ai_content_creation
+      name: AI 内容创作
+      description: 把 AI 接入账号定位、素材、选题、创作、交付、复盘与可复用内容系统。
+      module_ids:
+        - ai_content_automation
+    - id: ai_video_production
+      name: AI 视频生产
+      description: 海报确认的实战方向；当前目录截图不足以证明完整交付范围。
+      module_ids:
+        - ai_video_production
+    - id: ai_tools_and_productivity
+      name: AI 小工具与工作提效
+      description: 通过 Codex 与多工具场景完成文档、表格、飞书、原型、邮件、Agent 和工作流任务。
+      module_ids:
+        - codex_foundation
+        - codex_practice
+        - ai_tools_and_productivity
+
+delivery_catalog:
+  - id: membership_home
+    name: 会员首页
+    delivery_status: confirmed_delivered
+    description: 已确认存在会员首页与首次使用入口。
+    evidence_basis:
+      - member_directory_screenshot_2026_08_14
+    confirmed_items:
+      - 使用说明。
+      - 学习原则。
+      - 社群交流入口。
+      - 第一次使用引导。
+    visible_topics: []
+    constraints: []
+    product_value: 帮助会员先理解使用方式，再选择结果与学习路径。
+  - id: learning_path
+    name: 学习路径
+    delivery_status: confirmed_delivered
+    description: 已确认按希望完成的结果组织学习，而不是先学完所有工具。
+    evidence_basis:
+      - member_directory_screenshot_2026_08_14
+    confirmed_items:
+      - 先确定成果。
+      - 一次走一条路径。
+      - 按结果组织学习。
+    visible_topics: []
+    constraints: []
+    product_value: 降低无目的收藏和平均学习所有工具的成本。
+  - id: beginner_ai_course
+    name: 小白的 AI 基础课
+    delivery_status: confirmed_delivered
+    description: 截图已确认基础课及部分可见主题；不据此补全未完整展示的正式课名。
+    evidence_basis:
+      - member_directory_screenshot_2026_08_14
+    confirmed_items: []
+    visible_topics:
+      - AI、模型、ChatGPT、Codex 的基本关系。
+      - 文本、多模态、图片、视频模型选择。
+      - Token 和上下文。
+      - 提示词和 Skill 的区别。
+      - MCP。
+      - GitHub。
+      - AI 使用加速与网络基础帮助。
+    constraints:
+      - visible_topics 不是对正式课程标题的补全。
+    product_value: 建立共同基础，帮助会员理解能力边界并选择工具。
+  - id: ai_content_automation
+    name: AI 内容自动化｜搭建属于你的账号内容系统
+    delivery_status: confirmed_delivered
+    description: 已确认存在从账号定位到 Skills 升级的一套内容系统实践目录。
+    evidence_basis:
+      - member_directory_screenshot_2026_08_14
+    confirmed_items:
+      - 用 AI 完成账号定位与内容系统搭建。
+      - 搭建不同 AI 工具通用的内容工作区。
+      - 规划内容素材来源与采集方式。
+      - 把采集资料整理成可调用的内容资产。
+      - 提炼可复用的内容创作规律。
+      - 搭建可持续使用的内容选题系统。
+      - AI 内容创作的两种形式介绍和实践。
+      - 把 AI 初稿修改成可以使用的内容。
+      - 让 AI 从改稿中学习写作偏好。
+      - 完成一次内容交付与单篇复盘。
+      - 用 AI 内容系统完成 5 个真实成果。
+      - 把跑通方法封装成可复用的 Skill。
+      - 为账号建立 3 个核心内容 Skills。
+      - 用 Skills 再跑一轮并升级内容系统。
+    visible_topics: []
+    constraints: []
+    product_value: 不是只生成一篇文章，而是建立一套可持续、可复用的内容生产系统。
+  - id: codex_foundation
+    name: Codex 基础课
+    delivery_status: confirmed_delivered
+    description: 已确认面向第一次使用者并配有练习，以完成真实任务为目标。
+    evidence_basis:
+      - member_directory_screenshot_2026_08_14
+    confirmed_items:
+      - 第一次使用也能跟着完成。
+      - 有配套练习。
+      - 目标不是学习编程语法，而是用 Codex 完成真实任务。
+    visible_topics: []
+    constraints: []
+    product_value: 为非程序员使用 Codex 完成任务建立基础。
+  - id: codex_practice
+    name: Codex 基础实操｜15 个应用场景
+    delivery_status: confirmed_delivered
+    description: 截图已确认 15 个应用场景目录。
+    evidence_basis:
+      - member_directory_screenshot_2026_08_14
+    confirmed_items:
+      - 搭建个人专属工作台。
+      - Codex + ima 搭建个人知识库。
+      - Codex + Obsidian 自动化工作流。
+      - Codex + Excel 高效处理文件。
+      - Codex + 飞书完成日常信息处理。
+      - 在 Codex 上部署 Agent 助手。
+      - Codex + Figma 生成原型图。
+      - 用 Codex 做出完整原型系统。
+      - Codex + 飞书完成团队协作。
+      - 多 Agent 并行协作。
+      - Codex 接入 Agent Mail 处理邮件。
+      - 搭建 AI 面试辅导助手。
+      - 用 Codex 生图 Skills 制作图片素材。
+      - 多平台热点抓取与飞书集成。
+      - 搭建长期记忆系统。
+    visible_topics: []
+    constraints: []
+    product_value: Codex 不只是程序员编程工具，也是普通职场人、产品经理、创作者搭建工具、工作流和 Agent 助手的执行环境。
+  - id: complete_projects
+    name: 完整项目
+    delivery_status: confirmed_container
+    description: 目录已经存在，但本次截图没有完整展示项目数量和项目明细。
+    evidence_basis:
+      - member_directory_screenshot_2026_08_14
+    confirmed_items: []
+    visible_topics: []
+    constraints:
+      - 不能声称具体项目数。
+    product_value: null
+  - id: real_case_library
+    name: 真实 AI 使用案例库
+    delivery_status: confirmed_partial
+    description: 已确认至少两个案例，但不能推断案例库总数量。
+    evidence_basis:
+      - member_directory_screenshot_2026_08_14
+    confirmed_items:
+      - 用 Codex 搭好自己的 VPN：从买 VPS 到 Clash Verge 连接。
+      - 高点击封面怎么做：一套半人工、半 AI 的实战工作流。
+    visible_topics: []
+    constraints:
+      - 不能由可见案例推断案例库总数量。
+    product_value: 用真实过程、失败点和调整方法帮助会员判断实践能否复用。
+  - id: templates_and_downloads
+    name: 模板与下载资料
+    delivery_status: confirmed_container
+    description: 目录已经存在，具体模板数量和权益未进一步确认。
+    evidence_basis:
+      - member_directory_screenshot_2026_08_14
+    confirmed_items: []
+    visible_topics: []
+    constraints:
+      - 不能声称模板数量或具体权益，除非目录进一步确认。
+    product_value: null
+  - id: course_updates_and_curation
+    name: 课程更新与不掉队精选
+    delivery_status: confirmed_container
+    description: 已确认课程更新与精选入口存在。
+    evidence_basis:
+      - member_directory_screenshot_2026_08_14
+    confirmed_items:
+      - 有课程更新和精选入口。
+      - 帮助用户筛选值得关注的内容。
+    visible_topics: []
+    constraints:
+      - 不能承诺固定更新频率。
+    product_value: 帮助会员筛选值得关注的内容，而不是追逐每一个新工具。
+  - id: faq_and_help
+    name: 常见问题与使用帮助
+    delivery_status: confirmed_delivered
+    description: 已确认常见问题与使用帮助入口存在。
+    evidence_basis:
+      - member_directory_screenshot_2026_08_14
+    confirmed_items:
+      - 常见问题与使用帮助。
+    visible_topics: []
+    constraints: []
+    product_value: 帮助会员解决使用过程中的基础问题。
+  - id: ai_video_production
+    name: AI 视频生产
+    delivery_status: direction_confirmed_delivery_unverified
+    description: 海报明确为实战方向，但当前会员目录截图不足以证明完整课程交付范围。
+    evidence_basis:
+      - product_poster_2026_08_14
+    confirmed_items: []
+    visible_topics: []
+    constraints:
+      - 不能因为海报存在这一方向就自动给予满额产品适配分。
+      - 不能使用 club CTA。
+    product_value: null
+  - id: ai_tools_and_productivity
+    name: AI 小工具与工作提效
+    delivery_status: confirmed_partial
+    description: Codex 15 个场景已覆盖多类工作提效任务，但不能声称整个方向已完整交付。
+    evidence_basis:
+      - member_directory_screenshot_2026_08_14
+    confirmed_items:
+      - 文档与表格处理。
+      - 飞书与团队协作。
+      - 原型、邮件、Agent、小工具和长期记忆。
+    visible_topics: []
+    constraints:
+      - 只能承接已确认的具体场景，不能外推整个工具与提效方向。
+    product_value: 把 Codex 和多工具协同接入普通人的真实工作任务。
+
+pricing:
+  currency: CNY
+  billing_period: year
+  current_offer:
+    price_cny: 365
+    status: user_confirmed_current
+    verified_at: 2026-08-14
+    requires_refresh_before_public_sales_content: true
+  standard_price:
+    price_cny: 499
+    source: product_poster_2026_08_14
+  early_bird:
+    first_member_limit: 200
+    remaining_slots: null
+    current_member_index: null
+    exact_remaining_claim_allowed: false
+    countdown_claim_allowed: false
+
+claims:
+  confirmed:
+    - product.name
+    - product.owner
+    - product.brand_line
+    - product.positioning
+    - product.current_price
+    - product.standard_price
+    - product.format.long_term_community
+    - product.mechanism.knowledge_base
+    - product.mechanism.knowledge_base.continuous_updates
+    - product.mechanism.learning_path
+    - product.mechanism.real_projects
+    - product.mechanism.community_exchange
+    - product.learning.shared_foundation
+    - product.learning.content_automation
+    - product.learning.codex_foundation
+    - product.learning.codex_practice
+    - product.learning.case_library
+    - product.learning.templates_container
+    - product.learning.updates_container
+    - product.audience
+    - product.brand_statement
+  evidence_required:
+    - product.practice.ran_successfully
+    - product.practice.reusable
+    - product.practice.real_project
+    - product.practice.measured_result
+    - product.user_case
+    - product.efficiency_improvement
+  forbidden:
+    - product.member_count
+    - product.tutorial_count
+    - product.fixed_update_frequency
+    - product.fixed_answer_frequency
+    - product.instant_response
+    - product.one_on_one_support
+    - product.homework_review
+    - product.live_course
+    - product.template_count
+    - product.guaranteed_learning
+    - product.guaranteed_income
+    - product.guaranteed_employment
+    - product.guaranteed_business_result
+    - product.refund_policy
+    - product.renewal_policy
+    - product.user_success_rate
+    - product.remaining_slots
+    - product.price_increase_deadline
+
+unknown_fields:
+  - product.launch_date
+  - product.member_count
+  - product.tutorial_count
+  - product.fixed_update_frequency
+  - product.fixed_answer_frequency
+  - product.instant_response
+  - product.one_on_one_support
+  - product.homework_review
+  - product.live_course
+  - product.template_count
+  - product.guaranteed_learning
+  - product.guaranteed_income
+  - product.guaranteed_employment
+  - product.guaranteed_business_result
+  - product.refund_policy
+  - product.renewal_policy
+  - product.user_success_rate
+  - product.remaining_slots
+  - product.price_increase_deadline
+  - product.membership_validity_rule
+  - product.ai_video.delivery_scope

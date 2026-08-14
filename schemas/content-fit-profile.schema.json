@@ -1,0 +1,443 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/content-fit-profile.schema.json",
+  "title": "AI Never Fall Behind Content Fit Profile",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "number",
+      "const": 2
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+    },
+    "status": {
+      "type": "string",
+      "const": "strategy_hypothesis"
+    },
+    "learner_stages": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "concept_confusion",
+              "tool_selection",
+              "unstable_usage",
+              "task_breakdown",
+              "workflow_building",
+              "project_delivery",
+              "continuous_improvement",
+              "business_integration"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id",
+          "description"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "content_pillars": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "orientation_and_selection",
+              "stable_ai_usage",
+              "agents_and_workflows",
+              "content_automation",
+              "codex_and_productivity",
+              "ai_video_production",
+              "projects_cases_and_templates",
+              "curation_and_community"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "learner_stage": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "concept_confusion",
+                "tool_selection",
+                "unstable_usage",
+                "task_breakdown",
+                "workflow_building",
+                "project_delivery",
+                "continuous_improvement",
+                "business_integration"
+              ]
+            }
+          },
+          "product_module_ids": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[a-z0-9][a-z0-9_]*$"
+            }
+          },
+          "typical_real_tasks": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "minimum_content_result": {
+            "type": "string",
+            "minLength": 1
+          },
+          "proof_formats": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "conversion_bridge": {
+            "type": "string",
+            "minLength": 1
+          },
+          "delivery_support_status": {
+            "type": "string",
+            "enum": [
+              "confirmed_delivered",
+              "confirmed_container",
+              "confirmed_partial",
+              "direction_confirmed_delivery_unverified",
+              "unknown"
+            ]
+          },
+          "maximum_product_fit_score": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "learner_stage",
+          "product_module_ids",
+          "typical_real_tasks",
+          "minimum_content_result",
+          "proof_formats",
+          "conversion_bridge",
+          "delivery_support_status",
+          "maximum_product_fit_score"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "module_mapping": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "module_id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_]*$"
+          },
+          "content_pillar_ids": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "orientation_and_selection",
+                "stable_ai_usage",
+                "agents_and_workflows",
+                "content_automation",
+                "codex_and_productivity",
+                "ai_video_production",
+                "projects_cases_and_templates",
+                "curation_and_community"
+              ]
+            }
+          }
+        },
+        "required": [
+          "module_id",
+          "content_pillar_ids"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "fit_rules": {
+      "type": "object",
+      "properties": {
+        "requires_explicit_module_match": {
+          "type": "boolean",
+          "const": true
+        },
+        "unrelated_ai_topic_score": {
+          "type": "number",
+          "const": 0
+        },
+        "product_fit_score_range": {
+          "type": "object",
+          "properties": {
+            "min": {
+              "type": "number",
+              "const": 0
+            },
+            "max": {
+              "type": "number",
+              "const": 10
+            }
+          },
+          "required": [
+            "min",
+            "max"
+          ],
+          "additionalProperties": false
+        },
+        "delivery_status_score_caps": {
+          "type": "object",
+          "properties": {
+            "confirmed_delivered": {
+              "type": "number",
+              "const": 10
+            },
+            "confirmed_partial": {
+              "type": "number",
+              "const": 7
+            },
+            "confirmed_container": {
+              "type": "number",
+              "const": 5
+            },
+            "direction_confirmed_delivery_unverified": {
+              "type": "number",
+              "const": 3
+            },
+            "unknown": {
+              "type": "number",
+              "const": 0
+            }
+          },
+          "required": [
+            "confirmed_delivered",
+            "confirmed_partial",
+            "confirmed_container",
+            "direction_confirmed_delivery_unverified",
+            "unknown"
+          ],
+          "additionalProperties": false
+        },
+        "rules": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "requires_explicit_module_match",
+        "unrelated_ai_topic_score",
+        "product_fit_score_range",
+        "delivery_status_score_caps",
+        "rules"
+      ],
+      "additionalProperties": false
+    },
+    "cta_rules": {
+      "type": "object",
+      "properties": {
+        "none": {
+          "type": "object",
+          "properties": {
+            "allowed_delivery_statuses": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "confirmed_delivered",
+                  "confirmed_container",
+                  "confirmed_partial",
+                  "direction_confirmed_delivery_unverified",
+                  "unknown"
+                ]
+              }
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "allowed_delivery_statuses",
+            "description"
+          ],
+          "additionalProperties": false
+        },
+        "light": {
+          "type": "object",
+          "properties": {
+            "allowed_delivery_statuses": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "confirmed_delivered",
+                  "confirmed_container",
+                  "confirmed_partial",
+                  "direction_confirmed_delivery_unverified",
+                  "unknown"
+                ]
+              }
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "allowed_delivery_statuses",
+            "description"
+          ],
+          "additionalProperties": false
+        },
+        "club": {
+          "type": "object",
+          "properties": {
+            "allowed_delivery_statuses": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "confirmed_delivered",
+                  "confirmed_container",
+                  "confirmed_partial",
+                  "direction_confirmed_delivery_unverified",
+                  "unknown"
+                ]
+              }
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1
+            },
+            "constraints": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "required": [
+            "allowed_delivery_statuses",
+            "description",
+            "constraints"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "none",
+        "light",
+        "club"
+      ],
+      "additionalProperties": false
+    },
+    "editorial_lens": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "const": "applies_to_all_content"
+        },
+        "steps": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "status",
+        "steps"
+      ],
+      "additionalProperties": false
+    },
+    "platform_scope": {
+      "type": "object",
+      "properties": {
+        "active_content_outputs": {
+          "minItems": 3,
+          "maxItems": 3,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "wechat_official_account",
+              "x",
+              "wechat_visuals"
+            ]
+          }
+        },
+        "retired_content_outputs": {
+          "minItems": 1,
+          "maxItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "const": "xiaohongshu"
+          }
+        }
+      },
+      "required": [
+        "active_content_outputs",
+        "retired_content_outputs"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "version",
+    "updated_at",
+    "status",
+    "learner_stages",
+    "content_pillars",
+    "module_mapping",
+    "fit_rules",
+    "cta_rules",
+    "editorial_lens",
+    "platform_scope"
+  ],
+  "additionalProperties": false
+}

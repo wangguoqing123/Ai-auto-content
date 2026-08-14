@@ -1,8 +1,11 @@
 project:
   name: AI Auto Content
-  version: 0.2.0
+  version: 0.3.0
   owner: 七天假
-  updated_at: 2026-08-13
+  updated_at: 2026-08-14
+
+product_profile: config/product.yaml
+content_fit_profile: config/content-fit.yaml
 
 account:
   primary_identity: 互联网产品经理
@@ -15,26 +18,7 @@ account:
     beginner: 0.55
     light_intermediate: 0.35
     intermediate: 0.10
-
-product:
-  name: AI 不掉队俱乐部
-  price_cny_per_year: 365
-  confirmed_format:
-    - 社群交流
-    - AI 教程
-  confirmed_topics:
-    - AI 基础教程
-    - 自动化内容工厂
-    - AI 自动剪辑
-    - AI 视频
-    - AI 编程
-  dynamic_fields:
-    - price_cny_per_year
-    - member_count
-    - tutorial_count
-    - update_frequency
-    - answer_frequency
-    - refund_policy
+  core_user_definition: 已经开始接触 AI，但还没有稳定用起来、没有形成完整方法和工作流的人
 
 platforms:
   - wechat_official_account
@@ -42,12 +26,17 @@ platforms:
   - wechat_visuals
 
 content_mix:
-  beginner_basics: 0.35
-  real_tasks_and_workflows: 0.25
-  video_editing_and_content: 0.15
-  coding_and_automation: 0.10
-  product_manager_perspective: 0.10
-  product_and_verified_cases: 0.05
+  status: strategy_hypothesis
+  weights:
+    orientation_and_selection: 0.20
+    stable_ai_usage: 0.20
+    agents_and_workflows: 0.15
+    content_automation: 0.20
+    codex_and_productivity: 0.15
+    projects_cases_and_templates: 0.05
+    curation_and_community: 0.05
+    ai_video_production: 0.00
+  rationale: AI 视频当前为 0 不是永久决策；交付深度经人工确认后再调整。
 
 thresholds:
   topic_approval_score: 80
