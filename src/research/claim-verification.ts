@@ -28,9 +28,6 @@ export function verifyResearchProviderResult(input: {
     if (claimIds.has(claim.claim_id)) errors.push(`duplicate claim_id: ${claim.claim_id}`);
     claimIds.add(claim.claim_id);
     if (claim.support_status === 'unsupported') continue;
-    if (input.topic.time_sensitive && claim.claim_id.startsWith('claim_supported_') && claim.support_status !== 'direct') {
-      errors.push(`time-sensitive supported claim is not direct: ${claim.claim_id}`);
-    }
     const source = claim.source_id === null ? undefined : sources.get(claim.source_id);
     if (source === undefined) {
       errors.push(`unknown source_id: ${claim.source_id ?? 'null'}`);
@@ -45,6 +42,15 @@ export function verifyResearchProviderResult(input: {
       errors.push(`quote exceeds single quote limit: ${claim.claim_id}`);
     }
     if (!segment.text.includes(claim.quote)) errors.push(`quote is not an exact segment substring: ${claim.claim_id}`);
+    for (const token of numericTokens(claim.claim)) {
+      if (!claim.quote.includes(token)) errors.push(`claim contains unsupported numeric token: ${token}`);
+    }
+    if (source.content_scope === 'feed_excerpt') {
+      const scope = claim.scope_limit.toLocaleLowerCase();
+      if (scope === '' || !/(rss|feed|摘要|excerpt)/.test(scope) || !/(full|article|全文|完整)/.test(scope)) {
+        errors.push(`feed excerpt claim lacks explicit scope limitation: ${claim.claim_id}`);
+      }
+    }
     const committed = (committedBySource.get(source.source_id) ?? 0) + claim.quote.length;
     committedBySource.set(source.source_id, committed);
     if (committed > input.config.source_fetch.maximum_committed_quote_chars_per_source) {
@@ -55,7 +61,12 @@ export function verifyResearchProviderResult(input: {
     const id = `claim_supported_${index + 1}`;
     const claim = input.result.verified_claims.find((item) => item.claim_id === id);
     if (claim === undefined) errors.push(`missing declared supported claim: ${id}`);
-    else if (input.topic.time_sensitive && claim.support_status !== 'direct') errors.push(`declared time-sensitive claim lacks direct support: ${id}`);
+    else if (claim.support_status !== 'unsupported') {
+      const source = claim.source_id === null ? undefined : sources.get(claim.source_id);
+      if (source !== undefined && !input.topic.supported_claims[index]!.fact_source_ids.includes(source.material_id)) {
+        errors.push(`declared claim cites an unassigned fact source: ${id}`);
+      }
+    }
   }
   const expectedQuestions = input.topic.research_questions;
   if (input.result.research_answers.length !== expectedQuestions.length) errors.push('research answer count does not match Topic Decision');
@@ -65,9 +76,15 @@ export function verifyResearchProviderResult(input: {
       errors.push(`missing research question: ${question}`);
       continue;
     }
+    if (answer.answer_status === 'answered' && answer.supporting_claim_ids.length === 0) {
+      const experimentDesignQuestion = input.topic.requires_experiment
+        && input.result.experiment_task_id !== null
+        && /(?:选择.{0,20}(?:任务|实验|演示)|什么.{0,20}(?:任务|实验|演示)|哪(?:个|种).{0,20}(?:任务|实验|演示)|(?:which|what|select).{0,30}(?:task|experiment|demonstrat))/iu.test(question);
+      if (!experimentDesignQuestion) errors.push(`factual answered question lacks a verified claim: ${question}`);
+    }
     for (const claimId of answer.supporting_claim_ids) {
       const claim = input.result.verified_claims.find((item) => item.claim_id === claimId);
-      if (claim === undefined || claim.support_status === 'unsupported') errors.push(`answer references unverified claim: ${claimId}`);
+      if (claim === undefined) errors.push(`answer references unknown claim: ${claimId}`);
     }
     const supportingText = answer.supporting_claim_ids
       .map((claimId) => input.result.verified_claims.find((item) => item.claim_id === claimId))
@@ -81,7 +98,7 @@ export function verifyResearchProviderResult(input: {
   }
   for (const claimId of input.result.writing_requirements.required_claim_ids) {
     const claim = input.result.verified_claims.find((item) => item.claim_id === claimId);
-    if (claim === undefined || claim.support_status === 'unsupported') errors.push(`writing requirements reference unverified claim: ${claimId}`);
+    if (claim === undefined) errors.push(`writing requirements reference unknown claim: ${claimId}`);
   }
   if (input.topic.requires_experiment && input.result.experiment_task_id === null) errors.push('required experiment task was not selected');
   if (!input.topic.requires_experiment && input.result.experiment_task_id !== null) errors.push('experiment selected when Topic Decision does not require one');

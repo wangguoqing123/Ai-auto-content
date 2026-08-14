@@ -80,10 +80,12 @@ export async function runExperimentBundle(input: {
   task: ExperimentCatalogTask;
   timeoutMs: number;
   maximumOutputChars: number;
+  onBeforeVariant?: (variant: ExperimentResult['variant_id']) => void | Promise<void>;
 }): Promise<{ bundle: ExperimentBundle; calls: number; durationMs: number; usage: ExperimentResult['token_usage'] }> {
   const variants = ['baseline_chat_request', 'structured_task_card'] as const;
   const calls: Array<ResearchProviderCall<ExperimentOutput>> = [];
   for (const variant of variants) {
+    await input.onBeforeVariant?.(variant);
     const call = await input.provider.runExperiment({ variant, task: input.task });
     if (JSON.stringify(call.output).length > input.maximumOutputChars) {
       throw new ResearchProviderUnavailableError('codex_output_invalid');

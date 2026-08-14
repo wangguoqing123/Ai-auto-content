@@ -16,13 +16,15 @@ source_fetch:
     - application/json
     - application/rss+xml
     - application/atom+xml
+    - application/xml
+    - text/xml
 
 research:
   maximum_questions: 5
   maximum_verified_claims: 8
   maximum_codex_calls: 4
   repair_attempts: 1
-  prompt_version: research-pack-v1
+  prompt_version: research-pack-v2
 
 experiment:
   enabled: true

@@ -12,6 +12,13 @@ export interface ExtractSourceOptions {
   fallbackAuthor: string;
   retrievedAt: string;
   maximumCleanTextChars: number;
+  retrievalMethod?: CleanedSourceSnapshot['retrieval_method'];
+  contentScope?: CleanedSourceSnapshot['content_scope'];
+  retrievalUrl?: string | null;
+  canonicalFetchStatus?: CleanedSourceSnapshot['canonical_fetch_status'];
+  canonicalHttpStatus?: number | null;
+  fallbackReason?: string | null;
+  snapshotCollectedAt?: string | null;
 }
 
 function normalizeText(value: string): string {
@@ -112,6 +119,13 @@ export function extractCleanSource(options: ExtractSourceOptions): CleanedSource
     content_type: mediaType,
     content_sha256: contentSha256,
     retrieved_at: options.retrievedAt,
+    retrieval_method: options.retrievalMethod ?? 'canonical_http',
+    content_scope: options.contentScope ?? 'full_page',
+    retrieval_url: options.retrievalUrl ?? options.finalUrl,
+    canonical_fetch_status: options.canonicalFetchStatus ?? 'success',
+    canonical_http_status: options.canonicalHttpStatus ?? 200,
+    fallback_reason: options.fallbackReason ?? null,
+    snapshot_collected_at: options.snapshotCollectedAt ?? null,
     segments,
   });
 }

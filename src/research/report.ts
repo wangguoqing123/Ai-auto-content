@@ -24,7 +24,15 @@ export function renderResearchReport(pack: ResearchPack): string {
       `- CTA：${pack.topic.cta_mode}`,
     );
   }
-  lines.push('', '## 来源', '');
+  lines.push(
+    '',
+    '## 来源',
+    '',
+    `- 请求 / 可用 / 不可用：${pack.source_summary.requested} / ${pack.source_summary.fetched} / ${pack.source_summary.unavailable}`,
+    `- Canonical 成功 / 受阻：${pack.source_summary.canonical_success} / ${pack.source_summary.canonical_blocked}`,
+    `- RSS Replay / 持久化摘要：${pack.source_summary.rss_replay_success} / ${pack.source_summary.persisted_excerpt_used}`,
+    '',
+  );
   if (pack.sources.length === 0) lines.push('- 未抓取来源。');
   for (const source of pack.sources) {
     lines.push(
@@ -32,6 +40,12 @@ export function renderResearchReport(pack: ResearchPack): string {
       '',
       `- URL：${source.canonical_url}`,
       `- 抓取状态：${source.fetch_status}`,
+      `- 获取方式：${source.retrieval_method ?? 'unavailable'}`,
+      `- 内容范围：${source.content_scope ?? 'unavailable'}`,
+      `- 获取 URL：${source.retrieval_url ?? 'null'}`,
+      `- Canonical 状态：${source.canonical_fetch_status} (${source.canonical_http_status ?? 'null'})`,
+      `- 降级原因：${source.fallback_reason ?? '无'}`,
+      `- 原始快照采集时间：${source.snapshot_collected_at ?? 'null'}`,
       `- 内容哈希：${source.content_sha256 ?? 'null'}`,
       `- 抓取时间：${source.retrieved_at ?? 'null'}`,
       '',
@@ -57,6 +71,7 @@ export function renderResearchReport(pack: ResearchPack): string {
       `### ${value(answer.question)}`,
       '',
       `- 状态：${answer.answer_status}`,
+      `- 缺口影响：${answer.gap_impact}`,
       `- 回答：${value(answer.answer) || '无'}`,
       `- 支持 Claim：${answer.supporting_claim_ids.join(', ') || '无'}`,
       `- 未解决缺口：${value(answer.remaining_gap) || '无'}`,

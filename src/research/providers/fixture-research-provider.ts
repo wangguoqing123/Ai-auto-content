@@ -12,53 +12,65 @@ function call<T>(output: T): ResearchProviderCall<T> {
 
 function result(input: ResearchProviderInput): ResearchProviderResult {
   const first = input.sources[0];
-  const second = input.sources[1] ?? first;
-  if (first === undefined || second === undefined) throw new Error('Fixture research requires two sources');
-  const firstSegment = first.segments[0];
-  const secondSegment = second.segments[0];
-  if (firstSegment === undefined || secondSegment === undefined) throw new Error('Fixture sources require segments');
+  if (first === undefined) throw new Error('Fixture research requires at least one source');
+  const claims = input.topic.supported_claims.map((topicClaim, index) => {
+    const source = input.sources.find(({ material_id }) => topicClaim.fact_source_ids.includes(material_id));
+    const segment = source?.segments.find(({ segment_id }) => segment_id === 'p0002') ?? source?.segments[0];
+    if (source === undefined || segment === undefined) return {
+      claim_id: `claim_supported_${index + 1}`,
+      claim: topicClaim.claim,
+      support_status: 'unsupported' as const,
+      source_id: null,
+      segment_id: null,
+      quote: '',
+      scope_limit: 'The assigned fact source was unavailable.',
+      notes: 'Fixture evidence gap.',
+    };
+    return {
+      claim_id: `claim_supported_${index + 1}`,
+      claim: topicClaim.claim,
+      support_status: 'direct' as const,
+      source_id: source.source_id,
+      segment_id: segment.segment_id,
+      quote: segment.text,
+      scope_limit: source.content_scope === 'feed_excerpt'
+        ? 'Only the official RSS item excerpt was available; full article details were not verified.' : '',
+      notes: source.content_scope === 'feed_excerpt'
+        ? 'Fixture exact quote from the persisted official RSS excerpt.' : 'Fixture exact quote.',
+    };
+  });
   const questions = input.topic.research_questions;
   return {
-    verified_claims: [
-      {
-        claim_id: 'claim_supported_1',
-        claim: input.topic.supported_claims[0]?.claim ?? 'Official material describes multi-step execution under oversight.',
-        support_status: 'direct',
-        source_id: first.source_id,
-        segment_id: firstSegment.segment_id,
-        quote: firstSegment.text,
-        scope_limit: '',
-        notes: 'Fixture direct quote.',
-      },
-      {
-        claim_id: 'claim_supported_2',
-        claim: input.topic.supported_claims[1]?.claim ?? 'RingCentral describes organizing engineering and operational work.',
-        support_status: 'direct',
-        source_id: second.source_id,
-        segment_id: secondSegment.segment_id,
-        quote: secondSegment.text,
-        scope_limit: '',
-        notes: 'Fixture direct quote.',
-      },
-    ],
-    research_answers: questions.map((question, index) => ({
+    verified_claims: claims,
+    research_answers: questions.map((question, index) => index < 2 && claims[index]?.support_status !== 'unsupported' ? {
       question,
-      answer_status: 'answered' as const,
+      answer_status: 'partial' as const,
+      gap_impact: 'blocking' as const,
       answer: index === 0
-        ? 'The supplied official material describes bounded multi-step execution with explicit oversight.'
-        : index === 1
-          ? 'The case can be abstracted into explicit inputs, owned actions, and checkable completion conditions.'
-          : 'A synthetic notes-to-action-brief task is non-sensitive and supports itemized acceptance.',
-      supporting_claim_ids: [index === 1 ? 'claim_supported_2' : 'claim_supported_1'],
-      remaining_gap: '',
-    })),
+        ? 'The official RSS excerpt says the research covers agentic AI adoption using ChatGPT and Codex.'
+        : 'The official RSS excerpt says the case covers AI product development and centralized operational intelligence across engineering and operations.',
+      supporting_claim_ids: [`claim_supported_${index + 1}`],
+      remaining_gap: 'Only the official RSS item excerpt was verified; the full article details needed to answer the question are unavailable.',
+    } : {
+      question,
+      answer_status: 'unanswered' as const,
+      gap_impact: 'blocking' as const,
+      answer: '',
+      supporting_claim_ids: [],
+      remaining_gap: index < 2
+        ? 'The assigned fact source is unavailable.'
+        : 'The supplied official RSS excerpts do not compare candidate demonstration tasks.',
+    }),
     experiment_task_id: input.topic.requires_experiment ? 'public_notes_to_action_brief' : null,
     experiment_rationale: input.topic.requires_experiment ? 'The synthetic public-notes task is bounded and text-only.' : '',
     writing_requirements: {
       main_promise: input.topic.one_sentence_promise,
       minimum_result: input.topic.minimum_result,
-      required_claim_ids: ['claim_supported_1', 'claim_supported_2'],
-      required_disclosures: ['The experiment uses one synthetic sample and cannot be generalized.'],
+      required_claim_ids: claims.filter(({ support_status }) => support_status !== 'unsupported').map(({ claim_id }) => claim_id),
+      required_disclosures: [
+        'The factual evidence is limited to official RSS item excerpts, not full article content.',
+        'The experiment uses one synthetic sample and cannot be generalized.',
+      ],
       forbidden_claims: ['Do not claim a universal speed or accuracy improvement.', 'Do not invent first-person long-term testing.'],
       required_visual_evidence: ['Show both task inputs, both outputs, and the shared acceptance checklist.'],
     },

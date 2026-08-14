@@ -138,13 +138,43 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 9007199254740991
+        },
+        "canonical_success": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "canonical_blocked": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "rss_replay_success": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "persisted_excerpt_used": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "unavailable": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
         }
       },
       "required": [
         "requested",
         "fetched",
         "failed",
-        "unsupported_content_type"
+        "unsupported_content_type",
+        "canonical_success",
+        "canonical_blocked",
+        "rss_replay_success",
+        "persisted_excerpt_used",
+        "unavailable"
       ],
       "additionalProperties": false
     },
@@ -220,6 +250,91 @@
               "unsupported_content_type"
             ]
           },
+          "retrieval_method": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "canonical_http",
+                  "official_rss_replay",
+                  "persisted_official_rss_excerpt"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "content_scope": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "full_page",
+                  "feed_item",
+                  "feed_excerpt"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "retrieval_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "canonical_fetch_status": {
+            "type": "string",
+            "enum": [
+              "success",
+              "blocked",
+              "failed",
+              "not_attempted"
+            ]
+          },
+          "canonical_http_status": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 599
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fallback_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "snapshot_collected_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "selected_quotes": {
             "maxItems": 8,
             "type": "array",
@@ -271,6 +386,13 @@
           "content_type",
           "content_sha256",
           "fetch_status",
+          "retrieval_method",
+          "content_scope",
+          "retrieval_url",
+          "canonical_fetch_status",
+          "canonical_http_status",
+          "fallback_reason",
+          "snapshot_collected_at",
           "selected_quotes",
           "error_code"
         ],
@@ -367,6 +489,14 @@
               "unanswered"
             ]
           },
+          "gap_impact": {
+            "type": "string",
+            "enum": [
+              "none",
+              "non_blocking",
+              "blocking"
+            ]
+          },
           "answer": {
             "type": "string",
             "maxLength": 4000
@@ -387,6 +517,7 @@
         "required": [
           "question",
           "answer_status",
+          "gap_impact",
           "answer",
           "supporting_claim_ids",
           "remaining_gap"

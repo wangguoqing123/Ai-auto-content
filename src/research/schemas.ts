@@ -20,7 +20,7 @@ export const researchIntelligenceConfigSchema = z.strictObject({
     maximum_single_quote_chars: z.number().int().min(1).max(500),
     allowed_content_types: z.array(z.enum([
       'text/html', 'application/xhtml+xml', 'text/plain', 'application/json',
-      'application/rss+xml', 'application/atom+xml',
+      'application/rss+xml', 'application/atom+xml', 'application/xml', 'text/xml',
     ])).min(1),
   }),
   research: z.strictObject({
@@ -88,6 +88,14 @@ export const cleanedSourceSegmentSchema = z.strictObject({
   text: nonEmpty(4_000),
 });
 
+export const sourceRetrievalMethodSchema = z.enum([
+  'canonical_http',
+  'official_rss_replay',
+  'persisted_official_rss_excerpt',
+]);
+export const sourceContentScopeSchema = z.enum(['full_page', 'feed_item', 'feed_excerpt']);
+export const canonicalFetchStatusSchema = z.enum(['success', 'blocked', 'failed', 'not_attempted']);
+
 export const cleanedSourceSnapshotSchema = z.strictObject({
   source_id: z.string().regex(/^source_[a-f0-9]{12}$/),
   material_id: materialIdSchema,
@@ -97,6 +105,13 @@ export const cleanedSourceSnapshotSchema = z.strictObject({
   content_type: nonEmpty(200),
   content_sha256: sha256Schema,
   retrieved_at: z.iso.datetime(),
+  retrieval_method: sourceRetrievalMethodSchema,
+  content_scope: sourceContentScopeSchema,
+  retrieval_url: z.url().nullable(),
+  canonical_fetch_status: canonicalFetchStatusSchema,
+  canonical_http_status: z.number().int().min(100).max(599).nullable(),
+  fallback_reason: z.string().max(1_000).nullable(),
+  snapshot_collected_at: z.iso.datetime().nullable(),
   segments: z.array(cleanedSourceSegmentSchema).min(1),
 });
 
@@ -124,18 +139,31 @@ export const researchClaimSchema = z.strictObject({
 export const researchAnswerSchema = z.strictObject({
   question: nonEmpty(1_000),
   answer_status: z.enum(['answered', 'partial', 'unanswered']),
+  gap_impact: z.enum(['none', 'non_blocking', 'blocking']),
   answer: z.string().max(4_000),
   supporting_claim_ids: z.array(z.string().regex(/^claim_[a-z0-9_-]{1,60}$/)).max(8),
   remaining_gap: z.string().max(2_000),
 }).superRefine((answer, context) => {
-  if (answer.answer_status === 'answered' && answer.supporting_claim_ids.length === 0) {
-    context.addIssue({ code: 'custom', path: ['supporting_claim_ids'], message: 'Answered questions require a verified claim' });
+  if (answer.answer_status === 'answered') {
+    if (answer.gap_impact !== 'none' || answer.remaining_gap !== '') {
+      context.addIssue({ code: 'custom', message: 'Answered questions require gap_impact=none and no remaining_gap' });
+    }
   }
-  if (answer.answer_status === 'partial' && answer.remaining_gap === '') {
-    context.addIssue({ code: 'custom', path: ['remaining_gap'], message: 'Partial answers require remaining_gap' });
+  if (answer.answer_status === 'partial') {
+    if (answer.remaining_gap === '') {
+      context.addIssue({ code: 'custom', path: ['remaining_gap'], message: 'Partial answers require remaining_gap' });
+    }
+    if (answer.gap_impact === 'none') {
+      context.addIssue({ code: 'custom', path: ['gap_impact'], message: 'Partial answers require non_blocking or blocking impact' });
+    }
   }
-  if (answer.answer_status === 'unanswered' && answer.answer !== '') {
-    context.addIssue({ code: 'custom', path: ['answer'], message: 'Unanswered questions cannot contain a fabricated answer' });
+  if (answer.answer_status === 'unanswered') {
+    if (answer.answer !== '') {
+      context.addIssue({ code: 'custom', path: ['answer'], message: 'Unanswered questions cannot contain a fabricated answer' });
+    }
+    if (answer.gap_impact !== 'blocking') {
+      context.addIssue({ code: 'custom', path: ['gap_impact'], message: 'Unanswered questions require blocking impact' });
+    }
   }
 });
 
@@ -247,6 +275,13 @@ export const researchSourceManifestSchema = z.strictObject({
   content_type: z.string().max(200),
   content_sha256: sha256Schema.nullable(),
   fetch_status: z.enum(['success', 'failed', 'unsupported_content_type']),
+  retrieval_method: sourceRetrievalMethodSchema.nullable(),
+  content_scope: sourceContentScopeSchema.nullable(),
+  retrieval_url: z.url().nullable(),
+  canonical_fetch_status: canonicalFetchStatusSchema,
+  canonical_http_status: z.number().int().min(100).max(599).nullable(),
+  fallback_reason: z.string().max(1_000).nullable(),
+  snapshot_collected_at: z.iso.datetime().nullable(),
   selected_quotes: z.array(sourceQuoteSchema).max(8),
   error_code: z.string().max(100).nullable(),
 }).superRefine((source, context) => {
@@ -275,6 +310,11 @@ export const researchPackSchema = z.strictObject({
     fetched: z.number().int().nonnegative(),
     failed: z.number().int().nonnegative(),
     unsupported_content_type: z.number().int().nonnegative(),
+    canonical_success: z.number().int().nonnegative(),
+    canonical_blocked: z.number().int().nonnegative(),
+    rss_replay_success: z.number().int().nonnegative(),
+    persisted_excerpt_used: z.number().int().nonnegative(),
+    unavailable: z.number().int().nonnegative(),
   }),
   sources: z.array(researchSourceManifestSchema).max(5),
   verified_claims: z.array(researchClaimSchema).max(8),

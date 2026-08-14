@@ -7,10 +7,15 @@ import { resolveAndValidatePublicUrl, type ResolveHostname } from './url-safety.
 import { sourceIdForMaterial } from './source-materials.js';
 
 export class ResearchSourceFetchError extends Error {
-  constructor(readonly code: string, message: string) {
+  constructor(readonly code: string, message: string, readonly httpStatus: number | null = null) {
     super(message);
     this.name = 'ResearchSourceFetchError';
   }
+}
+
+function isAccessChallenge(body: Buffer): boolean {
+  const sample = body.subarray(0, 64 * 1024).toString('utf8').toLocaleLowerCase();
+  return /enable javascript and cookies|cf-chl-|challenge-platform|<title>\s*just a moment/.test(sample);
 }
 
 export interface SourceFetchResponse {
@@ -129,8 +134,15 @@ export async function fetchPublicSource(
       current = new URL(response.location, validated.url).toString();
       continue;
     }
+    if ([401, 403, 429].includes(response.statusCode) || isAccessChallenge(response.body)) {
+      throw new ResearchSourceFetchError(
+        'canonical_access_blocked',
+        `Source access was blocked with HTTP ${response.statusCode}.`,
+        response.statusCode,
+      );
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new ResearchSourceFetchError('http_error', `Source returned HTTP ${response.statusCode}.`);
+      throw new ResearchSourceFetchError('http_error', `Source returned HTTP ${response.statusCode}.`, response.statusCode);
     }
     const contentType = mediaType(response.contentType);
     if (!config.allowed_content_types.includes(contentType as never)) {
@@ -162,5 +174,10 @@ export async function fetchAndExtractMaterial(
     fallbackAuthor: material.author_name,
     retrievedAt: response.retrievedAt,
     maximumCleanTextChars: config.source_fetch.maximum_clean_text_chars,
+    retrievalMethod: 'canonical_http',
+    contentScope: 'full_page',
+    retrievalUrl: response.finalUrl,
+    canonicalFetchStatus: 'success',
+    canonicalHttpStatus: 200,
   });
 }

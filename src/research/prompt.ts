@@ -18,6 +18,12 @@ Research boundary:
 - For every declared supported claim, use its required claim_id. If direct support is absent, mark it unsupported.
 - direct means the quote directly supports the claim; partial requires a non-empty scope_limit.
 - unsupported claims have no source_id, segment_id, or quote.
+- Keep one record for every declared claim even when it is partial or unsupported; evidence gaps are not output-structure errors.
+- Respect each source's content_scope. feed_excerpt contains only an official RSS item title/excerpt, not the full article.
+- A feed_excerpt claim must state that RSS/excerpt scope and the missing full-article verification in scope_limit.
+- Never use feed_excerpt to support details or numbers that are absent from its exact quoted title/excerpt.
+- For each research answer: answered requires gap_impact=none and no remaining gap; partial requires a non-empty gap and non_blocking or blocking impact; unanswered requires gap_impact=blocking and an empty answer.
+- Factual answered questions require a supported claim. Only a non-factual experiment/task-selection question may be answered from the supplied project task catalog with no source claim.
 - Recommend only a text_to_text experiment task from the supplied catalog when an experiment is required.
 - Writing requirements are constraints for a later stage, not finished copy, titles, images, or publishing instructions.
 - Return only the strict output object.`;
