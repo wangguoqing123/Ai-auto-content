@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- 增加每日选题 v0：72 小时时窗、五种来源角色、restricted 隔离、确定性预筛选和最大 60 条 Material Cards。
+- 增加最多 3 个候选、代码硬淘汰与六维重算、80 分门槛、证据 15/10/5 上限，以及单一 `SELECT_TOPIC` / `NO_PUBLISH` 决策。
+- 从产品真相配置压缩 Product Context，代码执行模块/pillar 最小上限、CTA 交集降级与 Product Claim 真实 evidence reference 校验。
+- 增加 30 天历史签名和 0.72 token 相似度检查、具体 novelty/evidence 解除条件与 input hash 幂等。
+- 增加离线 Fixture 与 OpenAI Responses API 结构化输出 Provider；模型名必须由环境提供，结构修复最多一次，故障不伪装为 NO_PUBLISH。
+- 增加严格 Topic Decision Zod / Draft 2020-12 JSON Schema、受限日报、CLI 和默认关闭的北京时间 13:00 Workflow；自动提交只有三类选题输出路径。
+
 - 增加 `config/product.yaml` 产品真相源，结构化记录定位、用户转变、四个机制、两层学习架构、13 个交付模块、365/499 定价与证据边界。
 - 增加 `config/content-fit.yaml` 策略假设，建立 8 个学习阶段、8 个内容 pillar、模块映射、交付状态适配分上限和 `none/light/club` CTA 规则。
 - 增加严格 Zod 与 Draft 2020-12 产品/内容承接 JSON Schema、无缓存加载器、fail-closed Claim/模块 API 和 `npm run product:check`。

@@ -6,9 +6,19 @@
 
 > 系统每天运行，但不要求每天发布。没有足够高质量的题目时，后续选题阶段必须允许输出 `NO_PUBLISH`。
 
-## 当前阶段：产品真相层 v2 + 已有素材采集运行时
+## 当前阶段：每日自主选题已实现，等待真实模型验证
 
-PR #4 只建立每日选题器之前的产品底盘：`config/product.yaml` 是唯一机器可读产品事实源，`config/content-fit.yaml` 保存学习阶段、内容 pillar、产品适配分上限与 CTA 策略假设。本阶段不实现每日选题、`NO_PUBLISH` 决策、模型调用、写作、配图或发布。
+产品真相层和素材采集已经进入 production。每日选题 v0 已实现 72 小时输入、五种来源角色、确定性预筛选、最多 3 个内部候选、六维评分、产品/CTA/Claim 校验、30 天重复检查、`SELECT_TOPIC` / `NO_PUBLISH`、严格 Schema、幂等和默认关闭 Workflow。当前状态为 `implemented_pending_live_model_validation`；仍不实现研究执行、正文、配图或发布。
+
+| 系统阶段 | 状态 |
+|---|---|
+| 采集 | `production` |
+| 产品真相层 | `production` |
+| 每日选题 | `implemented_pending_live_model_validation` |
+| 研究与实验 | `not_started` |
+| 写作 | `not_started` |
+| 配图 | `not_started` |
+| 发布 | `not_started` |
 
 Cloud Collector 与 Local Browser Collector 是两个独立运行通道。Cloud 在 GitHub Actions 每天北京时间 09:00 运行；本机 Browser 调度器每 15 分钟做一次轻量到期检查，在北京时间 07:30—12:00 窗口内只执行一次 X 与微信公众号早晨采集。手动 `local:morning` 可在窗口外运行一次，但仍服从锁、当天已完成和最多尝试次数保护。
 
@@ -49,6 +59,8 @@ npm run product:check
 npm run schema:check
 npm test
 npm run collect:fixture
+npm run topic:select -- --fixture --date=2026-08-14
+npm run topic:inspect-input -- --date=2026-08-14
 npm run local:scheduler -- --once --fixture --dry-run --now=2026-08-14T00:00:00.000Z
 npm run local:morning -- --fixture --dry-run --now=2026-08-14T06:00:00.000Z
 npm run local:install -- --dry-run
@@ -110,6 +122,8 @@ Local Runtime 退出码：0 表示成功、部分成功、未到期、当天已�
 
 仓库需在 **Settings → Actions → General → Workflow permissions** 中允许 **Read and write permissions**，否则 `GITHUB_TOKEN` 无法推送自动采集结果。
 
+`.github/workflows/daily-topic-selection.yml` 每天 UTC 05:00（北京时间 13:00）调度。`TOPIC_SELECTION_ENABLED` 默认未配置时只输出 `DISABLED`；启用后才安装依赖并使用显式的 `TOPIC_LLM_PROVIDER`、`TOPIC_LLM_MODEL` 与 Secret `OPENAI_API_KEY`。它不运行 Browser Collector，只能提交选题决定、run 和报告。
+
 ## 输出目录
 
 ```text
@@ -118,6 +132,7 @@ config/scoring.yaml                 评分关键词、权重、阈值与采集�
 config/platform-queries.yaml        浏览器平台关键词、预算与轮换
 config/product.yaml                 唯一机器可读产品事实与 claim 真相源
 config/content-fit.yaml             学习阶段、内容承接、适配上限与 CTA 策略
+config/topic-intelligence.yaml      72 小时输入、预算、门槛、历史和模型调用上限
 data/materials/YYYY-MM-DD.jsonl     最近 7 天内及隔离区 RSS 素材
 data/browser-materials/YYYY-MM-DD.jsonl  浏览器非 dry-run 素材
 data/browser-runs/                  浏览器平台运行日志
@@ -126,6 +141,9 @@ data/state/seen-materials.json      跨天 URL 与内容指纹
 data/runs/run_*.json                每次运行及逐信源日志
 reports/materials/YYYY-MM-DD.md     每日素材日报
 reports/browser/YYYY-MM-DD.md       X / 公众号 Browser 素材日报
+data/topic-decisions/YYYY-MM-DD.json  当日正式 SELECT_TOPIC / NO_PUBLISH 决定
+data/topic-runs/topic_*.json        每次选题运行的安全审计记录
+reports/topics/YYYY-MM-DD.md        单一最终母题或 NO_PUBLISH 日报
 ```
 
 首次运行时，7 天以前的 RSS 只写入指纹状态，不写入当天素材；发布时间未知的素材进入 `quarantined`。缺失互动字段保存为 `null`，不以 0 冒充真实数据。
@@ -140,8 +158,9 @@ reports/browser/YYYY-MM-DD.md       X / 公众号 Browser 素材日报
 - `schemas/material-card.schema.json`：Cloud Material 完整契约，对应 `materialSchema`。
 - `schemas/product-profile.schema.json`：产品事实、交付状态、价格和 claim 契约，对应 `productProfileSchema`。
 - `schemas/content-fit-profile.schema.json`：学习阶段、pillar、模块映射、适配上限与 CTA 契约，对应 `contentFitProfileSchema`。
+- `schemas/topic-decision.schema.json`：每日选题成功/失败、单一母题和最多 3 个候选契约，对应 `topicDecisionSchema`。
 
-四份提交文件都从 Zod Schema 生成。修改运行时模型后执行 `npm run schema:generate` 更新文件；`npm run schema:check` 会在临时目录重新生成并比较，发现漂移时返回非零退出码。`npm run product:check` 额外校验模块引用、claim 唯一性、内容比例和状态分数上限。PR CI 会运行这些检查，过程不访问真实平台或模型。
+五份提交文件都从 Zod Schema 生成。修改运行时模型后执行 `npm run schema:generate` 更新文件；`npm run schema:check` 会在临时目录重新生成并比较，发现漂移时返回非零退出码。`npm run product:check` 额外校验模块引用、claim 唯一性、内容比例和状态分数上限。PR CI 使用 Fixture 运行选题检查，不访问真实平台或模型。
 
 ## 项目目标
 
@@ -185,6 +204,7 @@ reports/browser/YYYY-MM-DD.md       X / 公众号 Browser 素材日报
 18. `docs/18-platform-scope-decision.md`
 19. `docs/19-local-browser-scheduler.md`
 20. `docs/20-product-truth-and-content-fit.md`
+21. `docs/21-daily-topic-intelligence.md`
 
 发生冲突时，真实性与合规规则、人物事实库和产品知识库优先。资料不足时必须标记 `UNKNOWN`，不得自行补全。
 
@@ -196,5 +216,5 @@ reports/browser/YYYY-MM-DD.md       X / 公众号 Browser 素材日报
 - 通过伪造生活细节制造“真人感”。
 - 以规避平台审核、检测或标注要求为目标。
 - 在未经确认时承诺课程权益、更新频率或学习结果。
-- 在当前阶段接入数据库、大模型或自动发布。
+- 在当前阶段接入数据库、自动发布或模型驱动正文生产。
 - 在 GitHub-hosted runner 上运行需要真实 Chrome 登录态的采集。
