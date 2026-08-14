@@ -1,0 +1,493 @@
+{
+  "version": 1,
+  "decision_date": "2026-08-14",
+  "run_id": "topic_2026-08-14T06-28-16-260Z",
+  "status": "success",
+  "decision": "SELECT_TOPIC",
+  "prompt_version": "topic-intelligence-v1",
+  "input_hash": "54318c2d8932bbae749698cca8c537f025cbf2ea7aad3e51474237ea1052a87a",
+  "input_summary": {
+    "total_before_filter": 165,
+    "eligible_total": 107,
+    "total_after_filter": 45,
+    "cloud_count": 12,
+    "twitter_count": 25,
+    "weixin_resolved_count": 0,
+    "restricted_count": 8,
+    "fact_source_count": 5,
+    "trend_signal_count": 25,
+    "structure_inspiration_count": 0,
+    "eligible_by_bucket": {
+      "cloud": 12,
+      "twitter": 76,
+      "weixin_resolved": 0,
+      "weixin_restricted": 19
+    },
+    "selected_by_bucket": {
+      "cloud": 12,
+      "twitter": 25,
+      "weixin_resolved": 0,
+      "weixin_restricted": 8
+    },
+    "dropped_by_reason": {
+      "duplicate": 0,
+      "outside_window": 17,
+      "invalid_status": 41,
+      "invalid_url": 0,
+      "invalid_material": 0,
+      "sensitive_content": 0,
+      "author_limit": 0,
+      "query_limit": 20,
+      "cluster_limit": 0,
+      "bucket_limit": 42,
+      "character_limit": 0
+    },
+    "source_gaps": []
+  },
+  "selected_topic": {
+    "candidate_id": "candidate_assistance_to_execution",
+    "working_title": "别再只让 AI 给建议：把一个日常任务改造成可验收的执行流程",
+    "one_sentence_promise": "读者将把一个停留在聊天层面的任务，改写成包含输入、步骤、产物和验收标准的 AI 执行流程。",
+    "target_segment": "已经会用 ChatGPT 或 Codex 获取建议，但仍需自己反复搬运、补充和检查结果的职场人、产品经理与创作者。",
+    "learner_stage": "task_breakdown",
+    "trigger_scenario": "用户多次与 AI 对话后得到了不少建议，却没有形成文件、表格、方案或其他可直接检查的成品。",
+    "user_problem": "不知道怎样从“让 AI 回答问题”跨到“让 AI 完成任务”，也无法判断一次执行是否合格。",
+    "wrong_current_behavior": "持续追加零散提示词，把回复看起来更完整当作任务已经完成。",
+    "real_task": "选择一个真实日常任务，明确目标、必要资料、执行步骤、交付物和验收清单，再让 AI 按流程完成。",
+    "minimum_result": "产出一张可复用的任务执行卡，并用它完成一个能够逐项验收的小成品。",
+    "content_pillar": "agents_and_workflows",
+    "primary_product_module_id": "beginner_ai_course",
+    "supporting_product_module_ids": [
+      "codex_practice"
+    ],
+    "funnel_role": "trust",
+    "core_angle": "AI 从辅助走向执行，关键不是增加提示词数量，而是把模糊诉求改造成具有交付物和验收点的任务。",
+    "why_now": "近期官方企业实践材料集中讨论从 AI 辅助转向智能体执行，适合把宏观变化翻译成普通用户今天就能完成的小练习。",
+    "proof_format": "任务改写前后对照、执行流程图、交付物验收清单",
+    "time_sensitive": true,
+    "fact_source_ids": [
+      "mat_e063daae6225",
+      "mat_9bafa93fe08b"
+    ],
+    "trend_signal_ids": [
+      "mat_a6016ac0e008",
+      "mat_e7b617644ba7"
+    ],
+    "structure_inspiration_ids": [],
+    "restricted_inspiration_ids": [],
+    "supported_claims": [
+      {
+        "claim": "OpenAI 的近期研究关注企业如何采用智能体 AI，并使用 ChatGPT 与 Codex 推进实际工作。",
+        "fact_source_ids": [
+          "mat_e063daae6225"
+        ]
+      },
+      {
+        "claim": "RingCentral 的官方案例涉及使用 ChatGPT 与 Codex 支持 AI 产品开发，并集中工程和运营信息。",
+        "fact_source_ids": [
+          "mat_9bafa93fe08b"
+        ]
+      }
+    ],
+    "research_questions": [
+      "官方研究中有哪些从辅助转向执行的具体工作模式？",
+      "RingCentral 案例里哪些做法适合抽象为个人任务模板？",
+      "选择什么非敏感日常任务最适合演示完整执行与验收？"
+    ],
+    "requires_research": true,
+    "requires_experiment": true,
+    "experiment_plan": [
+      "选择一个公开资料可完成的日常任务作为样例。",
+      "先用普通聊天式提示执行并保存产物。",
+      "再补充目标、资料、步骤、交付格式和验收标准后执行。",
+      "使用同一份验收清单检查两次产物，只记录可观察差异。",
+      "整理失败点和可复用的任务执行卡。"
+    ],
+    "cta_mode": "club",
+    "product_claim_ids": [
+      "product.positioning",
+      "product.mechanism.learning_path",
+      "product.learning.shared_foundation",
+      "product.learning.codex_practice"
+    ],
+    "product_claim_evidence": [],
+    "price_refresh_required": true,
+    "risk_flags": [
+      "官方材料摘要信息有限，具体企业数据和案例细节需进一步核验。",
+      "实验只能说明样例任务中的观察结果，不能外推普遍效率提升。"
+    ],
+    "hard_reject_reasons": [],
+    "scores": {
+      "pain_score": 23,
+      "actionability_score": 19,
+      "demonstrability_score": 14,
+      "evidence_score": 12,
+      "engagement_potential_score": 13,
+      "product_fit_score": 10,
+      "total_score": 91
+    },
+    "score_reasons": {
+      "pain_score": "从聊天到交付是目标用户普遍存在的关键断点。",
+      "actionability_score": "可直接套用任务执行卡完成一个真实小任务。",
+      "demonstrability_score": "能展示提示方式、流程、产物和验收结果的前后差异。",
+      "evidence_score": "有两张官方事实源，但具体细节仍需研究确认。",
+      "engagement_potential_score": "“AI 给建议还是干成事”具有清晰反差和讨论空间。",
+      "product_fit_score": "直接对应智能体工作流练习及已确认交付的基础课和 Codex 实操。"
+    },
+    "decision_reason": "候选兼具明确痛点、可执行练习、可视化证据和官方事实源；免费内容能够独立帮助用户完成一次从聊天到交付的迁移，产品只承接更系统的学习与实践。",
+    "novelty_delta": "不是泛谈企业采用 AI，而是把“辅助到执行”落成个人可复用的五要素任务卡和一次验收实验。",
+    "new_evidence_refs": [
+      "material:mat_e063daae6225",
+      "material:mat_9bafa93fe08b"
+    ],
+    "platform_plan": {
+      "wechat_article_type": "tutorial",
+      "wechat_required_evidence": [
+        "两种任务输入的完整文本",
+        "两次执行产物",
+        "统一验收清单及逐项结果",
+        "官方材料中与执行工作流直接相关的原文依据"
+      ],
+      "wechat_needs_step_images": true,
+      "wechat_needs_screenshots_or_experiment": true,
+      "x_format": "thread"
+    },
+    "topic_signature": "2c78c0cdf2681d1016cf04646cd52a5063d765b0f492e475e9900ce04d032c1c",
+    "effective_product_fit_cap": 10,
+    "product_fit_cap_applied": false,
+    "cta_adjusted_from": null,
+    "evaluation_status": "approved"
+  },
+  "evaluated_candidates": [
+    {
+      "candidate_id": "candidate_assistance_to_execution",
+      "working_title": "别再只让 AI 给建议：把一个日常任务改造成可验收的执行流程",
+      "one_sentence_promise": "读者将把一个停留在聊天层面的任务，改写成包含输入、步骤、产物和验收标准的 AI 执行流程。",
+      "target_segment": "已经会用 ChatGPT 或 Codex 获取建议，但仍需自己反复搬运、补充和检查结果的职场人、产品经理与创作者。",
+      "learner_stage": "task_breakdown",
+      "trigger_scenario": "用户多次与 AI 对话后得到了不少建议，却没有形成文件、表格、方案或其他可直接检查的成品。",
+      "user_problem": "不知道怎样从“让 AI 回答问题”跨到“让 AI 完成任务”，也无法判断一次执行是否合格。",
+      "wrong_current_behavior": "持续追加零散提示词，把回复看起来更完整当作任务已经完成。",
+      "real_task": "选择一个真实日常任务，明确目标、必要资料、执行步骤、交付物和验收清单，再让 AI 按流程完成。",
+      "minimum_result": "产出一张可复用的任务执行卡，并用它完成一个能够逐项验收的小成品。",
+      "content_pillar": "agents_and_workflows",
+      "primary_product_module_id": "beginner_ai_course",
+      "supporting_product_module_ids": [
+        "codex_practice"
+      ],
+      "funnel_role": "trust",
+      "core_angle": "AI 从辅助走向执行，关键不是增加提示词数量，而是把模糊诉求改造成具有交付物和验收点的任务。",
+      "why_now": "近期官方企业实践材料集中讨论从 AI 辅助转向智能体执行，适合把宏观变化翻译成普通用户今天就能完成的小练习。",
+      "proof_format": "任务改写前后对照、执行流程图、交付物验收清单",
+      "time_sensitive": true,
+      "fact_source_ids": [
+        "mat_e063daae6225",
+        "mat_9bafa93fe08b"
+      ],
+      "trend_signal_ids": [
+        "mat_a6016ac0e008",
+        "mat_e7b617644ba7"
+      ],
+      "structure_inspiration_ids": [],
+      "restricted_inspiration_ids": [],
+      "supported_claims": [
+        {
+          "claim": "OpenAI 的近期研究关注企业如何采用智能体 AI，并使用 ChatGPT 与 Codex 推进实际工作。",
+          "fact_source_ids": [
+            "mat_e063daae6225"
+          ]
+        },
+        {
+          "claim": "RingCentral 的官方案例涉及使用 ChatGPT 与 Codex 支持 AI 产品开发，并集中工程和运营信息。",
+          "fact_source_ids": [
+            "mat_9bafa93fe08b"
+          ]
+        }
+      ],
+      "research_questions": [
+        "官方研究中有哪些从辅助转向执行的具体工作模式？",
+        "RingCentral 案例里哪些做法适合抽象为个人任务模板？",
+        "选择什么非敏感日常任务最适合演示完整执行与验收？"
+      ],
+      "requires_research": true,
+      "requires_experiment": true,
+      "experiment_plan": [
+        "选择一个公开资料可完成的日常任务作为样例。",
+        "先用普通聊天式提示执行并保存产物。",
+        "再补充目标、资料、步骤、交付格式和验收标准后执行。",
+        "使用同一份验收清单检查两次产物，只记录可观察差异。",
+        "整理失败点和可复用的任务执行卡。"
+      ],
+      "cta_mode": "club",
+      "product_claim_ids": [
+        "product.positioning",
+        "product.mechanism.learning_path",
+        "product.learning.shared_foundation",
+        "product.learning.codex_practice"
+      ],
+      "product_claim_evidence": [],
+      "price_refresh_required": true,
+      "risk_flags": [
+        "官方材料摘要信息有限，具体企业数据和案例细节需进一步核验。",
+        "实验只能说明样例任务中的观察结果，不能外推普遍效率提升。"
+      ],
+      "hard_reject_reasons": [],
+      "scores": {
+        "pain_score": 23,
+        "actionability_score": 19,
+        "demonstrability_score": 14,
+        "evidence_score": 12,
+        "engagement_potential_score": 13,
+        "product_fit_score": 10,
+        "total_score": 91
+      },
+      "score_reasons": {
+        "pain_score": "从聊天到交付是目标用户普遍存在的关键断点。",
+        "actionability_score": "可直接套用任务执行卡完成一个真实小任务。",
+        "demonstrability_score": "能展示提示方式、流程、产物和验收结果的前后差异。",
+        "evidence_score": "有两张官方事实源，但具体细节仍需研究确认。",
+        "engagement_potential_score": "“AI 给建议还是干成事”具有清晰反差和讨论空间。",
+        "product_fit_score": "直接对应智能体工作流练习及已确认交付的基础课和 Codex 实操。"
+      },
+      "decision_reason": "候选兼具明确痛点、可执行练习、可视化证据和官方事实源；免费内容能够独立帮助用户完成一次从聊天到交付的迁移，产品只承接更系统的学习与实践。",
+      "novelty_delta": "不是泛谈企业采用 AI，而是把“辅助到执行”落成个人可复用的五要素任务卡和一次验收实验。",
+      "new_evidence_refs": [
+        "material:mat_e063daae6225",
+        "material:mat_9bafa93fe08b"
+      ],
+      "platform_plan": {
+        "wechat_article_type": "tutorial",
+        "wechat_required_evidence": [
+          "两种任务输入的完整文本",
+          "两次执行产物",
+          "统一验收清单及逐项结果",
+          "官方材料中与执行工作流直接相关的原文依据"
+        ],
+        "wechat_needs_step_images": true,
+        "wechat_needs_screenshots_or_experiment": true,
+        "x_format": "thread"
+      },
+      "topic_signature": "2c78c0cdf2681d1016cf04646cd52a5063d765b0f492e475e9900ce04d032c1c",
+      "effective_product_fit_cap": 10,
+      "product_fit_cap_applied": false,
+      "cta_adjusted_from": null,
+      "evaluation_status": "approved"
+    },
+    {
+      "candidate_id": "candidate_spec_before_agent",
+      "working_title": "AI 总是做偏？先别补提示词，给任务写一页规格说明",
+      "one_sentence_promise": "读者将学会在 AI 动手前写出一页最小规格说明，减少目标、范围和验收标准缺失造成的返工。",
+      "target_segment": "能用 Codex 或其他 Agent 做文档、原型和小工具，但经常做到一半才发现范围失控的人。",
+      "learner_stage": "unstable_usage",
+      "trigger_scenario": "AI 已经开始改文件或生成成品，用户才发现它理解错目标、添加了未要求的功能，或遗漏关键限制。",
+      "user_problem": "提示词看似详细，但目标、边界、必要输入和验收标准散落在对话中，执行结果难以稳定检查。",
+      "wrong_current_behavior": "看到结果不对就继续追加一句句修正，让上下文越来越乱，却没有统一任务定义。",
+      "real_task": "为一个小任务编写包含目标、非目标、输入、约束、交付物和验收条件的一页最小规格说明，再交给 AI 执行。",
+      "minimum_result": "得到一份可复制的最小规格模板，并用它交付一个通过明确验收项的小成品。",
+      "content_pillar": "stable_ai_usage",
+      "primary_product_module_id": "codex_foundation",
+      "supporting_product_module_ids": [
+        "learning_path",
+        "beginner_ai_course"
+      ],
+      "funnel_role": "trust",
+      "core_angle": "输出不稳定不一定需要更长提示词；先把散乱对话收束成可检查的任务规格，才能发现真正缺失的信息。",
+      "why_now": "近期关于先写规格再让 Agent 执行的讨论，为“提示词越补越乱”这一常见问题提供了鲜明切口，但方法价值不依赖某个具体工具。",
+      "proof_format": "错误示例、最小规格模板、同任务前后产物与验收对照",
+      "time_sensitive": false,
+      "fact_source_ids": [],
+      "trend_signal_ids": [
+        "mat_2637edffde13"
+      ],
+      "structure_inspiration_ids": [],
+      "restricted_inspiration_ids": [
+        "mat_84f16e23fa5d"
+      ],
+      "supported_claims": [],
+      "research_questions": [
+        "最小规格中哪些字段对非程序员任务同样必要？",
+        "如何把规格控制在一页内，避免准备成本超过任务本身？",
+        "选择文档、表格还是小原型作为最易复现的演示任务？"
+      ],
+      "requires_research": true,
+      "requires_experiment": true,
+      "experiment_plan": [
+        "选定一个范围清晰、可公开复现的小任务。",
+        "仅用一句自然语言要求 AI 完成并保存产物。",
+        "用六字段最小规格重新执行同一任务。",
+        "按预先固定的验收项记录遗漏、越界和返工次数。",
+        "根据观察结果删减模板，保留真正影响交付的字段。"
+      ],
+      "cta_mode": "club",
+      "product_claim_ids": [
+        "product.positioning",
+        "product.mechanism.learning_path",
+        "product.learning.codex_foundation"
+      ],
+      "product_claim_evidence": [],
+      "price_refresh_required": true,
+      "risk_flags": [
+        "趋势信号不能证明规格方法必然减少返工。",
+        "前后对比必须统一任务、工具和验收条件。",
+        "不能把单次实验描述成普遍效率结论。"
+      ],
+      "hard_reject_reasons": [
+        "invalid_restricted_inspiration_reference"
+      ],
+      "scores": {
+        "pain_score": 24,
+        "actionability_score": 20,
+        "demonstrability_score": 15,
+        "evidence_score": 6,
+        "engagement_potential_score": 14,
+        "product_fit_score": 10,
+        "total_score": 89
+      },
+      "score_reasons": {
+        "pain_score": "任务跑偏和反复返工是 AI 使用不稳定阶段的高频痛点。",
+        "actionability_score": "一页模板可立即用于下一次真实任务。",
+        "demonstrability_score": "同任务双版本产物和验收记录容易直观展示。",
+        "evidence_score": "目前只有趋势信号，结论必须依靠后续实验补强。",
+        "engagement_potential_score": "“问题不在提示词短，而在没有规格”具有反常识张力。",
+        "product_fit_score": "直接对应稳定使用、验收输出和 Codex 基础训练。"
+      },
+      "decision_reason": "用户任务明确、最小结果独立完整，且非常适合通过受控实验建立证据；当前事实证据较弱，因此候选必须完成实验后才能形成比较性结论。",
+      "novelty_delta": "从常见的提示词技巧转向产品经理式任务规格，并把“非目标”和验收条件纳入普通人的 AI 使用流程。",
+      "new_evidence_refs": [],
+      "platform_plan": {
+        "wechat_article_type": "tutorial",
+        "wechat_required_evidence": [
+          "最小规格模板",
+          "无规格与有规格的完整输入",
+          "两版交付物",
+          "固定验收表和实验记录"
+        ],
+        "wechat_needs_step_images": true,
+        "wechat_needs_screenshots_or_experiment": true,
+        "x_format": "thread"
+      },
+      "topic_signature": "f59abba51a16697ad38402c150f0221059c9f2c4266bc27d5ea3f3bad25b09b3",
+      "effective_product_fit_cap": 10,
+      "product_fit_cap_applied": false,
+      "cta_adjusted_from": null,
+      "evaluation_status": "rejected"
+    },
+    {
+      "candidate_id": "candidate_agent_observability",
+      "working_title": "Agent 跑了很久却不知道在干什么：给 AI 工作流加一张运行记录表",
+      "one_sentence_promise": "读者将为一次多步骤 AI 任务建立可观察的运行记录，定位卡住、重复调用和偏离目标发生在哪一步。",
+      "target_segment": "已经让 Agent 执行多步骤任务，却只能盯着最终结果、出错后不知道从哪里排查的进阶用户。",
+      "learner_stage": "continuous_improvement",
+      "trigger_scenario": "Agent 长时间运行、频繁调用工具或交付失败，用户只能重跑整个任务，无法指出具体故障步骤。",
+      "user_problem": "工作流缺少过程记录，失败原因、输入变化、工具返回和验收结果无法复盘。",
+      "wrong_current_behavior": "只保存最终产物；一旦失败就换模型、重写整段提示词或从头运行。",
+      "real_task": "为一次多步骤任务记录每一步的输入、动作、工具返回、耗时、异常和验收状态，并据此提出一个最小改进。",
+      "minimum_result": "完成一张 Agent 运行记录表，定位一个可复现问题，并形成一条下次运行可验证的调整规则。",
+      "content_pillar": "agents_and_workflows",
+      "primary_product_module_id": "codex_practice",
+      "supporting_product_module_ids": [
+        "beginner_ai_course"
+      ],
+      "funnel_role": "trust",
+      "core_angle": "先让 Agent 的执行过程可观察，再谈换模型或搭更复杂的自动化；复盘对象应是具体步骤，而不是模糊的“效果不好”。",
+      "why_now": "多条近期讨论都在关注 Agent 的轨迹、工具调用和过程可见性，说明用户关注点正从“能不能跑”转向“怎样检查和改进”。",
+      "proof_format": "工作流图、运行记录表、失败节点截图、调整前后运行记录",
+      "time_sensitive": false,
+      "fact_source_ids": [],
+      "trend_signal_ids": [
+        "mat_3bf5a845df11",
+        "mat_661069c4af51",
+        "mat_ab8f61b75084",
+        "mat_cc116b1131dd"
+      ],
+      "structure_inspiration_ids": [],
+      "restricted_inspiration_ids": [
+        "mat_0149a9525ac4"
+      ],
+      "supported_claims": [],
+      "research_questions": [
+        "普通用户最需要记录哪些运行字段，才能兼顾诊断价值和填写成本？",
+        "哪些 Agent 或 Codex 场景可以直接获得工具调用与步骤记录？",
+        "如何区分模型问题、任务定义问题、工具问题和输入资料问题？"
+      ],
+      "requires_research": true,
+      "requires_experiment": true,
+      "experiment_plan": [
+        "选择一个包含至少三个步骤和一次工具调用的可复现任务。",
+        "首次运行时按统一字段保存逐步记录和最终验收结果。",
+        "从记录中定位一个重复、异常或偏离目标的节点。",
+        "只修改该节点对应的输入、约束或步骤后重新运行。",
+        "对照两次记录，说明观察到的变化及仍未解决的问题。"
+      ],
+      "cta_mode": "club",
+      "product_claim_ids": [
+        "product.positioning",
+        "product.mechanism.real_projects",
+        "product.learning.codex_practice"
+      ],
+      "product_claim_evidence": [],
+      "price_refresh_required": true,
+      "risk_flags": [
+        "所有过程能力描述目前来自 UGC 趋势信号，不能作为产品事实。",
+        "不得公开模型隐藏推理，只记录可见步骤、工具调用、返回和验收状态。",
+        "单个任务的改善不能外推为速度、成本或准确率提升。"
+      ],
+      "hard_reject_reasons": [],
+      "scores": {
+        "pain_score": 22,
+        "actionability_score": 18,
+        "demonstrability_score": 15,
+        "evidence_score": 6,
+        "engagement_potential_score": 13,
+        "product_fit_score": 10,
+        "total_score": 84
+      },
+      "score_reasons": {
+        "pain_score": "Agent 失败却无法定位原因，是工作流迭代阶段的真实阻塞。",
+        "actionability_score": "运行记录表和单点调整可直接用于下一次任务。",
+        "demonstrability_score": "轨迹、工具返回、异常节点和两次运行记录均可展示。",
+        "evidence_score": "现有材料均为趋势信号，必须补充实操证据。",
+        "engagement_potential_score": "“别急着换模型，先看它卡在哪一步”容易引发经验讨论。",
+        "product_fit_score": "直接承接已确认的智能体工作流和 Codex 实操场景。"
+      },
+      "decision_reason": "选题把抽象的 Agent 可观测性转化为普通用户可完成的记录与复盘任务，产品契合度高；发布前必须以真实运行实验取代趋势材料中的性能与功能主张。",
+      "novelty_delta": "不做新 Harness 功能介绍，而是提炼跨工具通用的运行记录与单点改进方法。",
+      "new_evidence_refs": [],
+      "platform_plan": {
+        "wechat_article_type": "case_breakdown",
+        "wechat_required_evidence": [
+          "真实任务流程图",
+          "可见运行记录",
+          "故障节点及工具返回",
+          "单点调整前后的验收结果"
+        ],
+        "wechat_needs_step_images": true,
+        "wechat_needs_screenshots_or_experiment": true,
+        "x_format": "thread"
+      },
+      "topic_signature": "c7382b891f5b1b7b16232b56343c10ee352d2dce6923c11314a9864ab7ee0a13",
+      "effective_product_fit_cap": 10,
+      "product_fit_cap_applied": false,
+      "cta_adjusted_from": null,
+      "evaluation_status": "approved"
+    }
+  ],
+  "no_publish_reason_code": null,
+  "no_publish_reason": null,
+  "model": {
+    "provider": "codex_cli",
+    "model": "gpt-5.6-sol",
+    "runtime_version": "codex-cli 0.147.0",
+    "output_schema_version": "topic-judge-provider-v1",
+    "calls": 1,
+    "duration_ms": 139958,
+    "usage": {
+      "input_tokens": 87836,
+      "output_tokens": 4001,
+      "total_tokens": null
+    }
+  },
+  "error_code": null,
+  "error_message_safe": null,
+  "created_at": "2026-08-14T06:28:16.262Z"
+}
