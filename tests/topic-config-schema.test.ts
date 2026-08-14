@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   noPublishReasonCodeSchema,
   topicDecisionSchema,
+  evidenceReferenceSchema,
   topicIntelligenceConfigSchema,
   topicMaterialCardSchema,
 } from '../src/topic-intelligence/schemas.js';
@@ -55,6 +56,10 @@ describe('topic intelligence strict schemas', () => {
     expect(topicMaterialCardSchema.safeParse({ extra: 'secret' }).success).toBe(false);
   });
 
+  it.each(['invented', 'material:../secret', 'material:', 'material:mat:extra'])('rejects malformed evidence reference %s', (reference) => {
+    expect(evidenceReferenceSchema.safeParse(reference).success).toBe(false);
+  });
+
   it.each([
     ['SELECT_TOPIC', null, null, null],
     ['NO_PUBLISH', null, null, null],
@@ -64,7 +69,18 @@ describe('topic intelligence strict schemas', () => {
     const base = {
       version: 1, decision_date: '2026-08-14', run_id: 'topic_2026-08-14T00-00-00-000Z',
       status: 'success', decision, prompt_version: 'topic-intelligence-v1', input_hash: '0'.repeat(64),
-      input_summary: { total_before_filter: 0, total_after_filter: 0, cloud_count: 0, twitter_count: 0, weixin_resolved_count: 0, restricted_count: 0, fact_source_count: 0, trend_signal_count: 0, structure_inspiration_count: 0, source_gaps: [] },
+      input_summary: {
+        total_before_filter: 0, eligible_total: 0, total_after_filter: 0, cloud_count: 0, twitter_count: 0,
+        weixin_resolved_count: 0, restricted_count: 0, fact_source_count: 0, trend_signal_count: 0,
+        structure_inspiration_count: 0,
+        eligible_by_bucket: { cloud: 0, twitter: 0, weixin_resolved: 0, weixin_restricted: 0 },
+        selected_by_bucket: { cloud: 0, twitter: 0, weixin_resolved: 0, weixin_restricted: 0 },
+        dropped_by_reason: {
+          duplicate: 0, outside_window: 0, invalid_status: 0, invalid_url: 0, invalid_material: 0,
+          sensitive_content: 0, author_limit: 0, query_limit: 0, cluster_limit: 0, bucket_limit: 0, character_limit: 0,
+        },
+        source_gaps: [],
+      },
       selected_topic: selected, evaluated_candidates: [], no_publish_reason_code: code, no_publish_reason: reason,
       model: { provider: 'fixture', model: 'offline', calls: 0, duration_ms: 0, usage: null },
       error_code: null, error_message_safe: null, created_at: '2026-08-14T00:00:00.000Z',

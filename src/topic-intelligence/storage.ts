@@ -10,15 +10,24 @@ async function atomicWrite(filePath: string, contents: string): Promise<void> {
   await rename(temporary, filePath);
 }
 
-export async function readExistingTopicDecision(rootDir: string, decisionDate: string): Promise<TopicDecision | null> {
+export type ExistingTopicDecisionResult =
+  | { state: 'absent' }
+  | { state: 'valid'; decision: TopicDecision }
+  | { state: 'invalid'; errorCode: 'schema_invalid'; safeMessage: string };
+
+export async function readExistingTopicDecision(rootDir: string, decisionDate: string): Promise<ExistingTopicDecisionResult> {
   try {
-    return topicDecisionSchema.parse(JSON.parse(await readFile(
+    const decision = topicDecisionSchema.parse(JSON.parse(await readFile(
       path.join(rootDir, 'data', 'topic-decisions', `${decisionDate}.json`),
       'utf8',
     )) as unknown);
+    if (decision.decision_date !== decisionDate) {
+      return { state: 'invalid', errorCode: 'schema_invalid', safeMessage: 'Existing daily decision has a mismatched decision date.' };
+    }
+    return { state: 'valid', decision };
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
-    return null;
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { state: 'absent' };
+    return { state: 'invalid', errorCode: 'schema_invalid', safeMessage: 'Existing daily decision is unreadable or does not match the strict schema.' };
   }
 }
 
@@ -28,9 +37,13 @@ export async function writeTopicOutputs(
   materials: Map<string, TopicMaterialCard>,
 ): Promise<void> {
   const serialized = `${JSON.stringify(decision, null, 2)}\n`;
+  const decisionPath = path.join(rootDir, 'data', 'topic-decisions', `${decision.decision_date}.json`);
+  const runPath = path.join(rootDir, 'data', 'topic-runs', `${decision.run_id}.json`);
+  const reportPath = path.join(rootDir, 'reports', 'topics', `${decision.decision_date}.md`);
+  await Promise.all([decisionPath, runPath, reportPath].map((filePath) => mkdir(path.dirname(filePath), { recursive: true })));
   await Promise.all([
-    atomicWrite(path.join(rootDir, 'data', 'topic-decisions', `${decision.decision_date}.json`), serialized),
-    atomicWrite(path.join(rootDir, 'data', 'topic-runs', `${decision.run_id}.json`), serialized),
-    atomicWrite(path.join(rootDir, 'reports', 'topics', `${decision.decision_date}.md`), renderTopicReport(decision, materials)),
+    atomicWrite(decisionPath, serialized),
+    atomicWrite(runPath, serialized),
+    atomicWrite(reportPath, renderTopicReport(decision, materials)),
   ]);
 }

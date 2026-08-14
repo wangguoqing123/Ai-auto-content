@@ -93,6 +93,33 @@ describe('topic material input and roles', () => {
     expect((await build([makeTopicMaterial({ excerpt: 'Authorization: Bearer secret-token-value' })])).cards).toHaveLength(0);
   });
 
+  it('allows ordinary Authorization and Cookie technical prose', async () => {
+    const input = await build([makeTopicMaterial({ excerpt: 'Explain what the Authorization and Cookie headers do, without including credential values.' })]);
+    expect(input.cards).toHaveLength(1);
+  });
+
+  it.each([
+    'Authorization header is required.',
+    'Cookie-based sessions are explained here.',
+    'No ct0 cookie found.',
+    'Write the example to /tmp/output.',
+    'An external example URL is https://example.com/?signature=demo.',
+  ])('allows safe technical prose: %s', async (excerpt) => {
+    expect((await build([makeTopicMaterial({ excerpt })])).cards).toHaveLength(1);
+  });
+
+  it.each([
+    'Cookie: sessionid=real-secret-value',
+    'session_id=real-secret-value',
+    'ct0=real-secret-value',
+    'auth_token=real-secret-value',
+    'Use API key sk-test_value_123456',
+    'Temporary URL https://mp.weixin.qq.com/s?pass_ticket=real-secret-value&signature=real-signature',
+    `Read ${process.env.HOME ?? '/Users/private'}/private-token.txt`,
+  ])('excludes a real credential pattern: %s', async (excerpt) => {
+    expect((await build([makeTopicMaterial({ excerpt })])).cards).toHaveLength(0);
+  });
+
   it('excludes non-restricted material with a non-URL canonical value', async () => {
     expect((await build([makeTopicMaterial({ canonical_url: 'not-a-url' })])).cards).toHaveLength(0);
   });
@@ -160,6 +187,43 @@ describe('topic material input and roles', () => {
       title: titles[index] ?? `Unique ${index}`,
     }));
     expect((await build(materials)).cards).toHaveLength(8);
+  });
+
+  it('does not apply the per-query cap to empty Cloud query ids and shares one 30-item RSS/AIHOT budget', async () => {
+    const materials = Array.from({ length: 40 }, (_, index) => makeTopicMaterial({
+      material_id: `mat_${(index + 500).toString(16).padStart(12, '0')}`,
+      source_platform: index < 20 ? 'rss' : 'aihot',
+      usage_mode: index < 20 ? 'fact_source' : 'reference_only',
+      canonical_url: `https://cloud.example/${index}`,
+      source_url: `https://cloud.example/${index}`,
+      source_item_id: `cloud-${index}`,
+      author_name: `cloud-author-${index}`,
+      query_id: '',
+      title: `lowercase${index} distinct${index}`,
+    }));
+    const input = await build(materials);
+    expect(input.summary.eligible_by_bucket.cloud).toBe(40);
+    expect(input.summary.selected_by_bucket.cloud).toBe(30);
+    expect(input.summary.dropped_by_reason.query_limit).toBe(0);
+  });
+
+  it('budgets resolved and restricted Weixin independently', async () => {
+    const resolved = Array.from({ length: 10 }, (_, index) => makeTopicMaterial({
+      material_id: `mat_${(index + 600).toString(16).padStart(12, '0')}`,
+      source_platform: 'weixin', source_kind: 'ugc', usage_mode: 'structure_inspiration',
+      source_item_id: `resolved-${index}`, canonical_url: `https://mp.weixin.qq.com/s/resolved-${index}`,
+      source_url: `https://mp.weixin.qq.com/s/resolved-${index}`, author_name: `resolved-author-${index}`,
+      title: `resolved${index} article${index}`,
+    }));
+    const restricted = Array.from({ length: 10 }, (_, index) => makeTopicMaterial({
+      material_id: `mat_${(index + 700).toString(16).padStart(12, '0')}`,
+      source_platform: 'weixin', source_kind: 'ugc', usage_mode: 'structure_inspiration',
+      source_access_status: 'unresolved', status: 'quarantined', source_item_id: `restricted-${index}`,
+      canonical_url: 'https://weixin.sogou.com/link', source_url: 'https://weixin.sogou.com/link',
+      author_name: `restricted-author-${index}`, title: `restricted${index} inspiration${index}`,
+    }));
+    const input = await build([...resolved, ...restricted]);
+    expect(input.summary.selected_by_bucket).toMatchObject({ weixin_resolved: 8, weixin_restricted: 8 });
   });
 
   it('limits highly similar title clusters to five', async () => {

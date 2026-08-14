@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- 加固每日选题离线正确性：跨日素材按最新快照确定性合并，RSS/AIHOT 共用 Cloud 预算，X 与两类微信预算独立，空 Cloud query 不再误触 8 条上限，并输出安全的 eligible/selected/drop 诊断。
+- 统一 Product Claim 与 novelty evidence 真实解析，只有本次 fact source 或 ID 匹配的合法 evidence JSON 可以通过；虚构引用、txt、损坏/空 JSON、角色错误和路径穿越均拒绝。
+- 无素材时在 Provider 创建前直接 `NO_PUBLISH`；损坏的当日 decision fail closed 且不覆盖；模型 timeout/网络错误和 judge/repair 调用数准确区分，候选及输出异常安全失败。
+- 素材敏感扫描复用 Browser 文件类型感知语义，正常 Authorization/Cookie 技术说明可用，真实凭证、当前 home 与微信临时 URL 继续拒绝。
 - 增加每日选题 v0：72 小时时窗、五种来源角色、restricted 隔离、确定性预筛选和最大 60 条 Material Cards。
 - 增加最多 3 个候选、代码硬淘汰与六维重算、80 分门槛、证据 15/10/5 上限，以及单一 `SELECT_TOPIC` / `NO_PUBLISH` 决策。
 - 从产品真相配置压缩 Product Context，代码执行模块/pillar 最小上限、CTA 交集降级与 Product Claim 真实 evidence reference 校验。

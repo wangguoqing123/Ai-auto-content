@@ -1,9 +1,9 @@
-import { access, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { runTopicSelection } from '../src/topic-intelligence/pipeline.js';
 import { buildTopicJudgeData, TOPIC_JUDGE_SYSTEM_PROMPT } from '../src/topic-intelligence/prompt.js';
-import { FixtureTopicJudgeProvider } from '../src/topic-intelligence/providers/fixture-topic-judge-provider.js';
+import { FixtureTopicJudgeProvider, fixtureCandidate } from '../src/topic-intelligence/providers/fixture-topic-judge-provider.js';
 import type { TopicJudgeInput, TopicJudgeProvider, TopicJudgeProviderCall } from '../src/topic-intelligence/providers/topic-judge-provider.js';
 import { topicJudgeProviderResultSchema } from '../src/topic-intelligence/schemas.js';
 import { createTopicTestRoot, makeTopicMaterial, topicConfig, writeTopicMaterials } from './topic-test-helpers.js';
@@ -67,6 +67,19 @@ describe('topic pipeline and providers', () => {
   it('maps provider failure to model_unavailable, not NO_PUBLISH', async () => {
     const result = await runTopicSelection({ decisionDate: '2026-08-14', fixture: true, fixtureMode: 'network-failure' });
     expect(result.decision).toMatchObject({ status: 'failed', decision: null, error_code: 'model_unavailable' });
+    expect(result.decision.model.calls).toBe(1);
+  });
+
+  it('classifies a first-call timeout with calls=1', async () => {
+    const result = await runTopicSelection({ decisionDate: '2026-08-14', fixture: true, fixtureMode: 'timeout' });
+    expect(result.decision).toMatchObject({ status: 'failed', decision: null, error_code: 'model_timeout' });
+    expect(result.decision.model.calls).toBe(1);
+  });
+
+  it('classifies a repair timeout with calls=2', async () => {
+    const result = await runTopicSelection({ decisionDate: '2026-08-14', fixture: true, fixtureMode: 'repair-timeout' });
+    expect(result.decision).toMatchObject({ status: 'failed', decision: null, error_code: 'model_timeout' });
+    expect(result.decision.model.calls).toBe(2);
   });
 
   it('does not call a provider when Cloud and Browser are empty', async () => {
@@ -78,6 +91,41 @@ describe('topic pipeline and providers', () => {
     expect(provider.calls).toBe(0);
   });
 
+  it('returns NO_PUBLISH for no materials without provider environment variables', async () => {
+    const root = await createTopicTestRoot();
+    roots.push(root);
+    const previousProvider = process.env.TOPIC_LLM_PROVIDER;
+    const previousModel = process.env.TOPIC_LLM_MODEL;
+    const previousKey = process.env.OPENAI_API_KEY;
+    delete process.env.TOPIC_LLM_PROVIDER;
+    delete process.env.TOPIC_LLM_MODEL;
+    delete process.env.OPENAI_API_KEY;
+    try {
+      const result = await runTopicSelection({ rootDir: root, decisionDate: '2026-08-14', dryRun: true });
+      expect(result.decision).toMatchObject({
+        status: 'success', decision: 'NO_PUBLISH', no_publish_reason_code: 'no_usable_materials',
+        model: { provider: 'not_invoked', model: '', calls: 0 },
+      });
+    } finally {
+      if (previousProvider === undefined) delete process.env.TOPIC_LLM_PROVIDER; else process.env.TOPIC_LLM_PROVIDER = previousProvider;
+      if (previousModel === undefined) delete process.env.TOPIC_LLM_MODEL; else process.env.TOPIC_LLM_MODEL = previousModel;
+      if (previousKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = previousKey;
+    }
+  });
+
+  it('fails when materials exist but provider configuration is missing', async () => {
+    const root = await createTopicTestRoot(realInputMaterials());
+    roots.push(root);
+    const previous = process.env.TOPIC_LLM_PROVIDER;
+    delete process.env.TOPIC_LLM_PROVIDER;
+    try {
+      const result = await runTopicSelection({ rootDir: root, decisionDate: '2026-08-14', dryRun: true });
+      expect(result.decision).toMatchObject({ status: 'failed', decision: null, error_code: 'configuration_invalid', model: { calls: 0 } });
+    } finally {
+      if (previous === undefined) delete process.env.TOPIC_LLM_PROVIDER; else process.env.TOPIC_LLM_PROVIDER = previous;
+    }
+  });
+
   it('writes decision, immutable run, and report only for a formal real-input run', async () => {
     const root = await createTopicTestRoot(realInputMaterials());
     roots.push(root);
@@ -86,6 +134,61 @@ describe('topic pipeline and providers', () => {
     await expect(access(path.join(root, 'data', 'topic-decisions', '2026-08-14.json'))).resolves.toBeUndefined();
     await expect(access(path.join(root, 'data', 'topic-runs', `${result.decision.run_id}.json`))).resolves.toBeUndefined();
     await expect(access(path.join(root, 'reports', 'topics', '2026-08-14.md'))).resolves.toBeUndefined();
+  });
+
+  it('fails closed on a corrupt current daily decision without overwriting or calling the model', async () => {
+    const root = await createTopicTestRoot(realInputMaterials());
+    roots.push(root);
+    const directory = path.join(root, 'data', 'topic-decisions');
+    await mkdir(directory, { recursive: true });
+    const filePath = path.join(directory, '2026-08-14.json');
+    const original = '{"broken":';
+    await writeFile(filePath, original, 'utf8');
+    const provider = new CountingProvider();
+    const result = await runTopicSelection({ rootDir: root, decisionDate: '2026-08-14', provider });
+    expect(result.decision).toMatchObject({ status: 'failed', decision: null, error_code: 'schema_invalid', model: { calls: 0 } });
+    expect(provider.calls).toBe(0);
+    await expect(readFile(filePath, 'utf8')).resolves.toBe(original);
+  });
+
+  it('fails closed on a schema-invalid current daily decision', async () => {
+    const root = await createTopicTestRoot(realInputMaterials());
+    roots.push(root);
+    const directory = path.join(root, 'data', 'topic-decisions');
+    await mkdir(directory, { recursive: true });
+    const filePath = path.join(directory, '2026-08-14.json');
+    const original = JSON.stringify({ version: 1, decision_date: '2026-08-14', status: 'invented' });
+    await writeFile(filePath, original, 'utf8');
+    const provider = new CountingProvider();
+    const result = await runTopicSelection({ rootDir: root, decisionDate: '2026-08-14', provider });
+    expect(result.decision).toMatchObject({ status: 'failed', decision: null, error_code: 'schema_invalid', model: { calls: 0 } });
+    expect(provider.calls).toBe(0);
+    await expect(readFile(filePath, 'utf8')).resolves.toBe(original);
+  });
+
+  it('returns a safe failed result when candidate evaluation throws unexpectedly', async () => {
+    const root = await createTopicTestRoot(realInputMaterials());
+    roots.push(root);
+    await mkdir(path.join(root, 'data', 'evidence'), { recursive: true });
+    await writeFile(path.join(root, 'data', 'evidence', 'experiments'), 'not-a-directory', 'utf8');
+    const candidate = { ...fixtureCandidate(), new_evidence_refs: ['experiment:trigger-read-error'] };
+    const provider: TopicJudgeProvider = {
+      providerName: 'fixture-exception', modelName: 'offline-fixture',
+      async judge() { return { output: { candidates: [candidate], no_publish_reason_code: null, no_publish_reason: null }, durationMs: 1, usage: null }; },
+      async repair() { throw new Error('repair should not run'); },
+    };
+    const result = await runTopicSelection({ rootDir: root, decisionDate: '2026-08-14', dryRun: true, provider });
+    expect(result.decision).toMatchObject({ status: 'failed', decision: null, error_code: 'schema_invalid', model: { calls: 1 } });
+  });
+
+  it('returns failed and writes no official decision when output path preflight fails', async () => {
+    const root = await createTopicTestRoot(realInputMaterials());
+    roots.push(root);
+    await writeFile(path.join(root, 'data', 'topic-runs'), 'not-a-directory', 'utf8');
+    const result = await runTopicSelection({ rootDir: root, decisionDate: '2026-08-14', provider: new CountingProvider() });
+    expect(result.decision).toMatchObject({ status: 'failed', decision: null, error_code: 'file_read_failed' });
+    expect(result.files_written).toBe(false);
+    await expect(access(path.join(root, 'data', 'topic-decisions', '2026-08-14.json'))).rejects.toThrow();
   });
 
   it('returns ALREADY_DECIDED without a second model call for the same success hash', async () => {

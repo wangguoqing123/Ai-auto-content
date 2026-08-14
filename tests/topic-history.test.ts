@@ -28,7 +28,7 @@ function historyEntry(overrides: Partial<TopicHistoryEntry> = {}): TopicHistoryE
     minimumResult: candidate.minimum_result,
     coreAngle: candidate.core_angle,
     contentPillar: candidate.content_pillar,
-    evidenceIds: candidate.fact_source_ids,
+    evidenceRefs: candidate.fact_source_ids.map((id) => `material:${id}`),
     ...overrides,
   };
 }
@@ -62,37 +62,44 @@ describe('topic history and deterministic duplicate checks', () => {
 
   it('detects exact signature duplicates', () => {
     const candidate = makeTopicCandidate();
-    expect(checkRecentDuplicate(candidate, computeTopicSignature(candidate), [historyEntry()], 0.72)).toMatchObject({ duplicate: true, reason: 'duplicate_exact_signature' });
+    expect(checkRecentDuplicate(candidate, computeTopicSignature(candidate), [historyEntry()], [historyEntry()], 0.72)).toMatchObject({ duplicate: true, reason: 'duplicate_exact_signature' });
   });
 
   it('detects normalized working-title duplicates', () => {
     const candidate = makeTopicCandidate({ core_angle: '全新核心角度' });
-    expect(checkRecentDuplicate(candidate, computeTopicSignature(candidate), [historyEntry({ topicSignature: 'x', userProblem: '不同问题', minimumResult: '不同结果', coreAngle: '不同角度' })], 0.72).duplicate).toBe(true);
+    const history = [historyEntry({ topicSignature: 'x', userProblem: '不同问题', minimumResult: '不同结果', coreAngle: '不同角度' })];
+    expect(checkRecentDuplicate(candidate, computeTopicSignature(candidate), [], history, 0.72).duplicate).toBe(true);
   });
 
   it('detects different titles with the same problem and result', () => {
     const candidate = makeTopicCandidate({ working_title: '完全不同的工作标题' });
-    expect(checkRecentDuplicate(candidate, computeTopicSignature(candidate), [historyEntry({ topicSignature: 'x', workingTitle: '另一个标题' })], 0.72).duplicate).toBe(true);
+    const history = [historyEntry({ topicSignature: 'x', workingTitle: '另一个标题' })];
+    expect(checkRecentDuplicate(candidate, computeTopicSignature(candidate), [], history, 0.72).duplicate).toBe(true);
   });
 
   it('allows meaningful novelty backed by a new fact source', () => {
-    const candidate = makeTopicCandidate({ novelty_delta: '新增官方工作流规范，并把最小结果改为可验证模板。', new_evidence_ids: ['mat_999999999999'] });
-    expect(checkRecentDuplicate(candidate, computeTopicSignature(candidate), [historyEntry()], 0.72).duplicate).toBe(false);
+    const candidate = makeTopicCandidate({ novelty_delta: '新增官方工作流规范，并把最小结果改为可验证模板。', new_evidence_refs: ['material:mat_999999999999'] });
+    expect(checkRecentDuplicate(candidate, computeTopicSignature(candidate), [historyEntry()], [historyEntry()], 0.72, ['material:mat_999999999999']).duplicate).toBe(false);
   });
 
   it('allows meaningful novelty backed by a new experiment result', () => {
-    const candidate = makeTopicCandidate({ novelty_delta: '新增相同任务的重跑实验结果与失败判断标准。', new_evidence_ids: ['experiment:new-run'] });
-    expect(checkRecentDuplicate(candidate, computeTopicSignature(candidate), [historyEntry()], 0.72).duplicate).toBe(false);
+    const candidate = makeTopicCandidate({ novelty_delta: '新增相同任务的重跑实验结果与失败判断标准。', new_evidence_refs: ['experiment:new-run'] });
+    expect(checkRecentDuplicate(candidate, computeTopicSignature(candidate), [historyEntry()], [historyEntry()], 0.72, ['experiment:new-run']).duplicate).toBe(false);
   });
 
   it('does not accept angle-different as a novelty explanation', () => {
-    const candidate = makeTopicCandidate({ novelty_delta: '角度不同', new_evidence_ids: ['mat_999999999999'] });
-    expect(checkRecentDuplicate(candidate, computeTopicSignature(candidate), [historyEntry()], 0.72).duplicate).toBe(true);
+    const candidate = makeTopicCandidate({ novelty_delta: '角度不同', new_evidence_refs: ['material:mat_999999999999'] });
+    expect(checkRecentDuplicate(candidate, computeTopicSignature(candidate), [historyEntry()], [historyEntry()], 0.72, ['material:mat_999999999999']).duplicate).toBe(true);
+  });
+
+  it.each(['内容更新', '有新证据'])('does not accept vague novelty explanation %s', (noveltyDelta) => {
+    const candidate = makeTopicCandidate({ novelty_delta: noveltyDelta, new_evidence_refs: ['experiment:new-run'] });
+    expect(checkRecentDuplicate(candidate, computeTopicSignature(candidate), [historyEntry()], [historyEntry()], 0.72, ['experiment:new-run']).duplicate).toBe(true);
   });
 
   it('does not accept novelty without new evidence', () => {
-    const candidate = makeTopicCandidate({ novelty_delta: '新增一个更清楚的用户场景和最小结果。', new_evidence_ids: [] });
-    expect(checkRecentDuplicate(candidate, computeTopicSignature(candidate), [historyEntry()], 0.72).duplicate).toBe(true);
+    const candidate = makeTopicCandidate({ novelty_delta: '新增一个更清楚的用户场景和最小结果。', new_evidence_refs: [] });
+    expect(checkRecentDuplicate(candidate, computeTopicSignature(candidate), [historyEntry()], [historyEntry()], 0.72).duplicate).toBe(true);
   });
 
   it('loads only decisions inside the 30-day window', async () => {
@@ -107,7 +114,17 @@ describe('topic history and deterministic duplicate checks', () => {
     await mkdir(directory, { recursive: true });
     const base = {
       version: 1, run_id: 'topic_2026-08-01T00-00-00-000Z', status: 'success', decision: 'SELECT_TOPIC',
-      prompt_version: 'topic-intelligence-v1', input_hash: '0'.repeat(64), input_summary: { total_before_filter: 1, total_after_filter: 1, cloud_count: 1, twitter_count: 0, weixin_resolved_count: 0, restricted_count: 0, fact_source_count: 1, trend_signal_count: 0, structure_inspiration_count: 0, source_gaps: ['browser_missing'] },
+      prompt_version: 'topic-intelligence-v1', input_hash: '0'.repeat(64), input_summary: {
+        total_before_filter: 1, eligible_total: 1, total_after_filter: 1, cloud_count: 1, twitter_count: 0,
+        weixin_resolved_count: 0, restricted_count: 0, fact_source_count: 1, trend_signal_count: 0,
+        structure_inspiration_count: 0,
+        eligible_by_bucket: { cloud: 1, twitter: 0, weixin_resolved: 0, weixin_restricted: 0 },
+        selected_by_bucket: { cloud: 1, twitter: 0, weixin_resolved: 0, weixin_restricted: 0 },
+        dropped_by_reason: {
+          duplicate: 0, outside_window: 0, invalid_status: 0, invalid_url: 0, invalid_material: 0,
+          sensitive_content: 0, author_limit: 0, query_limit: 0, cluster_limit: 0, bucket_limit: 0, character_limit: 0,
+        }, source_gaps: ['browser_missing'],
+      },
       selected_topic: candidate, evaluated_candidates: [candidate], no_publish_reason_code: null, no_publish_reason: null,
       model: { provider: 'fixture', model: 'offline', calls: 1, duration_ms: 1, usage: null }, error_code: null, error_message_safe: null,
       created_at: '2026-08-01T00:00:00.000Z',
@@ -115,6 +132,7 @@ describe('topic history and deterministic duplicate checks', () => {
     await writeFile(path.join(directory, 'recent.json'), JSON.stringify({ ...base, decision_date: '2026-08-01' }), 'utf8');
     await writeFile(path.join(directory, 'old.json'), JSON.stringify({ ...base, decision_date: '2026-06-01' }), 'utf8');
     expect((await loadTopicHistory(root, '2026-08-14', 30)).map(({ decisionDate }) => decisionDate)).toEqual(['2026-08-01']);
+    expect(await loadTopicHistory(root, '2026-08-14', 5)).toEqual([]);
   });
 
   it('does not force duplicates outside the loaded window', async () => {

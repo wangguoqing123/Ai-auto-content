@@ -1,7 +1,9 @@
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
+import { scanUntrustedMaterialText } from '../local-runtime/sensitive-content.js';
 import { unifiedMaterialSchema, type UnifiedMaterial } from '../types.js';
 import { normalizeTopicText, tokenJaccard } from './history.js';
+import { mergeMaterialSnapshots } from './material-snapshots.js';
 import {
   topicMaterialCardSchema,
   type TopicInputSummary,
@@ -17,6 +19,27 @@ interface RankedMaterial {
   rankScore: number;
   origin: 'cloud' | 'browser';
 }
+
+type MaterialBudgetBucket = 'cloud' | 'twitter' | 'weixin_resolved' | 'weixin_restricted';
+type DropReason = keyof TopicInputSummary['dropped_by_reason'];
+
+const emptyBucketCounts = (): TopicInputSummary['selected_by_bucket'] => ({
+  cloud: 0, twitter: 0, weixin_resolved: 0, weixin_restricted: 0,
+});
+
+const emptyDropCounts = (): TopicInputSummary['dropped_by_reason'] => ({
+  duplicate: 0,
+  outside_window: 0,
+  invalid_status: 0,
+  invalid_url: 0,
+  invalid_material: 0,
+  sensitive_content: 0,
+  author_limit: 0,
+  query_limit: 0,
+  cluster_limit: 0,
+  bucket_limit: 0,
+  character_limit: 0,
+});
 
 export interface TopicMaterialInput {
   cards: TopicMaterialCard[];
@@ -36,25 +59,28 @@ async function listJsonlFiles(directory: string): Promise<string[]> {
   }
 }
 
-async function readMaterials(directory: string): Promise<UnifiedMaterial[]> {
+async function readMaterials(directory: string): Promise<{ materials: UnifiedMaterial[]; totalRecords: number; invalidCount: number }> {
   const materials: UnifiedMaterial[] = [];
+  let totalRecords = 0;
+  let invalidCount = 0;
   for (const filePath of await listJsonlFiles(directory)) {
     const lines = (await readFile(filePath, 'utf8')).split('\n').filter(Boolean);
     for (const line of lines) {
+      totalRecords += 1;
       try {
         const parsed = unifiedMaterialSchema.safeParse(JSON.parse(line) as unknown);
         if (parsed.success) materials.push(parsed.data);
+        else invalidCount += 1;
       } catch {
-        continue;
+        invalidCount += 1;
       }
     }
   }
-  return materials;
+  return { materials, totalRecords, invalidCount };
 }
 
 function hasSensitiveContent(material: UnifiedMaterial): boolean {
-  const text = `${material.title}\n${material.excerpt}`;
-  return /(?:authorization\s*:|cookie\s*:|bearer\s+[a-z0-9._-]+|sk-[a-z0-9_-]{12,}|session(?:id|_id)?\s*[=:])/iu.test(text);
+  return scanUntrustedMaterialText(`${material.title}\n${material.excerpt}`).length > 0;
 }
 
 function hasTraceableCanonicalUrl(material: UnifiedMaterial): boolean {
@@ -112,7 +138,8 @@ function isInsideWindow(
 
 function safeExcerpt(value: string, maximum: number): string {
   return value
-    .replace(/(?:authorization\s*:|cookie\s*:|bearer\s+|sk-)[^\s]+/giu, '[redacted]')
+    .replace(/\bAuthorization\s*:\s*Bearer\s+(?!<token>|\[redacted\])[^\s;,]+/giu, 'Authorization: Bearer [redacted]')
+    .replace(/\bsk-[a-z0-9_-]{12,}\b/giu, '[redacted]')
     .replace(/\/Users\/[A-Za-z0-9._-]+\/[^\s]*/gu, '[local-path-redacted]')
     .slice(0, maximum);
 }
@@ -194,7 +221,7 @@ function toCard(material: UnifiedMaterial, role: TopicMaterialRole, config: Topi
     published_at: material.published_at,
     published_at_quality: material.published_at_quality,
     canonical_url: restricted ? null : material.canonical_url,
-    query_id: material.query_id,
+    query_id: safeExcerpt(material.query_id, 300),
     query_text: safeExcerpt(material.query_text, 500),
     engagement: {
       views: material.engagement.views,
@@ -209,12 +236,29 @@ function toCard(material: UnifiedMaterial, role: TopicMaterialRole, config: Topi
   });
 }
 
-function deterministicSelect(ranked: RankedMaterial[], config: TopicIntelligenceConfig): RankedMaterial[] {
+function materialBucket(item: Pick<RankedMaterial, 'material' | 'role'>): MaterialBudgetBucket {
+  if (item.material.source_platform === 'twitter') return 'twitter';
+  if (item.material.source_platform === 'weixin') {
+    return item.role === 'restricted_inspiration_only' ? 'weixin_restricted' : 'weixin_resolved';
+  }
+  return 'cloud';
+}
+
+function queryKeys(material: UnifiedMaterial): string[] {
+  return [...new Set(material.query_id.split('|').map((value) => value.trim()).filter(Boolean))]
+    .map((value) => `${material.source_platform}:${value}`);
+}
+
+function deterministicSelect(
+  ranked: RankedMaterial[],
+  config: TopicIntelligenceConfig,
+): { selected: RankedMaterial[]; dropped: Pick<TopicInputSummary['dropped_by_reason'], 'author_limit' | 'query_limit' | 'cluster_limit' | 'bucket_limit'> } {
   const selected: RankedMaterial[] = [];
   const authorCounts = new Map<string, number>();
   const queryCounts = new Map<string, number>();
   const clusterCounts = new Map<string, number>();
-  const platformCounts = new Map<string, number>();
+  const bucketCounts = new Map<MaterialBudgetBucket, number>();
+  const dropped = { author_limit: 0, query_limit: 0, cluster_limit: 0, bucket_limit: 0 };
   const roleBuckets = new Map<TopicMaterialRole, RankedMaterial[]>();
   for (const item of ranked.sort((left, right) => right.rankScore - left.rankScore || left.material.material_id.localeCompare(right.material.material_id))) {
     const bucket = roleBuckets.get(item.role) ?? [];
@@ -233,31 +277,59 @@ function deterministicSelect(ranked: RankedMaterial[], config: TopicIntelligence
         const item = bucket.shift();
         if (item === undefined) break;
         const author = normalizeTopicText(item.material.author_name) || `unknown:${item.material.material_id}`;
-        const query = item.material.query_id || '(no-query)';
-        const platform = item.material.source_platform;
-        const platformMaximum = platform === 'twitter'
+        const queries = queryKeys(item.material);
+        const budgetBucket = materialBucket(item);
+        const bucketMaximum = budgetBucket === 'twitter'
           ? config.input.max_twitter_materials
-          : platform === 'weixin' && role === 'restricted_inspiration_only'
+          : budgetBucket === 'weixin_restricted'
             ? config.input.max_weixin_restricted_materials
-            : platform === 'weixin'
+            : budgetBucket === 'weixin_resolved'
               ? config.input.max_weixin_resolved_materials
               : config.input.max_cloud_materials;
-        if ((authorCounts.get(author) ?? 0) >= config.input.max_per_author
-          || (queryCounts.get(query) ?? 0) >= config.input.max_per_query
-          || (clusterCounts.get(item.clusterId) ?? 0) >= config.input.max_per_cluster
-          || (platformCounts.get(platform) ?? 0) >= platformMaximum) continue;
+        let reason: keyof typeof dropped | null = null;
+        if ((authorCounts.get(author) ?? 0) >= config.input.max_per_author) reason = 'author_limit';
+        else if (queries.some((query) => (queryCounts.get(query) ?? 0) >= config.input.max_per_query)) reason = 'query_limit';
+        else if ((clusterCounts.get(item.clusterId) ?? 0) >= config.input.max_per_cluster) reason = 'cluster_limit';
+        else if ((bucketCounts.get(budgetBucket) ?? 0) >= bucketMaximum) reason = 'bucket_limit';
+        if (reason !== null) {
+          dropped[reason] += 1;
+          continue;
+        }
         selected.push(item);
         authorCounts.set(author, (authorCounts.get(author) ?? 0) + 1);
-        queryCounts.set(query, (queryCounts.get(query) ?? 0) + 1);
+        for (const query of queries) queryCounts.set(query, (queryCounts.get(query) ?? 0) + 1);
         clusterCounts.set(item.clusterId, (clusterCounts.get(item.clusterId) ?? 0) + 1);
-        platformCounts.set(platform, (platformCounts.get(platform) ?? 0) + 1);
+        bucketCounts.set(budgetBucket, (bucketCounts.get(budgetBucket) ?? 0) + 1);
         madeProgress = true;
         break;
       }
       if (selected.length >= config.input.max_total_materials) break;
     }
   }
-  return selected;
+  if (selected.length >= config.input.max_total_materials) {
+    dropped.bucket_limit += [...roleBuckets.values()].reduce((sum, bucket) => sum + bucket.length, 0);
+  }
+  return { selected, dropped };
+}
+
+function cardBucket(card: TopicMaterialCard): MaterialBudgetBucket {
+  if (card.source_platform === 'twitter') return 'twitter';
+  if (card.source_platform === 'weixin') return card.role === 'restricted_inspiration_only' ? 'weixin_restricted' : 'weixin_resolved';
+  return 'cloud';
+}
+
+export function refreshSelectedSummary(summary: TopicInputSummary, cards: TopicMaterialCard[]): void {
+  const counts = emptyBucketCounts();
+  for (const card of cards) counts[cardBucket(card)] += 1;
+  summary.total_after_filter = cards.length;
+  summary.selected_by_bucket = counts;
+  summary.cloud_count = counts.cloud;
+  summary.twitter_count = counts.twitter;
+  summary.weixin_resolved_count = counts.weixin_resolved;
+  summary.restricted_count = counts.weixin_restricted;
+  summary.fact_source_count = cards.filter(({ role }) => role === 'fact_source').length;
+  summary.trend_signal_count = cards.filter(({ role }) => role === 'trend_signal').length;
+  summary.structure_inspiration_count = cards.filter(({ role }) => role === 'structure_inspiration').length;
 }
 
 export async function buildTopicMaterialInput(
@@ -265,33 +337,51 @@ export async function buildTopicMaterialInput(
   decisionDate: string,
   config: TopicIntelligenceConfig,
 ): Promise<TopicMaterialInput> {
-  const [cloud, browser] = await Promise.all([
+  const [cloudInput, browserInput] = await Promise.all([
     readMaterials(path.join(rootDir, 'data', 'materials')),
     readMaterials(path.join(rootDir, 'data', 'browser-materials')),
   ]);
-  const totalBeforeFilter = cloud.length + browser.length;
-  const dedupeKeys = new Set<string>();
+  const cloud = cloudInput.materials;
+  const browser = browserInput.materials;
+  const totalBeforeFilter = cloudInput.totalRecords + browserInput.totalRecords;
+  const dropCounts = emptyDropCounts();
+  dropCounts.invalid_material = cloudInput.invalidCount + browserInput.invalidCount;
+  const merged = mergeMaterialSnapshots([...cloud, ...browser]);
+  dropCounts.duplicate = cloud.length + browser.length - merged.length;
   const usable: Array<{ material: UnifiedMaterial; role: TopicMaterialRole; origin: 'cloud' | 'browser' }> = [];
-  for (const [origin, materials] of [['cloud', cloud], ['browser', browser]] as const) {
-    for (const material of materials) {
-      if (material.source_platform === 'xiaohongshu' || hasSensitiveContent(material)) continue;
+  for (const material of merged) {
+      const origin = material.source_platform === 'rss' || material.source_platform === 'aihot' ? 'cloud' : 'browser';
+      if (material.source_platform === 'xiaohongshu') {
+        dropCounts.invalid_status += 1;
+        continue;
+      }
+      if (hasSensitiveContent(material)) {
+        dropCounts.sensitive_content += 1;
+        continue;
+      }
       const role = classifyMaterialRole(material);
       const restricted = role === 'restricted_inspiration_only';
-      if (!restricted && material.status !== 'accepted') continue;
-      if (!restricted && material.source_access_status !== 'resolved') continue;
-      if (!restricted && !hasTraceableCanonicalUrl(material)) continue;
-      if (!isInsideWindow(material, role, decisionDate, config)) continue;
-      if (role === 'fact_source' && material.published_at_quality === 'unknown') continue;
-      const identityKeys = [
-        `id:${material.material_id}`,
-        material.source_access_status === 'resolved' && material.canonical_url ? `url:${material.canonical_url}` : '',
-        material.source_item_id ? `item:${material.source_platform}:${material.source_item_id}` : '',
-      ].filter(Boolean);
-      if (identityKeys.some((key) => dedupeKeys.has(key))) continue;
-      for (const key of identityKeys) dedupeKeys.add(key);
+      if ((!restricted && material.status !== 'accepted') || (!restricted && material.source_access_status !== 'resolved')) {
+        dropCounts.invalid_status += 1;
+        continue;
+      }
+      if (!restricted && !hasTraceableCanonicalUrl(material)) {
+        dropCounts.invalid_url += 1;
+        continue;
+      }
+      if (!isInsideWindow(material, role, decisionDate, config)) {
+        dropCounts.outside_window += 1;
+        continue;
+      }
+      if (role === 'fact_source' && material.published_at_quality === 'unknown') {
+        dropCounts.invalid_status += 1;
+        continue;
+      }
       usable.push({ material, role, origin });
-    }
   }
+
+  const eligibleByBucket = emptyBucketCounts();
+  for (const item of usable) eligibleByBucket[materialBucket(item)] += 1;
 
   const decisionTime = referenceTime(decisionDate, config.schedule.target_time);
   const twitterScores = calculateTwitterSignalScores(usable.map(({ material }) => material), decisionTime, config.input.lookback_hours);
@@ -310,33 +400,41 @@ export async function buildTopicMaterialInput(
     return { material, role, origin, clusterId: clusters.get(material.material_id) ?? material.material_id, rankScore };
   });
 
-  const selected = deterministicSelect(ranked, config);
+  const preselection = deterministicSelect(ranked, config);
+  for (const [reason, count] of Object.entries(preselection.dropped) as Array<[DropReason, number]>) dropCounts[reason] += count;
   const cards: TopicMaterialCard[] = [];
   let inputCharacters = 0;
-  for (const item of selected) {
+  for (const item of preselection.selected) {
     const card = toCard(item.material, item.role, config);
     const characters = JSON.stringify(card).length;
-    if (inputCharacters + characters > config.input.max_model_input_chars) continue;
+    if (inputCharacters + characters > config.input.max_model_input_chars) {
+      dropCounts.character_limit += 1;
+      continue;
+    }
     cards.push(card);
     inputCharacters += characters;
   }
-  const count = (predicate: (card: TopicMaterialCard) => boolean) => cards.filter(predicate).length;
   const summary: TopicInputSummary = {
     total_before_filter: totalBeforeFilter,
-    total_after_filter: cards.length,
-    cloud_count: count((card) => card.source_platform === 'rss' || card.source_platform === 'aihot'),
-    twitter_count: count((card) => card.source_platform === 'twitter'),
-    weixin_resolved_count: count((card) => card.source_platform === 'weixin' && card.role !== 'restricted_inspiration_only'),
-    restricted_count: count((card) => card.role === 'restricted_inspiration_only'),
-    fact_source_count: count((card) => card.role === 'fact_source'),
-    trend_signal_count: count((card) => card.role === 'trend_signal'),
-    structure_inspiration_count: count((card) => card.role === 'structure_inspiration'),
+    eligible_total: usable.length,
+    total_after_filter: 0,
+    cloud_count: 0,
+    twitter_count: 0,
+    weixin_resolved_count: 0,
+    restricted_count: 0,
+    fact_source_count: 0,
+    trend_signal_count: 0,
+    structure_inspiration_count: 0,
+    eligible_by_bucket: eligibleByBucket,
+    selected_by_bucket: emptyBucketCounts(),
+    dropped_by_reason: dropCounts,
     source_gaps: [
-      ...(browser.length === 0 || count((card) => card.source_platform === 'twitter' || card.source_platform === 'weixin') === 0
+      ...(browser.length === 0 || eligibleByBucket.twitter + eligibleByBucket.weixin_resolved + eligibleByBucket.weixin_restricted === 0
         ? ['browser_missing' as const] : []),
-      ...(cloud.length === 0 || count((card) => card.source_platform === 'rss' || card.source_platform === 'aihot') === 0
+      ...(cloud.length === 0 || eligibleByBucket.cloud === 0
         ? ['cloud_missing' as const] : []),
     ],
   };
+  refreshSelectedSummary(summary, cards);
   return { cards, summary, materialById: new Map(cards.map((card) => [card.material_id, card])) };
 }

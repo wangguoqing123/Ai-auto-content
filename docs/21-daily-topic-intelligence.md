@@ -30,6 +30,8 @@ status: implemented_pending_live_model_validation
 
 优先使用明确的 `published_at`。只有非事实型趋势或结构信号在发布时间缺失、但采集时间明确时，才保守使用 `collected_at`；发布时间未知的材料不能支持时效事实。
 
+同一身份跨日出现时先合并快照，再过滤和计算输入哈希。身份依次使用平台内 `source_item_id`、可追溯 canonical URL、`material_id`；合并结果与 JSONL 文件顺序无关。`collected_at` 最新快照为主，互动和作者关注数只在最新值为 `null` 时回退到此前最近的非空值，不取历史最大值；发布时间按 exact、inferred、unknown 的质量顺序选择。resolved/accepted 可以升级旧 unresolved/quarantined，查询来源和 identity aliases 稳定去重保留。
+
 ## 3. 硬过滤和五种来源角色
 
 主池要求近期、`accepted`、合法 `material_id`、合法 canonical URL、无敏感信息，且平台不是已退出的 `xiaohongshu`。五种模型角色为：
@@ -41,6 +43,8 @@ status: implemented_pending_live_model_validation
 5. `restricted_inspiration_only`：unresolved/quarantined 公众号，或缺少可追溯 URL 的下载正文。
 
 可信新闻不会因“像新闻”而升级为一手事实源。X 互动不证明观点为真、未来会爆、正在起飞或增长速度。当前没有多时点互动快照，系统不计算 `velocity`，也不把 signal score 称为爆款概率。
+
+素材文本复用 Browser 数据的凭证扫描语义：正常的 Authorization/Cookie 技术说明、`/tmp` 示例和外部签名 URL 可以进入；明确 Bearer/API/Cookie 凭证赋值、当前 home 路径和微信临时访问 URL 继续拒绝。
 
 ## 4. restricted 公众号规则
 
@@ -56,11 +60,13 @@ restricted 材料独立进入灵感池：
 
 ## 5. 确定性预筛选和多样性
 
-代码先过滤、去重、聚类和排序，再给模型，默认最大总量 60。Cloud 最大 30、X 最大 25、resolved 微信最大 8、restricted 微信最大 8；单作者 3、单查询 8、单 cluster 5。总模型输入字符上限为 80,000。
+代码先过滤、去重、聚类和排序，再给模型，默认最大总量 60。预算桶固定为 `cloud`、`twitter`、`weixin_resolved`、`weixin_restricted`：RSS 与 AIHOT 共用 Cloud 最大 30，X 最大 25，resolved 微信最大 8、restricted 微信另有独立最大 8；单作者 3、非空单查询 8、单 cluster 5。Cloud 空 query 不计入 query 限制，因此不会被错误截断到 8。总模型输入字符上限为 80,000。
 
 Cloud 使用相关度、来源、一手性和新鲜度；X 只用弱趋势排序：互动先 `log1p`，再转为本次运行内相对百分位，与新鲜度组合。缺失互动仍为 `null`。微信公众号使用新鲜度、resolved、正文存在和搜索排名等弱信号，搜狗排名不代表阅读量或爆款。
 
 去重至少使用 `material_id`、canonical URL 和 `source_item_id`。基础 opportunity cluster 使用标题规范化、token Jaccard、实体重合和时间；同一 cluster 保留跨平台角色差异，但限制数量。没有公众号材料时不强制补足。
+
+安全诊断只保存计数：`eligible_by_bucket`、`selected_by_bucket` 与 `dropped_by_reason`，后者区分重复、时间窗、状态、URL、素材格式、敏感内容、作者、查询、cluster、bucket 和字符预算；不保存全文或凭证。
 
 ## 6. 候选、硬淘汰和六维评分
 
@@ -102,11 +108,11 @@ CTA 只有 `none`、`light`、`club`。代码取所有实际匹配模块允许 C
 Product Claim ID 必须存在于产品真相层。confirmed 可用；forbidden 和 unknown 拒绝；evidence-required 必须带真实引用：
 
 - `material:<material_id>` 必须存在于本次输入。
-- `experiment:<experiment_id>` 必须存在于 experiment evidence。
-- `project:<project_id>` 必须存在于 project evidence。
-- `case:<case_id>` 必须存在于 case evidence。
+- `experiment:<experiment_id>` 必须命中可解析 JSON 的 `experiment_id`。
+- `project:<project_id>` 必须命中可解析 JSON 的 `project_id`。
+- `case:<case_id>` 必须命中可解析 JSON 的 `case_id`。
 
-非空字符串不等于证据。名额、会员数、教程数、固定频率、即时响应、结果保证、退款承诺和倒计时始终不可自动使用。
+统一解析器拒绝路径穿越、任意文件名、txt、空 JSON、损坏 JSON 和 ID 不匹配。Product Claim 的 material evidence 还必须是本次输入的 `fact_source`。非空字符串不等于证据。名额、会员数、教程数、固定频率、即时响应、结果保证、退款承诺和倒计时始终不可自动使用。
 
 ## 9. 事实、研究和实验
 
@@ -116,21 +122,23 @@ Product Claim ID 必须存在于产品真相层。confirmed 可用；forbidden �
 
 ## 10. 历史重复
 
-代码用 learner stage、用户问题、真实任务、最小结果和核心角度规范化后计算稳定 SHA-256 `topic_signature`。30 天内依次检查签名、工作标题、用户问题、最小结果和 core angle，token Jaccard 阈值为 0.72。
+代码用 learner stage、用户问题、真实任务、最小结果和核心角度规范化后计算稳定 SHA-256 `topic_signature`。精确签名窗口由 `exact_signature_window_days` 独立控制，相似度窗口由 `similarity_window_days` 独立控制；默认均为 30 天，工作标题、用户问题、最小结果和 core angle 的 token Jaccard 阈值为 0.72。
 
-解除重复必须有新 fact source、新实验结果、新场景、明显不同的 minimum result 或 core angle，并同时保存具体 `novelty_delta` 和 `new_evidence_ids`；只写“角度不同”无效。内容比例只用于 3 分以内同分决策，不会让低质量题目过门槛。
+解除重复必须有经过真实解析的新 fact source、新实验结果、新场景、明显不同的 minimum result 或 core angle，并同时保存具体 `novelty_delta` 和 `new_evidence_refs`；只写“角度不同”或虚构引用无效。内容比例只用于 3 分以内同分决策，不会让低质量题目过门槛。
 
 ## 11. Provider、成本和 Prompt Injection
 
 Provider 接口位于 `src/topic-intelligence/providers/`。Fixture 完全离线，可模拟选择、NO_PUBLISH、非法结构与网络失败。OpenAI Provider 使用官方 Node SDK 的 Responses API 结构化输出；`TOPIC_LLM_MODEL` 必须显式提供，没有默认“最新模型”。
 
-单次运行最多 2 次模型调用：第一次正常判断；只有结构非法时，第二次把 Zod 错误清单交给模型修复。网络失败为 `model_unavailable`，二次仍非法为 `model_output_invalid`，二者均 `status=failed`、`decision=null`。
+单次运行最多 2 次模型调用：第一次正常判断；只有结构非法时，第二次把 Zod 错误清单交给模型修复。调用次数在请求发出前递增，因此首次失败记录 1、repair 失败记录 2；SDK/Abort/客户端超时为 `model_timeout`，其他网络失败为 `model_unavailable`，二次仍非法为 `model_output_invalid`，均为 `status=failed`、`decision=null`。
 
 System Prompt 只含任务、真实性、安全和 Schema 边界。材料位于 `untrusted_material_cards` JSON 区；材料中的“忽略前文”“输出 API Key”“访问链接”“修改候选数量”等都是普通文本。Provider 不访问材料链接或工具，不记录 API Key、Authorization、完整原始响应、文章正文或思维链。
 
 ## 12. 幂等和输出
 
 `input_hash` 包含排序后的材料 ID、角色、当前互动、30 天签名、四份配置哈希、Provider、模型与 Prompt 版本。同日期已有成功决定且 hash 相同，返回 `ALREADY_DECIDED`，不调用模型；failed 可重试；hash 变化保存新 run 并更新当日正式决定，不删除旧 run。
+
+正式运行在调用模型前严格读取当天已有 decision。文件不存在才视为空；损坏 JSON、Schema 不合法或日期不一致均 `schema_invalid` fail closed，不调用模型，也不覆盖原 decision/report。候选评估或最终 Schema 的意外异常同样安全返回 failed；输出目录预检失败不会被解释为 `NO_PUBLISH`。
 
 正式输出：
 
@@ -158,6 +166,6 @@ Fixture 不访问网络并不写正式文件。dry-run 读取仓库已有数据�
 
 ## 14. 失败、缺口和下一阶段接口
 
-Browser 缺失时仍可用 Cloud，并记录 `browser_missing`；Cloud 缺失时仍可用 Browser，但 X 不会升级为事实源；两者都没有时不调用模型，直接 `NO_PUBLISH/no_usable_materials`。
+Browser 缺失时仍可用 Cloud，并记录 `browser_missing`；Cloud 缺失时仍可用 Browser，但 X 不会升级为事实源；两者都没有时不创建 Provider、不要求模型环境变量，直接 `NO_PUBLISH/no_usable_materials`，模型字段记录 `not_invoked` 和 0 次调用。有素材但缺少 Provider 配置仍为 failed。
 
 研究与写作下一阶段只接受成功 `SELECT_TOPIC` 的一个 selected topic，读取 research questions、事实来源、evidence gaps、experiment plan、产品模块和 CTA 边界。研究层必须先补证或执行实验，写作层才可形成平台正文；本 PR 不实现这些能力。

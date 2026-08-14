@@ -54,6 +54,11 @@
           "minimum": 0,
           "maximum": 9007199254740991
         },
+        "eligible_total": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
         "total_after_filter": {
           "type": "integer",
           "minimum": 0,
@@ -94,6 +99,144 @@
           "minimum": 0,
           "maximum": 9007199254740991
         },
+        "eligible_by_bucket": {
+          "type": "object",
+          "properties": {
+            "cloud": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "twitter": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "weixin_resolved": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "weixin_restricted": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "cloud",
+            "twitter",
+            "weixin_resolved",
+            "weixin_restricted"
+          ],
+          "additionalProperties": false
+        },
+        "selected_by_bucket": {
+          "type": "object",
+          "properties": {
+            "cloud": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "twitter": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "weixin_resolved": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "weixin_restricted": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "cloud",
+            "twitter",
+            "weixin_resolved",
+            "weixin_restricted"
+          ],
+          "additionalProperties": false
+        },
+        "dropped_by_reason": {
+          "type": "object",
+          "properties": {
+            "duplicate": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "outside_window": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "invalid_status": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "invalid_url": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "invalid_material": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "sensitive_content": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "author_limit": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "query_limit": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "cluster_limit": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "bucket_limit": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "character_limit": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "duplicate",
+            "outside_window",
+            "invalid_status",
+            "invalid_url",
+            "invalid_material",
+            "sensitive_content",
+            "author_limit",
+            "query_limit",
+            "cluster_limit",
+            "bucket_limit",
+            "character_limit"
+          ],
+          "additionalProperties": false
+        },
         "source_gaps": {
           "type": "array",
           "items": {
@@ -107,6 +250,7 @@
       },
       "required": [
         "total_before_filter",
+        "eligible_total",
         "total_after_filter",
         "cloud_count",
         "twitter_count",
@@ -115,6 +259,9 @@
         "fact_source_count",
         "trend_signal_count",
         "structure_inspiration_count",
+        "eligible_by_bucket",
+        "selected_by_bucket",
+        "dropped_by_reason",
         "source_gaps"
       ],
       "additionalProperties": false
@@ -486,12 +633,12 @@
               "type": "string",
               "maxLength": 500
             },
-            "new_evidence_ids": {
+            "new_evidence_refs": {
               "maxItems": 10,
               "type": "array",
               "items": {
                 "type": "string",
-                "maxLength": 200
+                "pattern": "^(material|experiment|project|case):[a-zA-Z0-9._-]+$"
               }
             },
             "platform_plan": {
@@ -613,7 +760,7 @@
             "score_reasons",
             "decision_reason",
             "novelty_delta",
-            "new_evidence_ids",
+            "new_evidence_refs",
             "platform_plan",
             "topic_signature",
             "effective_product_fit_cap",
@@ -996,12 +1143,12 @@
             "type": "string",
             "maxLength": 500
           },
-          "new_evidence_ids": {
+          "new_evidence_refs": {
             "maxItems": 10,
             "type": "array",
             "items": {
               "type": "string",
-              "maxLength": 200
+              "pattern": "^(material|experiment|project|case):[a-zA-Z0-9._-]+$"
             }
           },
           "platform_plan": {
@@ -1123,7 +1270,7 @@
           "score_reasons",
           "decision_reason",
           "novelty_delta",
-          "new_evidence_ids",
+          "new_evidence_refs",
           "platform_plan",
           "topic_signature",
           "effective_product_fit_cap",

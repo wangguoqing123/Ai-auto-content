@@ -3,7 +3,7 @@ import { zodTextFormat } from 'openai/helpers/zod';
 import { buildTopicJudgeData, TOPIC_JUDGE_SYSTEM_PROMPT } from '../prompt.js';
 import { topicJudgeProviderResultSchema } from '../schemas.js';
 import type { TopicJudgeInput, TopicJudgeProvider, TopicJudgeProviderCall } from './topic-judge-provider.js';
-import { TopicJudgeUnavailableError } from './topic-judge-provider.js';
+import { TopicJudgeTimeoutError, TopicJudgeUnavailableError } from './topic-judge-provider.js';
 
 export interface OpenAITopicJudgeProviderOptions {
   apiKey: string;
@@ -49,6 +49,10 @@ export class OpenAITopicJudgeProvider implements TopicJudgeProvider {
         },
       };
     } catch (error) {
+      if (error instanceof OpenAI.APIConnectionTimeoutError
+        || (error instanceof Error && (error.name === 'AbortError' || (error as NodeJS.ErrnoException).code === 'ETIMEDOUT'))) {
+        throw new TopicJudgeTimeoutError();
+      }
       const safeMessage = error instanceof OpenAI.APIError
         ? `OpenAI request failed (${error.status ?? 'network'})`
         : 'OpenAI request failed';

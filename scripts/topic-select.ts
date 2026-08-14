@@ -16,7 +16,7 @@ if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
   const fixture = process.argv.includes('--fixture');
   const dryRun = process.argv.includes('--dry-run');
   const fixtureMode = (optionValue('fixture-mode') ?? 'select') as FixtureTopicJudgeMode;
-  const allowedModes: FixtureTopicJudgeMode[] = ['select', 'no-publish', 'invalid', 'repairable', 'invalid-twice', 'network-failure'];
+  const allowedModes: FixtureTopicJudgeMode[] = ['select', 'no-publish', 'invalid', 'repairable', 'invalid-twice', 'network-failure', 'timeout', 'repair-timeout'];
   if (!allowedModes.includes(fixtureMode)) {
     console.error(JSON.stringify({ status: 'failed', error_code: 'configuration_invalid', error_message_safe: 'Invalid fixture mode.' }));
     process.exitCode = 1;

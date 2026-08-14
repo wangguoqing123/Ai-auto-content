@@ -1,7 +1,6 @@
-import { readFile, readdir } from 'node:fs/promises';
-import path from 'node:path';
 import type { ContentFitProfile, CtaMode } from '../product/content-fit-profile.js';
 import type { ProductProfile } from '../product/product-profile.js';
+import { resolveEvidenceReference, validateEvidenceReferences } from './evidence-reference.js';
 import { checkRecentDuplicate, computeTopicSignature, normalizeTopicText, type TopicHistoryEntry } from './history.js';
 import {
   topicCandidateSchema,
@@ -12,6 +11,14 @@ import {
   type TopicMaterialCard,
 } from './schemas.js';
 
+export async function evidenceReferenceExists(
+  reference: string,
+  rootDir: string,
+  materials: Map<string, TopicMaterialCard>,
+): Promise<boolean> {
+  return resolveEvidenceReference(reference, { rootDir, materials, requireFactMaterial: true });
+}
+
 export interface CandidateEvaluationContext {
   rootDir: string;
   config: TopicIntelligenceConfig;
@@ -19,52 +26,9 @@ export interface CandidateEvaluationContext {
   contentFit: ContentFitProfile;
   materials: Map<string, TopicMaterialCard>;
   history: TopicHistoryEntry[];
+  exactHistory?: TopicHistoryEntry[];
+  similarityHistory?: TopicHistoryEntry[];
   contentMix: Record<string, number>;
-}
-
-async function collectEvidenceIds(directory: string): Promise<Set<string>> {
-  const ids = new Set<string>();
-  async function visit(current: string): Promise<void> {
-    let entries;
-    try {
-      entries = await readdir(current, { withFileTypes: true });
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
-      throw error;
-    }
-    for (const entry of entries) {
-      const filePath = path.join(current, entry.name);
-      if (entry.isDirectory()) {
-        await visit(filePath);
-        continue;
-      }
-      ids.add(path.parse(entry.name).name);
-      if (!entry.name.endsWith('.json')) continue;
-      try {
-        const value = JSON.parse(await readFile(filePath, 'utf8')) as Record<string, unknown>;
-        for (const key of ['id', 'experiment_id', 'project_id', 'case_id']) {
-          if (typeof value[key] === 'string') ids.add(value[key]);
-        }
-      } catch {
-        continue;
-      }
-    }
-  }
-  await visit(directory);
-  return ids;
-}
-
-export async function evidenceReferenceExists(
-  reference: string,
-  rootDir: string,
-  materials: Map<string, TopicMaterialCard>,
-): Promise<boolean> {
-  const [kind, id, ...extra] = reference.split(':');
-  if (extra.length > 0 || id === undefined || id === '') return false;
-  if (kind === 'material') return materials.has(id);
-  const directory = kind === 'experiment' ? 'experiments' : kind === 'project' ? 'projects' : kind === 'case' ? 'cases' : null;
-  if (directory === null) return false;
-  return (await collectEvidenceIds(path.join(rootDir, 'data', 'evidence', directory))).has(id);
 }
 
 function addUnique(reasons: string[], reason: string): void {
@@ -154,7 +118,11 @@ async function validateProductClaims(candidate: TopicCandidateProposal, context:
       continue;
     }
     for (const reference of references) {
-      if (!await evidenceReferenceExists(reference, context.rootDir, context.materials)) {
+      if (!await resolveEvidenceReference(reference, {
+        rootDir: context.rootDir,
+        materials: context.materials,
+        requireFactMaterial: true,
+      })) {
         addUnique(reasons, `invalid_product_claim_evidence:${claimId}`);
       }
     }
@@ -234,11 +202,19 @@ export async function evaluateCandidate(
     : candidate.experiment_plan.length > 0 ? 10 : 5;
   candidate.scores.evidence_score = Math.min(candidate.scores.evidence_score, evidenceCap);
   const signature = computeTopicSignature(candidate);
+  const noveltyEvidence = await validateEvidenceReferences(candidate.new_evidence_refs, {
+    rootDir: context.rootDir,
+    materials: context.materials,
+    requireFactMaterial: true,
+  });
+  if (noveltyEvidence.invalid.length > 0) addUnique(hardReasons, 'invalid_novelty_evidence');
   const duplicate = checkRecentDuplicate(
     candidate,
     signature,
-    context.history,
+    context.exactHistory ?? context.history,
+    context.similarityHistory ?? context.history,
     context.config.history.token_similarity_threshold,
+    noveltyEvidence.valid,
   );
   if (duplicate.duplicate) addUnique(hardReasons, duplicate.reason ?? 'duplicate_recent_topic');
 

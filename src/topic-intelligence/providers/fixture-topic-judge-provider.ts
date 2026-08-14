@@ -1,9 +1,9 @@
 import type { TopicMaterialInput } from '../material-input.js';
 import { topicInputSummarySchema, topicMaterialCardSchema, type TopicCandidateProposal } from '../schemas.js';
 import type { TopicJudgeInput, TopicJudgeProvider, TopicJudgeProviderCall } from './topic-judge-provider.js';
-import { TopicJudgeUnavailableError } from './topic-judge-provider.js';
+import { TopicJudgeTimeoutError, TopicJudgeUnavailableError } from './topic-judge-provider.js';
 
-export type FixtureTopicJudgeMode = 'select' | 'no-publish' | 'invalid' | 'repairable' | 'invalid-twice' | 'network-failure';
+export type FixtureTopicJudgeMode = 'select' | 'no-publish' | 'invalid' | 'repairable' | 'invalid-twice' | 'network-failure' | 'timeout' | 'repair-timeout';
 
 const officialMaterial = topicMaterialCardSchema.parse({
   material_id: 'mat_111111111111',
@@ -66,6 +66,7 @@ export function buildFixtureMaterialInput(): TopicMaterialInput {
     materialById: new Map(cards.map((card) => [card.material_id, card])),
     summary: topicInputSummarySchema.parse({
       total_before_filter: 3,
+      eligible_total: 3,
       total_after_filter: 3,
       cloud_count: 1,
       twitter_count: 1,
@@ -74,6 +75,12 @@ export function buildFixtureMaterialInput(): TopicMaterialInput {
       fact_source_count: 1,
       trend_signal_count: 1,
       structure_inspiration_count: 0,
+      eligible_by_bucket: { cloud: 1, twitter: 1, weixin_resolved: 0, weixin_restricted: 1 },
+      selected_by_bucket: { cloud: 1, twitter: 1, weixin_resolved: 0, weixin_restricted: 1 },
+      dropped_by_reason: {
+        duplicate: 0, outside_window: 0, invalid_status: 0, invalid_url: 0, invalid_material: 0,
+        sensitive_content: 0, author_limit: 0, query_limit: 0, cluster_limit: 0, bucket_limit: 0, character_limit: 0,
+      },
       source_gaps: [],
     }),
   };
@@ -141,7 +148,7 @@ export function fixtureCandidate(): TopicCandidateProposal {
     },
     decision_reason: '用户问题、最小结果、证据与已交付产品模块都明确。',
     novelty_delta: '',
-    new_evidence_ids: [],
+    new_evidence_refs: [],
     platform_plan: {
       wechat_article_type: 'tutorial',
       wechat_required_evidence: ['官方工作流指南', '工作流卡片示例'],
@@ -160,7 +167,8 @@ export class FixtureTopicJudgeProvider implements TopicJudgeProvider {
 
   async judge(_input: TopicJudgeInput): Promise<TopicJudgeProviderCall> {
     if (this.mode === 'network-failure') throw new TopicJudgeUnavailableError('Fixture provider simulated network failure');
-    if (this.mode === 'invalid' || this.mode === 'repairable' || this.mode === 'invalid-twice') {
+    if (this.mode === 'timeout') throw new TopicJudgeTimeoutError();
+    if (this.mode === 'invalid' || this.mode === 'repairable' || this.mode === 'invalid-twice' || this.mode === 'repair-timeout') {
       return { output: { candidates: 'invalid' }, durationMs: 1, usage: null };
     }
     if (this.mode === 'no-publish') {
@@ -182,6 +190,7 @@ export class FixtureTopicJudgeProvider implements TopicJudgeProvider {
   }
 
   async repair(_input: TopicJudgeInput, _validationErrors: string[]): Promise<TopicJudgeProviderCall> {
+    if (this.mode === 'repair-timeout') throw new TopicJudgeTimeoutError();
     if (this.mode === 'invalid-twice' || this.mode === 'invalid') {
       return { output: { candidates: 42 }, durationMs: 1, usage: null };
     }

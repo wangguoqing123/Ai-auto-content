@@ -163,6 +163,14 @@ describe('topic candidate scoring and product truth enforcement', () => {
     expect(result.hard_reject_reasons).not.toContain('invalid_product_claim_evidence:product.practice.measured_result');
   });
 
+  it.each(['mat_222222222222', 'mat_333333333333'])('rejects non-fact material evidence %s for a product claim', async (materialId) => {
+    const result = await evaluate({
+      product_claim_ids: ['product.practice.measured_result'],
+      product_claim_evidence: [{ claim_id: 'product.practice.measured_result', evidence_refs: [`material:${materialId}`] }],
+    });
+    expect(result.hard_reject_reasons).toContain('invalid_product_claim_evidence:product.practice.measured_result');
+  });
+
   it.each(['experiment', 'project', 'case'] as const)('validates real %s evidence files', async (kind) => {
     const root = await mkdtemp(path.join(tmpdir(), 'topic-evidence-'));
     roots.push(root);
@@ -174,6 +182,20 @@ describe('topic candidate scoring and product truth enforcement', () => {
 
   it('does not accept an arbitrary non-empty evidence reference', async () => {
     await expect(evidenceReferenceExists('experiment:not-real', process.cwd(), buildFixtureMaterialInput().materialById)).resolves.toBe(false);
+  });
+
+  it.each([
+    ['plain text', 'result.txt', 'not JSON'],
+    ['empty JSON', 'result.json', '{}'],
+    ['invalid JSON', 'broken.json', '{'],
+    ['mismatched ID', 'other.json', '{"experiment_id":"different-id"}'],
+  ])('does not accept %s as experiment evidence', async (_label, filename, contents) => {
+    const root = await mkdtemp(path.join(tmpdir(), 'topic-invalid-evidence-'));
+    roots.push(root);
+    const directory = path.join(root, 'data', 'evidence', 'experiments');
+    await mkdir(directory, { recursive: true });
+    await writeFile(path.join(directory, filename), contents, 'utf8');
+    await expect(evidenceReferenceExists('experiment:expected-id', root, buildFixtureMaterialInput().materialById)).resolves.toBe(false);
   });
 
   it('recalculates total score instead of trusting a model total', async () => {

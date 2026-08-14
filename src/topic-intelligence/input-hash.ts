@@ -29,12 +29,7 @@ export async function computeTopicInputHash(options: TopicInputHashOptions): Pro
     await fileHash(path.join(options.rootDir, file)),
   ])));
   const payload = {
-    materials: options.materials
-      .map((material) => ({
-        material_id: material.material_id,
-        role: material.role,
-        engagement: material.engagement,
-      }))
+    materials: [...options.materials]
       .sort((left, right) => left.material_id.localeCompare(right.material_id)),
     topic_signatures: options.history.map(({ topicSignature }) => topicSignature).filter(Boolean).sort(),
     config_hashes: configHashes,

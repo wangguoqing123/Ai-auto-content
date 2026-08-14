@@ -139,6 +139,28 @@ export function scanBrowserMarkdown(_filePath: string, content: string): string[
   return unique(issues);
 }
 
+/**
+ * Scan untrusted material prose without treating ordinary technical discussion
+ * of headers such as "Authorization" or "Cookie" as a credential leak.
+ */
+export function scanUntrustedMaterialText(content: string): string[] {
+  const issues = scanBrowserMarkdown('', content);
+  if (/\bsk-[a-z0-9_-]{12,}\b/iu.test(content)) issues.push('explicit API credential');
+  const assignmentPatterns = [
+    /\bCookie\s*:\s*([^\r\n]+)/giu,
+    /\bsession(?:id|_id)?\s*[=:]\s*([^\s;,\r\n]+)/giu,
+  ];
+  for (const pattern of assignmentPatterns) {
+    for (const match of content.matchAll(pattern)) {
+      const value = match[1]?.trim() ?? '';
+      if (value !== '' && !isMarkdownPlaceholder(value) && (/=/.test(value) || pattern.source.includes('session'))) {
+        issues.push('explicit credential assignment');
+      }
+    }
+  }
+  return unique(issues);
+}
+
 function browserDataKind(filePath: string): 'structured' | 'markdown' | null {
   const normalized = filePath.replaceAll('\\', '/').replace(/^\.\//, '').toLocaleLowerCase();
   if (/^data\/browser-materials\/[^/]+\.jsonl$/.test(normalized)) return 'structured';

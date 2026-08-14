@@ -35,3 +35,10 @@ export class TopicJudgeUnavailableError extends Error {
     this.name = 'TopicJudgeUnavailableError';
   }
 }
+
+export class TopicJudgeTimeoutError extends Error {
+  constructor(message = 'Topic judge provider timed out') {
+    super(message);
+    this.name = 'TopicJudgeTimeoutError';
+  }
+}

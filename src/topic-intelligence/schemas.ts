@@ -12,6 +12,7 @@ const boundedText = (maximum: number) => z.string().trim().min(1).max(maximum);
 const nonEmptyText = boundedText(2_000);
 const materialIdSchema = z.string().regex(/^mat_[a-f0-9]{12}$/);
 const nullableMetricSchema = z.number().int().nonnegative().nullable();
+export const evidenceReferenceSchema = z.string().regex(/^(material|experiment|project|case):[a-zA-Z0-9._-]+$/);
 
 export const topicMaterialRoleSchema = z.enum([
   'fact_source',
@@ -121,7 +122,7 @@ export const supportedClaimSchema = z.strictObject({
 
 export const productClaimEvidenceSchema = z.strictObject({
   claim_id: productClaimIdSchema,
-  evidence_refs: z.array(z.string().regex(/^(material|experiment|project|case):[a-zA-Z0-9._-]+$/)).max(5),
+  evidence_refs: z.array(evidenceReferenceSchema).max(5),
 });
 
 export const topicScoreSchema = z.strictObject({
@@ -188,7 +189,7 @@ const commonCandidateShape = {
   score_reasons: topicScoreReasonsSchema,
   decision_reason: boundedText(800),
   novelty_delta: z.string().max(500),
-  new_evidence_ids: z.array(z.string().max(200)).max(10),
+  new_evidence_refs: z.array(evidenceReferenceSchema).max(10),
   platform_plan: platformPlanSchema,
 };
 
@@ -211,6 +212,7 @@ export const topicJudgeProviderResultSchema = z.strictObject({
 
 export const topicInputSummarySchema = z.strictObject({
   total_before_filter: z.number().int().nonnegative(),
+  eligible_total: z.number().int().nonnegative(),
   total_after_filter: z.number().int().nonnegative(),
   cloud_count: z.number().int().nonnegative(),
   twitter_count: z.number().int().nonnegative(),
@@ -219,6 +221,31 @@ export const topicInputSummarySchema = z.strictObject({
   fact_source_count: z.number().int().nonnegative(),
   trend_signal_count: z.number().int().nonnegative(),
   structure_inspiration_count: z.number().int().nonnegative(),
+  eligible_by_bucket: z.strictObject({
+    cloud: z.number().int().nonnegative(),
+    twitter: z.number().int().nonnegative(),
+    weixin_resolved: z.number().int().nonnegative(),
+    weixin_restricted: z.number().int().nonnegative(),
+  }),
+  selected_by_bucket: z.strictObject({
+    cloud: z.number().int().nonnegative(),
+    twitter: z.number().int().nonnegative(),
+    weixin_resolved: z.number().int().nonnegative(),
+    weixin_restricted: z.number().int().nonnegative(),
+  }),
+  dropped_by_reason: z.strictObject({
+    duplicate: z.number().int().nonnegative(),
+    outside_window: z.number().int().nonnegative(),
+    invalid_status: z.number().int().nonnegative(),
+    invalid_url: z.number().int().nonnegative(),
+    invalid_material: z.number().int().nonnegative(),
+    sensitive_content: z.number().int().nonnegative(),
+    author_limit: z.number().int().nonnegative(),
+    query_limit: z.number().int().nonnegative(),
+    cluster_limit: z.number().int().nonnegative(),
+    bucket_limit: z.number().int().nonnegative(),
+    character_limit: z.number().int().nonnegative(),
+  }),
   source_gaps: z.array(z.enum(['browser_missing', 'cloud_missing'])),
 });
 
