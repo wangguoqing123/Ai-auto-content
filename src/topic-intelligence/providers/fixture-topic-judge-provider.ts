@@ -1,6 +1,6 @@
 import type { TopicMaterialInput } from '../material-input.js';
 import { topicInputSummarySchema, topicMaterialCardSchema, type TopicCandidateProposal } from '../schemas.js';
-import type { TopicJudgeInput, TopicJudgeProvider, TopicJudgeProviderCall } from './topic-judge-provider.js';
+import { TOPIC_JUDGE_OUTPUT_SCHEMA_VERSION, type TopicJudgeInput, type TopicJudgeProvider, type TopicJudgeProviderCall } from './topic-judge-provider.js';
 import { TopicJudgeTimeoutError, TopicJudgeUnavailableError } from './topic-judge-provider.js';
 
 export type FixtureTopicJudgeMode = 'select' | 'no-publish' | 'invalid' | 'repairable' | 'invalid-twice' | 'network-failure' | 'timeout' | 'repair-timeout';
@@ -162,6 +162,8 @@ export function fixtureCandidate(): TopicCandidateProposal {
 export class FixtureTopicJudgeProvider implements TopicJudgeProvider {
   readonly providerName = 'fixture';
   readonly modelName = 'offline-fixture';
+  readonly runtimeVersion = 'fixture-v1';
+  readonly outputSchemaVersion = TOPIC_JUDGE_OUTPUT_SCHEMA_VERSION;
 
   constructor(private readonly mode: FixtureTopicJudgeMode = 'select') {}
 

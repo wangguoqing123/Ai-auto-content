@@ -6,21 +6,21 @@
 
 > 系统每天运行，但不要求每天发布。没有足够高质量的题目时，后续选题阶段必须允许输出 `NO_PUBLISH`。
 
-## 当前阶段：每日自主选题已实现，等待真实模型验证
+## 当前阶段：真实 Codex dry-run 已验证，等待合并后启用本机调度
 
-产品真相层和素材采集已经进入 production。每日选题 v0 已实现 72 小时输入、五种来源角色、确定性预筛选、最多 3 个内部候选、六维评分、产品/CTA/Claim 校验、30 天重复检查、`SELECT_TOPIC` / `NO_PUBLISH`、严格 Schema、幂等和默认关闭 Workflow。当前状态为 `implemented_pending_live_model_validation`；仍不实现研究执行、正文、配图或发布。
+产品真相层和素材采集已经进入 production。每日选题 v0 已实现 72 小时输入、五种来源角色、确定性预筛选、最多 3 个内部候选、六维评分、产品/CTA/Claim 校验、30 天重复检查、`SELECT_TOPIC` / `NO_PUBLISH`、严格 Schema 和幂等。生产 Topic Judge 已改为本机登录的 Codex CLI，并加入同一个 Mac Local Scheduler；GitHub Actions 只做离线 Fixture 验证，不执行真实模型。仍不实现研究执行、正文、配图或发布。
 
 | 系统阶段 | 状态 |
 |---|---|
 | 采集 | `production` |
 | 产品真相层 | `production` |
-| 每日选题 | `implemented_pending_live_model_validation` |
+| 每日选题 | `implemented_live_model_dry_run_verified_pending_local_activation` |
 | 研究与实验 | `not_started` |
 | 写作 | `not_started` |
 | 配图 | `not_started` |
 | 发布 | `not_started` |
 
-Cloud Collector 与 Local Browser Collector 是两个独立运行通道。Cloud 在 GitHub Actions 每天北京时间 09:00 运行；本机 Browser 调度器每 15 分钟做一次轻量到期检查，在北京时间 07:30—12:00 窗口内只执行一次 X 与微信公众号早晨采集。手动 `local:morning` 可在窗口外运行一次，但仍服从锁、当天已完成和最多尝试次数保护。
+Cloud Collector 与 Mac Local Runtime 是两个独立运行通道。Cloud 在 GitHub Actions 每天北京时间 09:00 运行；本机 LaunchAgent 每 15 分钟做一次轻量到期检查：07:30—12:00 执行 X/微信公众号 Morning，13:00—18:00 执行本机 Codex Topic Selection。两个任务分别保存状态且每天最多尝试 2 次。
 
 | 模块 | 状态 | 是否每日运行 |
 |---|---|---|
@@ -40,7 +40,7 @@ Local Browser Collector（用户 Mac）→ X / 微信公众号
 → pull --rebase 后安全 push main
 ```
 
-Local Browser Runtime 使用独立 clone：`~/Library/Application Support/AiAutoContent/runtime`。状态、锁和配置保存在 Runtime clone 外部，日志写入 `~/Library/Logs/AiAutoContent/`。默认不自动启动 Chrome；必须提前打开 Chrome、保持 X 登录并连接 Browser Bridge。安装器与 LaunchAgent 模板已经提供；PR #4 和 CI 都不修改或安装 LaunchAgent。
+Local Runtime 使用独立 clone：`~/Library/Application Support/AiAutoContent/runtime`。状态、锁、配置和 Topic Judge 临时目录保存在 Runtime clone 外部，日志写入 `~/Library/Logs/AiAutoContent/`。Morning 默认不自动启动 Chrome；Topic Judge 在只读 Sandbox 的独立非 Git 目录运行。PR 与 CI 都不修改、安装或 reload LaunchAgent。
 
 Morning 的共享健康检查只以 Node、npm、OpenCLI、Chrome、daemon、Extension 和 Connectivity 判断是否阻断整条流水线。X 登录探测与公众号公开搜索探测彼此独立；单个平台失败时，另一个平台仍会采集，已有成功数据继续落盘、生成报告并安全同步 Git，只有两个平台都失败时整次 Browser Pipeline 才为 `failed`。
 
@@ -61,7 +61,7 @@ npm test
 npm run collect:fixture
 npm run topic:select -- --fixture --date=2026-08-14
 npm run topic:inspect-input -- --date=2026-08-14
-npm run local:scheduler -- --once --fixture --dry-run --now=2026-08-14T00:00:00.000Z
+npm run local:scheduler -- --once --fixture --dry-run --now=2026-08-14T05:00:00.000Z
 npm run local:morning -- --fixture --dry-run --now=2026-08-14T06:00:00.000Z
 npm run local:install -- --dry-run
 ```
@@ -88,14 +88,16 @@ AI-Auto-Content/0.2 (+https://github.com/wangguoqing123/Ai-auto-content)
 npm run opencli:install-adapters
 npm run local:check
 npm run local:morning -- --dry-run
+npm run local:topic -- --dry-run
 npm run local:scheduler -- --once
 npm run local:install -- --dry-run
 npm run local:uninstall -- --dry-run
 ```
 
-`local:morning -- --dry-run` 不受调度窗口限制，仍会执行健康检查和真实 X / 公众号 Browser dry-run，但不会写状态、正式数据、报告或 Git；它仍使用运行锁。CI 只允许运行 `--fixture --dry-run`，不会访问平台、Chrome 或 OpenCLI Browser Bridge。生产安装必须由用户在 PR 合并后显式执行：
+`local:morning -- --dry-run` 不受调度窗口限制，仍会执行健康检查和真实 X / 公众号 Browser dry-run；`local:topic -- --dry-run` 只读取仓库已有数据并调用已配置的本机 Codex，不访问平台。两者都不写状态、正式数据、报告或 Git。CI 只运行 `--fixture --dry-run`，不会访问 Codex 服务、平台、Chrome 或 Browser Bridge。生产安装必须由用户在 PR 合并后显式执行，并显式配置 `TOPIC_CODEX_MODEL`：
 
 ```bash
+export TOPIC_CODEX_MODEL="<explicit model>"
 npm run local:install -- --install
 ```
 
@@ -108,7 +110,7 @@ npm run collect:browser -- --dry-run
 
 `--dry-run` 会真实执行 preflight/采集，但不会写入正式数据目录。`collect:fixture` 只使用本地 Fixture，不访问网络。2026-08-13 本机最终 dry-run 已验证成功；后续仍必须以当次 `opencli doctor` 和平台返回为准，不能把历史成功或 Fixture 成功当成当前在线状态。
 
-Local Runtime 退出码：0 表示成功、部分成功、未到期、当天已完成或锁占用；1 为参数/程序错误；2 为 Browser Pipeline 完全失败；3 为环境检查失败；4 为登录失效；5 为平台 blocked；6 为 Git 同步失败；7 为非法暂存路径。
+Local Runtime 退出码：0 表示成功、部分成功、未到期、当天已完成或锁占用；1 为参数/程序错误；2 为 Browser Pipeline 或模型结构输出失败；3 为环境/Provider 不可用；4 为登录或配置失败；5 为平台 blocked；6 为 Git 同步失败；7 为非法暂存路径。
 
 ## 自动运行
 
@@ -122,7 +124,7 @@ Local Runtime 退出码：0 表示成功、部分成功、未到期、当天已�
 
 仓库需在 **Settings → Actions → General → Workflow permissions** 中允许 **Read and write permissions**，否则 `GITHUB_TOKEN` 无法推送自动采集结果。
 
-`.github/workflows/daily-topic-selection.yml` 每天 UTC 05:00（北京时间 13:00）调度。`TOPIC_SELECTION_ENABLED` 默认未配置时只输出 `DISABLED`；启用后才安装依赖并使用显式的 `TOPIC_LLM_PROVIDER`、`TOPIC_LLM_MODEL` 与 Secret `OPENAI_API_KEY`。它不运行 Browser Collector，只能提交选题决定、run 和报告。
+真实每日选题不在 GitHub Actions 运行，也不需要 `OPENAI_API_KEY`。Mac Local Runtime 在北京时间 13:00—18:00 调用 `codex_cli`；PR Validation 只运行 `topic:select --fixture`。无可用素材时不会创建 Provider 或启动 Codex。
 
 ## 输出目录
 
@@ -150,7 +152,7 @@ reports/topics/YYYY-MM-DD.md        单一最终母题或 NO_PUBLISH 日报
 
 正式公众号正文以稳定 `material_id` 作为下载目录，重复运行仍命中同一目录，同一天标题相同但身份不同的文章不会互相覆盖。素材中的 `content_path` 只保存仓库相对 POSIX 路径；dry-run 固定为 `null`，命令摘要中的输出位置固定显示为 `[runtime-output]`。
 
-自动 push 前会逐个验证 `origin/main..HEAD` 的所有 pending commit：提交标题必须是 `chore(browser-data): collect X and WeChat YYYY-MM-DD` 且日期真实有效，变更路径只能属于四个 Browser 数据白名单，并按每个 commit 当时的文件内容扫描临时微信参数、认证信息、本机绝对路径和 `.DS_Store`。删除白名单文件允许通过；任何提交不可读或不合规都会以 `invalid_staged_paths` 停止，且不 rebase、不 push、不访问平台。恢复到的 pending 日期只有包含今天时才跳过当天采集；只恢复历史日期后仍继续今天的健康检查和采集。
+自动 push 前会逐个验证 `origin/main..HEAD` 的所有 pending commit：标题只能是 Browser 采集或 Topic 决定的固定格式，日期必须真实，变更路径必须属于对应白名单，并按 commit 时点内容扫描临时微信参数、认证信息、本机绝对路径和 `.DS_Store`。删除白名单文件允许通过；任何提交不可读或不合规都会以 `invalid_staged_paths` 停止，且不 rebase、不 push、不访问平台。Morning 与 Topic 分别按恢复日期判断是否已完成。
 
 ## JSON Schema 数据契约
 

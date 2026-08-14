@@ -178,3 +178,14 @@ export function assertSafeBrowserDataFile(filePath: string, content: string): vo
     : scanBrowserMarkdown(filePath, content);
   if (issues.length > 0) throw new SensitiveBrowserDataError(filePath, issues);
 }
+
+export function assertSafeTopicDataFile(filePath: string, content: string): void {
+  const normalized = filePath.replaceAll('\\', '/').replace(/^\.\//, '').toLocaleLowerCase();
+  const structured = /^data\/topic-(?:decisions|runs)\/.+\.json$/.test(normalized);
+  const markdown = /^reports\/topics\/.+\.md$/.test(normalized);
+  if (!structured && !markdown) throw new SensitiveBrowserDataError(filePath, ['unsupported Topic data file type']);
+  const issues = structured
+    ? scanStructuredBrowserData(filePath, content)
+    : scanBrowserMarkdown(filePath, content);
+  if (issues.length > 0) throw new SensitiveBrowserDataError(filePath, issues);
+}

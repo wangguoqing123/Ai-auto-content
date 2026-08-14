@@ -5,9 +5,12 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
   AUTOMATED_DATA_PATHS,
   commitAndPushBrowserData,
+  commitAndPushTopicData,
   GitSyncError,
   inspectPendingBrowserCommits,
   isAutomatedDataPath,
+  isTopicDataPath,
+  TOPIC_DATA_PATHS,
   prepareRuntimeRepository,
 } from '../src/local-runtime/git-sync.js';
 import { runCommand } from '../src/local-runtime/process.js';
@@ -63,6 +66,28 @@ describe('runtime Git path and content safety', () => {
 
   it.each(['.DS_Store', 'data/browser-runs/.DS_Store', 'src/index.ts', 'config/project.yaml', '../outside'])('rejects %s', (file) => {
     expect(isAutomatedDataPath(file)).toBe(false);
+  });
+
+  it.each(TOPIC_DATA_PATHS)('allows Topic path %s and descendants', (allowed) => {
+    expect(isTopicDataPath(`${allowed}/fixture.json`)).toBe(true);
+  });
+
+  it('commits and pushes only allowlisted Topic data', async () => {
+    const repo = await repository();
+    const decision = path.join(repo.root, 'data', 'topic-decisions', '2026-08-14.json');
+    await mkdir(path.dirname(decision), { recursive: true });
+    await writeFile(decision, '{"status":"success"}\n');
+    const result = await commitAndPushTopicData(repo.root, '2026-08-14', config);
+    expect(result).toMatchObject({ status: 'pushed' });
+    expect(await git(repo.root, 'log', '-1', '--pretty=%s')).toBe('chore(topic): decide daily topic 2026-08-14');
+    expect(await git(repo.root, 'status', '--short')).toBe('');
+  });
+
+  it('refuses a non-whitelisted change during Topic commit', async () => {
+    const repo = await repository();
+    await mkdir(path.join(repo.root, 'src'));
+    await writeFile(path.join(repo.root, 'src', 'unexpected.ts'), 'export {};\n');
+    await expect(commitAndPushTopicData(repo.root, '2026-08-14', config)).rejects.toMatchObject({ kind: 'invalid_staged_paths' });
   });
 
   it('commits and pushes only allowlisted Browser data', async () => {

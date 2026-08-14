@@ -16,6 +16,7 @@
     "opencli:install-adapters": "tsx scripts/install-opencli-adapters.ts",
     "local:check": "tsx scripts/local-scheduler-cli.ts check",
     "local:morning": "tsx scripts/local-scheduler-cli.ts morning",
+    "local:topic": "tsx scripts/local-scheduler-cli.ts topic",
     "local:scheduler": "tsx scripts/local-scheduler-cli.ts scheduler",
     "local:install": "tsx scripts/local-runtime-install.ts",
     "local:uninstall": "tsx scripts/local-runtime-uninstall.ts",

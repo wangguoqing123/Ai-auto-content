@@ -1,7 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Ajv2020 } from 'ajv/dist/2020.js';
-import { parse } from 'yaml';
 import { describe, expect, it } from 'vitest';
 import { runTopicSelection } from '../src/topic-intelligence/pipeline.js';
 import { buildFixtureMaterialInput } from '../src/topic-intelligence/providers/fixture-topic-judge-provider.js';
@@ -91,46 +90,44 @@ describe('topic report, JSON Schema, and workflows', () => {
     expect(validate({ ...decision, secret: 'nope' })).toBe(false);
   });
 
-  it('schedules daily topic selection at UTC 05:00', async () => {
-    const text = await readFile(path.join(process.cwd(), '.github', 'workflows', 'daily-topic-selection.yml'), 'utf8');
-    expect(() => parse(text)).not.toThrow();
-    expect(text).toContain('cron: "0 5 * * *"');
+  it('removes the GitHub Actions production topic schedule', async () => {
+    await expect(readFile(path.join(process.cwd(), '.github', 'workflows', 'daily-topic-selection.yml'), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
   });
 
-  it('defaults to DISABLED without dependency installation or model calls in the disabled job', async () => {
-    const text = await readFile(path.join(process.cwd(), '.github', 'workflows', 'daily-topic-selection.yml'), 'utf8');
-    const disabled = text.slice(text.indexOf('disabled:'), text.indexOf('  select:'));
-    expect(disabled).toContain("vars.TOPIC_SELECTION_ENABLED != 'true'");
-    expect(disabled).toContain('DISABLED');
-    expect(disabled).not.toContain('npm ci');
-    expect(disabled).not.toContain('topic:select');
+  it('keeps PR validation fixture-only without Codex or API credentials', async () => {
+    const text = await readFile(path.join(process.cwd(), '.github', 'workflows', 'pr-validation.yml'), 'utf8');
+    expect(text).toContain('npm run topic:select -- --fixture --date=2026-08-14');
+    expect(text).not.toMatch(/OPENAI_API_KEY|TOPIC_CODEX|codex exec|schedule:/);
   });
 
-  it.each(['opencli', 'collect:browser', 'xiaohongshu', 'launchctl', 'force push', '--force'])(
-    'daily topic workflow never runs %s',
-    async (forbidden) => {
-      const text = (await readFile(path.join(process.cwd(), '.github', 'workflows', 'daily-topic-selection.yml'), 'utf8')).toLowerCase();
-      expect(text).not.toContain(forbidden);
-    },
-  );
-
-  it('uses the exact automatic output whitelist', async () => {
-    const text = await readFile(path.join(process.cwd(), '.github', 'workflows', 'daily-topic-selection.yml'), 'utf8');
-    expect(text).toContain('git add data/topic-decisions data/topic-runs reports/topics');
-    expect(text).toContain('npm run topic:paths:check');
+  it('configures the Local Runtime topic window and maximum attempts', async () => {
+    const text = await readFile(path.join(process.cwd(), 'config', 'local-runtime.yaml'), 'utf8');
+    expect(text).toContain('topic_selection:');
+    expect(text).toContain('target_time: "13:00"');
+    expect(text).toContain('window_end: "18:00"');
+    expect(text.match(/max_attempts: 2/g)).toHaveLength(2);
   });
 
-  it('does not create an empty commit', async () => {
-    const text = await readFile(path.join(process.cwd(), '.github', 'workflows', 'daily-topic-selection.yml'), 'utf8');
-    expect(text).toContain('git diff --cached --quiet');
-    expect(text).toContain("steps.changes.outputs.changed == 'true'");
+  it('retains the 15-minute LaunchAgent due check and passes Codex explicitly', async () => {
+    const text = await readFile(path.join(process.cwd(), 'launchd', 'com.ai-auto-content.local-scheduler.plist.template'), 'utf8');
+    expect(text).toContain('<integer>900</integer>');
+    expect(text).toContain('{{CODEX_PATH}}');
+    expect(text).toContain('{{CODEX_MODEL}}');
+    expect(text).not.toMatch(/OPENAI_API_KEY|GITHUB_TOKEN|Cookie/i);
   });
 
-  it('rebases at most once and aborts on conflict without force', async () => {
-    const text = await readFile(path.join(process.cwd(), '.github', 'workflows', 'daily-topic-selection.yml'), 'utf8');
-    expect(text.match(/git pull --rebase origin main/g)).toHaveLength(1);
-    expect(text).toContain('git rebase --abort');
-    expect(text).not.toContain('--force');
+  it('uses the exact Local Runtime Topic output whitelist', async () => {
+    const text = await readFile(path.join(process.cwd(), 'src', 'local-runtime', 'git-sync.ts'), 'utf8');
+    expect(text).toContain("'data/topic-decisions'");
+    expect(text).toContain("'data/topic-runs'");
+    expect(text).toContain("'reports/topics'");
+    expect(text).toContain('chore(topic): decide daily topic');
+  });
+
+  it('aborts a Topic rebase conflict without force push', async () => {
+    const text = await readFile(path.join(process.cwd(), 'src', 'local-runtime', 'git-sync.ts'), 'utf8');
+    expect(text).toContain("['rebase', '--abort']");
+    expect(text).not.toMatch(/push[^\n]+--force/);
   });
 
   it('adds only the offline fixture command to PR validation', async () => {

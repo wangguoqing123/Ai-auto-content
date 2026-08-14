@@ -6,6 +6,7 @@ import { computeTopicInputHash } from './input-hash.js';
 import { buildTopicMaterialInput, refreshSelectedSummary } from './material-input.js';
 import { loadTopicProductTruth } from './product-context.js';
 import { buildTopicJudgeData } from './prompt.js';
+import { codexCliProviderFromEnvironment } from './providers/codex-cli-topic-judge-provider.js';
 import { buildFixtureMaterialInput, FixtureTopicJudgeProvider, type FixtureTopicJudgeMode } from './providers/fixture-topic-judge-provider.js';
 import { OpenAITopicJudgeProvider } from './providers/openai-topic-judge-provider.js';
 import {
@@ -65,22 +66,45 @@ function emptySummary(): TopicInputSummary {
   };
 }
 
-function providerFromEnvironment(fixture: boolean, mode: FixtureTopicJudgeMode): TopicJudgeProvider {
+async function providerFromEnvironment(fixture: boolean, mode: FixtureTopicJudgeMode): Promise<TopicJudgeProvider> {
   if (fixture) return new FixtureTopicJudgeProvider(mode);
-  if (process.env.TOPIC_LLM_PROVIDER !== 'openai') {
-    throw new Error('TOPIC_LLM_PROVIDER must be explicitly set to openai');
+  const provider = process.env.TOPIC_LLM_PROVIDER ?? 'codex_cli';
+  if (provider === 'codex_cli') {
+    if ((process.env.TOPIC_CODEX_MODEL ?? '').trim() === '') throw new Error('TOPIC_CODEX_MODEL is required');
+    return codexCliProviderFromEnvironment();
   }
-  return new OpenAITopicJudgeProvider({
-    apiKey: process.env.OPENAI_API_KEY ?? '',
-    model: process.env.TOPIC_LLM_MODEL ?? '',
-    ...(process.env.TOPIC_LLM_BASE_URL === undefined ? {} : { baseURL: process.env.TOPIC_LLM_BASE_URL }),
-  });
+  if (provider === 'openai') {
+    return new OpenAITopicJudgeProvider({
+      apiKey: process.env.OPENAI_API_KEY ?? '',
+      model: process.env.TOPIC_LLM_MODEL ?? '',
+      ...(process.env.TOPIC_LLM_BASE_URL === undefined ? {} : { baseURL: process.env.TOPIC_LLM_BASE_URL }),
+    });
+  }
+  throw new Error('Unsupported TOPIC_LLM_PROVIDER');
 }
 
-function declaredProvider(options: RunTopicSelectionOptions, fixture: boolean): { provider: string; model: string } {
-  if (options.provider !== undefined) return { provider: options.provider.providerName, model: options.provider.modelName };
-  if (fixture) return { provider: 'fixture', model: 'offline-fixture' };
-  return { provider: process.env.TOPIC_LLM_PROVIDER ?? 'unconfigured', model: process.env.TOPIC_LLM_MODEL ?? '' };
+function declaredProvider(options: RunTopicSelectionOptions, fixture: boolean): {
+  provider: string;
+  model: string;
+  runtimeVersion: string | null;
+  outputSchemaVersion: string | null;
+} {
+  if (options.provider !== undefined) return {
+    provider: options.provider.providerName,
+    model: options.provider.modelName,
+    runtimeVersion: options.provider.runtimeVersion ?? null,
+    outputSchemaVersion: options.provider.outputSchemaVersion ?? null,
+  };
+  if (fixture) return {
+    provider: 'fixture', model: 'offline-fixture', runtimeVersion: 'fixture-v1', outputSchemaVersion: 'topic-judge-provider-v1',
+  };
+  const provider = process.env.TOPIC_LLM_PROVIDER ?? 'codex_cli';
+  return {
+    provider,
+    model: provider === 'codex_cli' ? process.env.TOPIC_CODEX_MODEL ?? '' : process.env.TOPIC_LLM_MODEL ?? '',
+    runtimeVersion: null,
+    outputSchemaVersion: 'topic-judge-provider-v1',
+  };
 }
 
 function failedDecision(input: {
@@ -93,6 +117,8 @@ function failedDecision(input: {
   calls: number;
   durationMs: number;
   usage: TopicJudgeUsage | null;
+  runtimeVersion?: string | null;
+  outputSchemaVersion?: string | null;
   errorCode: TopicDecision['error_code'];
   safeMessage: string;
 }): TopicDecision {
@@ -112,6 +138,8 @@ function failedDecision(input: {
     model: {
       provider: input.provider,
       model: input.model,
+      runtime_version: input.runtimeVersion ?? null,
+      output_schema_version: input.outputSchemaVersion ?? null,
       calls: input.calls,
       duration_ms: input.durationMs,
       usage: input.usage,
@@ -156,6 +184,8 @@ async function finalize(
         calls: decision.model.calls,
         durationMs: decision.model.duration_ms,
         usage: decision.model.usage,
+        runtimeVersion: decision.model.runtime_version ?? null,
+        outputSchemaVersion: decision.model.output_schema_version ?? null,
         errorCode: 'file_read_failed',
         safeMessage: 'Topic output files could not be written safely.',
       }),
@@ -248,8 +278,19 @@ export async function runTopicSelection(options: RunTopicSelectionOptions): Prom
   const inputBudgetExceeded = hadUsableMaterials
     && materialInput.cards.length === 0
     && buildTopicJudgeData(baseJudgeInput).length > config.input.max_model_input_chars;
-  const hashProvider = materialInput.cards.length === 0 ? 'not_invoked' : declared.provider;
-  const hashModel = materialInput.cards.length === 0 ? '' : declared.model;
+  let provider: TopicJudgeProvider | null = options.provider ?? null;
+  let providerSetupError: unknown = null;
+  if (materialInput.cards.length > 0 && provider === null) {
+    try {
+      provider = await providerFromEnvironment(fixture, options.fixtureMode ?? 'select');
+    } catch (error) {
+      providerSetupError = error;
+    }
+  }
+  const hashProvider = materialInput.cards.length === 0 ? 'not_invoked' : provider?.providerName ?? declared.provider;
+  const hashModel = materialInput.cards.length === 0 ? '' : provider?.modelName ?? declared.model;
+  const hashRuntimeVersion = materialInput.cards.length === 0 ? null : provider?.runtimeVersion ?? declared.runtimeVersion;
+  const hashOutputSchemaVersion = materialInput.cards.length === 0 ? null : provider?.outputSchemaVersion ?? declared.outputSchemaVersion;
   let inputHash: string;
   try {
     inputHash = await computeTopicInputHash({
@@ -259,6 +300,8 @@ export async function runTopicSelection(options: RunTopicSelectionOptions): Prom
       provider: hashProvider,
       model: hashModel,
       promptVersion: config.model.prompt_version,
+      runtimeVersion: hashRuntimeVersion,
+      outputSchemaVersion: hashOutputSchemaVersion,
     });
   } catch {
     return {
@@ -273,6 +316,8 @@ export async function runTopicSelection(options: RunTopicSelectionOptions): Prom
         calls: 0,
         durationMs: 0,
         usage: null,
+        runtimeVersion: hashRuntimeVersion,
+        outputSchemaVersion: hashOutputSchemaVersion,
         errorCode: 'file_read_failed',
         safeMessage: 'Topic input hash could not be computed safely.',
       }),
@@ -295,6 +340,8 @@ export async function runTopicSelection(options: RunTopicSelectionOptions): Prom
           calls: 0,
           durationMs: 0,
           usage: null,
+          runtimeVersion: hashRuntimeVersion,
+          outputSchemaVersion: hashOutputSchemaVersion,
           errorCode: existing.errorCode,
           safeMessage: existing.safeMessage,
         }),
@@ -317,6 +364,8 @@ export async function runTopicSelection(options: RunTopicSelectionOptions): Prom
       calls: 0,
       durationMs: 0,
       usage: null,
+      runtimeVersion: hashRuntimeVersion,
+      outputSchemaVersion: hashOutputSchemaVersion,
       errorCode: 'configuration_invalid',
       safeMessage: 'The configured model input limit is too small for the required product context.',
     }), materialInput.materialById, shouldWrite);
@@ -336,7 +385,10 @@ export async function runTopicSelection(options: RunTopicSelectionOptions): Prom
       evaluated_candidates: [],
       no_publish_reason_code: 'no_usable_materials',
       no_publish_reason: '最近 72 小时没有可用材料，未调用模型。',
-      model: { provider: 'not_invoked', model: '', calls: 0, duration_ms: 0, usage: null },
+      model: {
+        provider: 'not_invoked', model: '', runtime_version: null, output_schema_version: null,
+        calls: 0, duration_ms: 0, usage: null,
+      },
       error_code: null,
       error_message_safe: null,
       created_at: new Date().toISOString(),
@@ -344,11 +396,9 @@ export async function runTopicSelection(options: RunTopicSelectionOptions): Prom
     return finalize(rootDir, decision, materialInput.materialById, shouldWrite);
   }
 
-  let provider: TopicJudgeProvider;
-  try {
-    provider = options.provider ?? providerFromEnvironment(fixture, options.fixtureMode ?? 'select');
-  } catch (error) {
-    const unavailable = error instanceof TopicJudgeUnavailableError;
+  if (providerSetupError !== null || provider === null) {
+    const timeout = providerSetupError instanceof TopicJudgeTimeoutError;
+    const unavailable = providerSetupError instanceof TopicJudgeUnavailableError;
     return finalize(rootDir, failedDecision({
       decisionDate: options.decisionDate,
       promptVersion: config.model.prompt_version,
@@ -359,11 +409,16 @@ export async function runTopicSelection(options: RunTopicSelectionOptions): Prom
       calls: 0,
       durationMs: 0,
       usage: null,
-      errorCode: unavailable ? 'model_unavailable' : 'configuration_invalid',
-      safeMessage: unavailable ? 'Topic judge provider is unavailable.' : 'Topic model provider configuration is invalid.',
+      runtimeVersion: hashRuntimeVersion,
+      outputSchemaVersion: hashOutputSchemaVersion,
+      errorCode: timeout ? 'model_timeout' : unavailable ? 'model_unavailable' : 'configuration_invalid',
+      safeMessage: timeout
+        ? 'Topic judge provider timed out during capability checks.'
+        : unavailable ? 'Topic judge provider is unavailable.' : 'Topic model provider configuration is invalid.',
     }), materialInput.materialById, shouldWrite);
   }
 
+  const activeProvider = provider;
   const judgeInput = baseJudgeInput;
   let calls = 0;
   let durationMs = 0;
@@ -372,14 +427,14 @@ export async function runTopicSelection(options: RunTopicSelectionOptions): Prom
   const judgingStarted = Date.now();
   try {
     calls += 1;
-    const first = await provider.judge(judgeInput);
+    const first = await activeProvider.judge(judgeInput);
     durationMs += first.durationMs;
     usage = mergeUsage(usage, first.usage);
     let parsed = topicJudgeProviderResultSchema.safeParse(first.output);
     if (!parsed.success && config.model.repair_attempts === 1 && calls < config.model.maximum_calls_per_run) {
       const errors = parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`);
       calls += 1;
-      const repaired = await provider.repair(judgeInput, errors);
+      const repaired = await activeProvider.repair(judgeInput, errors);
       durationMs += repaired.durationMs;
       usage = mergeUsage(usage, repaired.usage);
       parsed = topicJudgeProviderResultSchema.safeParse(repaired.output);
@@ -390,11 +445,13 @@ export async function runTopicSelection(options: RunTopicSelectionOptions): Prom
         promptVersion: config.model.prompt_version,
         inputHash,
         summary: materialInput.summary,
-        provider: provider.providerName,
-        model: provider.modelName,
+        provider: activeProvider.providerName,
+        model: activeProvider.modelName,
         calls,
         durationMs,
         usage,
+        runtimeVersion: activeProvider.runtimeVersion ?? null,
+        outputSchemaVersion: activeProvider.outputSchemaVersion ?? null,
         errorCode: 'model_output_invalid',
         safeMessage: 'Topic judge output did not match the strict schema after the allowed repair attempt.',
       }), materialInput.materialById, shouldWrite);
@@ -408,11 +465,13 @@ export async function runTopicSelection(options: RunTopicSelectionOptions): Prom
       promptVersion: config.model.prompt_version,
       inputHash,
       summary: materialInput.summary,
-      provider: provider.providerName,
-      model: provider.modelName,
+      provider: activeProvider.providerName,
+      model: activeProvider.modelName,
       calls,
       durationMs,
       usage,
+      runtimeVersion: activeProvider.runtimeVersion ?? null,
+      outputSchemaVersion: activeProvider.outputSchemaVersion ?? null,
       errorCode: timeout ? 'model_timeout' : 'model_unavailable',
       safeMessage: timeout ? 'Topic judge provider timed out.' : 'Topic judge provider is unavailable.',
     }), materialInput.materialById, shouldWrite);
@@ -455,7 +514,15 @@ export async function runTopicSelection(options: RunTopicSelectionOptions): Prom
       evaluated_candidates: evaluated,
       no_publish_reason_code: noPublishCode,
       no_publish_reason: noPublishReason,
-      model: { provider: provider.providerName, model: provider.modelName, calls, duration_ms: durationMs, usage },
+      model: {
+        provider: activeProvider.providerName,
+        model: activeProvider.modelName,
+        runtime_version: activeProvider.runtimeVersion ?? null,
+        output_schema_version: activeProvider.outputSchemaVersion ?? null,
+        calls,
+        duration_ms: durationMs,
+        usage,
+      },
       error_code: null,
       error_message_safe: null,
       created_at: new Date().toISOString(),
@@ -467,11 +534,13 @@ export async function runTopicSelection(options: RunTopicSelectionOptions): Prom
       promptVersion: config.model.prompt_version,
       inputHash,
       summary: materialInput.summary,
-      provider: provider.providerName,
-      model: provider.modelName,
+      provider: activeProvider.providerName,
+      model: activeProvider.modelName,
       calls,
       durationMs,
       usage,
+      runtimeVersion: activeProvider.runtimeVersion ?? null,
+      outputSchemaVersion: activeProvider.outputSchemaVersion ?? null,
       errorCode: 'schema_invalid',
       safeMessage: 'Topic candidate evaluation failed strict validation.',
     }), materialInput.materialById, shouldWrite);

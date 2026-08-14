@@ -2,7 +2,7 @@
 title: 每日内容智能判断与自主选题 v0
 version: 1.0.0
 updated_at: 2026-08-14
-status: implemented_pending_live_model_validation
+status: implemented_live_model_dry_run_verified_pending_local_activation
 ---
 
 # 每日内容智能判断与自主选题 v0
@@ -126,17 +126,25 @@ Product Claim ID 必须存在于产品真相层。confirmed 可用；forbidden �
 
 解除重复必须有经过真实解析的新 fact source、新实验结果、新场景、明显不同的 minimum result 或 core angle，并同时保存具体 `novelty_delta` 和 `new_evidence_refs`；只写“角度不同”或虚构引用无效。内容比例只用于 3 分以内同分决策，不会让低质量题目过门槛。
 
-## 11. Provider、成本和 Prompt Injection
+## 11. Provider、本机 Codex 安全边界和 Prompt Injection
 
-Provider 接口位于 `src/topic-intelligence/providers/`。Fixture 完全离线，可模拟选择、NO_PUBLISH、非法结构与网络失败。OpenAI Provider 使用官方 Node SDK 的 Responses API 结构化输出；`TOPIC_LLM_MODEL` 必须显式提供，没有默认“最新模型”。
+Provider 接口位于 `src/topic-intelligence/providers/`。Fixture 完全离线，可模拟选择、NO_PUBLISH、非法结构与网络失败。生产默认 Provider 是 `codex_cli`，使用用户 Mac 上已经登录的 Codex CLI；它不要求 `OPENAI_API_KEY`，但仍依赖本机安装、登录态、网络和账号可用额度，因此不是离线模型。OpenAI Responses API Provider 只保留为显式选择的备用实现。
+
+本机 2026-08-14 能力探测记录：`/Users/wangguoqing/.local/bin/codex`，`codex-cli 0.147.0`。实际 `codex exec --help` 支持非交互执行、`--model`、`--json`、`--output-schema`、`--output-last-message`、`--sandbox read-only`、`--ephemeral` 和 `--skip-git-repo-check`；全局参数支持 `--ask-for-approval never`。帮助命令成功返回 0，未知参数返回 2。实现依据当前 CLI 帮助和[官方 Codex CLI 命令参考](https://developers.openai.com/codex/cli/reference)，不使用 `--dangerously-bypass-approvals-and-sandbox`。
+
+每次判断在 `~/Library/Application Support/AiAutoContent/tmp/topic-judge/<run>/` 独立目录中运行。目录不是 Git 仓库，只包含 `input.json`、`output-schema.json`、`system-instructions.md` 和 `result.json`。Codex 使用参数数组、`shell=false`、只读 Sandbox、禁用人工审批、ephemeral 会话和严格 Provider Output JSON Schema；工作目录不是 Runtime clone，Prompt 不含仓库路径。子进程只保留 `HOME`、`PATH`、`LANG`、`LC_ALL`、`TERM`，以及存在时的 `CODEX_HOME`，不会继承 API Key、GitHub Token、Cookie 或 Browser Session。最终打分、校验、写文件和 Git 操作始终由项目代码完成。
+
+`TOPIC_CODEX_MODEL` 必须显式设置，`TOPIC_CODEX_BIN` 可留空并由安装器或运行环境解析为绝对路径。结构化结果最大 2 MiB；Markdown fence、额外字段、非法 JSON 或超限输出都进入一次允许的结构修复，不从自然语言中猜 JSON。Provider 区分未安装、未登录、非交互能力缺失、超时、额度限制、输出非法、进程失败和 Sandbox 不可用；这些都是 failed，不是 `NO_PUBLISH`。
+
+2026-08-14 真实本机 dry-run 使用 `gpt-5.6-sol`、45 张筛选后 Material Cards 和 1 次调用，得到 `SELECT_TOPIC`：工作标题“Agent 会干活还不够：先给它装上‘任务验收单’”，代码重算总分 92，learner stage 为 `workflow_building`，pillar 为 `agents_and_workflows`，主模块为 `codex_practice`，CTA 为 `club`，需要实验。随后在 `env -i` 的 LaunchAgent 近似环境中再次成功完成结构化 dry-run，得到合法 `NO_PUBLISH/all_candidates_hard_rejected`；两次都未写正式文件、未修改 Git、未访问真实平台。业务决定可因模型输出而不同，正式运行依赖当日 `input_hash` 幂等，只会保存一次成功决定。
 
 单次运行最多 2 次模型调用：第一次正常判断；只有结构非法时，第二次把 Zod 错误清单交给模型修复。调用次数在请求发出前递增，因此首次失败记录 1、repair 失败记录 2；SDK/Abort/客户端超时为 `model_timeout`，其他网络失败为 `model_unavailable`，二次仍非法为 `model_output_invalid`，均为 `status=failed`、`decision=null`。
 
-System Prompt 只含任务、真实性、安全和 Schema 边界。材料位于 `untrusted_material_cards` JSON 区；材料中的“忽略前文”“输出 API Key”“访问链接”“修改候选数量”等都是普通文本。Provider 不访问材料链接或工具，不记录 API Key、Authorization、完整原始响应、文章正文或思维链。
+System Prompt 只含任务、真实性、安全和 Schema 边界。材料位于 `untrusted_material_cards` JSON 区；材料中的“忽略前文”“输出 API Key”“访问链接”“修改候选数量”等都是普通文本。Provider 不访问材料链接，不记录 API Key、Authorization、完整原始响应、文章正文、Codex Session 或思维链。
 
 ## 12. 幂等和输出
 
-`input_hash` 包含排序后的材料 ID、角色、当前互动、30 天签名、四份配置哈希、Provider、模型与 Prompt 版本。同日期已有成功决定且 hash 相同，返回 `ALREADY_DECIDED`，不调用模型；failed 可重试；hash 变化保存新 run 并更新当日正式决定，不删除旧 run。
+`input_hash` 包含合并后的 Material Cards、最新互动、30 天签名、四份配置哈希、Provider、显式模型、Prompt 版本、Codex CLI 版本和 Provider Output Schema 版本。同日期已有成功决定且 hash 相同，返回 `ALREADY_DECIDED`，不调用模型；failed 可重试；hash 变化保存新 run 并更新当日正式决定，不删除旧 run。
 
 正式运行在调用模型前严格读取当天已有 decision。文件不存在才视为空；损坏 JSON、Schema 不合法或日期不一致均 `schema_invalid` fail closed，不调用模型，也不覆盖原 decision/report。候选评估或最终 Schema 的意外异常同样安全返回 failed；输出目录预检失败不会被解释为 `NO_PUBLISH`。
 
@@ -148,7 +156,7 @@ System Prompt 只含任务、真实性、安全和 Schema 边界。材料位于 
 
 Schema 为 Zod `topicDecisionSchema` 与 `schemas/topic-decision.schema.json`。`SELECT_TOPIC` 必须有且只有一个 selected topic；`NO_PUBLISH` 必须没有 selected topic 且有内容原因；failed 必须 decision 为 null 且有错误码。日报只突出一个母题、角色证据、研究缺口、实验计划、平台形式和 CTA 模式，不保存完整模型响应或内容正文。
 
-## 13. CLI 和 Workflow
+## 13. CLI 和本机调度
 
 ```bash
 npm run topic:select
@@ -160,12 +168,12 @@ npm run topic:inspect-input -- --date=2026-08-14
 
 Fixture 不访问网络并不写正式文件。dry-run 读取仓库已有数据、可以调用已配置模型，但只把 JSON 输出到 stdout。inspect-input 不调用模型，只显示受限卡片摘要。
 
-`.github/workflows/daily-topic-selection.yml` 在 UTC 05:00 / 北京时间 13:00 调度，也支持手动触发。仓库变量 `TOPIC_SELECTION_ENABLED` 只有严格为 `true` 才启动；默认只输出 `DISABLED`，不安装依赖、不调用模型、不提交。
+GitHub Actions 不再调度或调用真实选题模型；PR Validation 只运行离线 Fixture。真实选题由现有 Mac Local Runtime 的同一个 LaunchAgent 每 15 分钟做轻量 due check：Morning 为 07:30—12:00，Topic Selection 为 13:00—18:00，两个任务各自记录状态且最多尝试 2 次。
 
-启用时需要 `TOPIC_LLM_PROVIDER`、`TOPIC_LLM_MODEL` 与 Secret `OPENAI_API_KEY`。自动提交只允许 decisions、runs 和 reports 三个选题目录。主线前进时只 `pull --rebase` 一次；冲突 abort 并失败，不 force、不重复调用模型。
+Topic Task 先同步 Runtime clone 的 `main`，再运行选题器。无材料时直接写 `NO_PUBLISH/no_usable_materials`，完全不创建 Codex Provider。成功的 `SELECT_TOPIC`、`NO_PUBLISH` 和 `ALREADY_DECIDED` 都算当天完成；failed 可在窗口内再试一次。自动提交只允许 decisions、runs 和 reports 三个选题目录，使用 `chore(topic): decide daily topic YYYY-MM-DD`；冲突 abort 并失败，不 force、不重复调用模型。
 
 ## 14. 失败、缺口和下一阶段接口
 
-Browser 缺失时仍可用 Cloud，并记录 `browser_missing`；Cloud 缺失时仍可用 Browser，但 X 不会升级为事实源；两者都没有时不创建 Provider、不要求模型环境变量，直接 `NO_PUBLISH/no_usable_materials`，模型字段记录 `not_invoked` 和 0 次调用。有素材但缺少 Provider 配置仍为 failed。
+Browser 缺失时仍可用 Cloud，并记录 `browser_missing`；Cloud 缺失时仍可用 Browser，但 X 不会升级为事实源；两者都没有时不创建 Provider、不要求 Codex 配置，直接 `NO_PUBLISH/no_usable_materials`，模型字段记录 `not_invoked` 和 0 次调用。有素材但缺少 Provider 配置、Codex 安装、登录态、网络或额度时仍为 failed。
 
 研究与写作下一阶段只接受成功 `SELECT_TOPIC` 的一个 selected topic，读取 research questions、事实来源、evidence gaps、experiment plan、产品模块和 CTA 边界。研究层必须先补证或执行实验，写作层才可形成平台正文；本 PR 不实现这些能力。

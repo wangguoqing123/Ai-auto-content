@@ -15,6 +15,8 @@ export interface TopicInputHashOptions {
   provider: string;
   model: string;
   promptVersion: string;
+  runtimeVersion?: string | null;
+  outputSchemaVersion?: string | null;
 }
 
 export async function computeTopicInputHash(options: TopicInputHashOptions): Promise<string> {
@@ -36,6 +38,8 @@ export async function computeTopicInputHash(options: TopicInputHashOptions): Pro
     provider: options.provider,
     model: options.model,
     prompt_version: options.promptVersion,
+    runtime_version: options.runtimeVersion ?? null,
+    output_schema_version: options.outputSchemaVersion ?? null,
   };
   return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 }

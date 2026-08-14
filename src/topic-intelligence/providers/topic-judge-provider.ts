@@ -25,9 +25,13 @@ export interface TopicJudgeProviderCall {
 export interface TopicJudgeProvider {
   readonly providerName: string;
   readonly modelName: string;
+  readonly runtimeVersion?: string | null;
+  readonly outputSchemaVersion?: string | null;
   judge(input: TopicJudgeInput): Promise<TopicJudgeProviderCall>;
   repair(input: TopicJudgeInput, validationErrors: string[]): Promise<TopicJudgeProviderCall>;
 }
+
+export const TOPIC_JUDGE_OUTPUT_SCHEMA_VERSION = 'topic-judge-provider-v1';
 
 export class TopicJudgeUnavailableError extends Error {
   constructor(message = 'Topic judge provider unavailable') {

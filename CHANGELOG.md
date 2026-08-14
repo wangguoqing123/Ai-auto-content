@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- 将每日选题生产 Provider 改为本机已登录的 Codex CLI：非交互 `codex exec`、显式模型、严格 JSON Schema、只读 Sandbox、无人工审批、隔离临时目录、2 MiB 输出上限和最小子进程环境；OpenAI API 仅保留为可选备用。
+- 将真实 Topic Selection 从 GitHub Actions 迁移到 Mac Local Runtime：新增 13:00—18:00 独立任务状态、最多 2 次尝试、Topic 数据 Git 白名单和 pending commit 恢复；PR/CI 不安装或 reload LaunchAgent。
+- 删除 GitHub 真实模型定时 Workflow；PR Validation 继续只运行 Fixture，不访问 Codex 服务、OpenAI API、X、公众号、Chrome 或 Browser Bridge。
+- 完成 2026-08-14 真实 Codex dry-run：常规环境以 1 次调用选择 92 分 Agent 任务验收单母题；`env -i` 精简环境也以 1 次调用完成合法 `NO_PUBLISH`。两次均未写正式输出、未改 Git、未访问平台。
 - 加固每日选题离线正确性：跨日素材按最新快照确定性合并，RSS/AIHOT 共用 Cloud 预算，X 与两类微信预算独立，空 Cloud query 不再误触 8 条上限，并输出安全的 eligible/selected/drop 诊断。
 - 统一 Product Claim 与 novelty evidence 真实解析，只有本次 fact source 或 ID 匹配的合法 evidence JSON 可以通过；虚构引用、txt、损坏/空 JSON、角色错误和路径穿越均拒绝。
 - 无素材时在 Provider 创建前直接 `NO_PUBLISH`；损坏的当日 decision fail closed 且不覆盖；模型 timeout/网络错误和 judge/repair 调用数准确区分，候选及输出异常安全失败。

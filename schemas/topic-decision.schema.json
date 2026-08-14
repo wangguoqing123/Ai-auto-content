@@ -1322,6 +1322,28 @@
         "model": {
           "type": "string"
         },
+        "runtime_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 200
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "output_schema_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 200
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "calls": {
           "type": "integer",
           "minimum": 0,

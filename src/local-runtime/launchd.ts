@@ -1,3 +1,4 @@
+import { constants as fsConstants } from 'node:fs';
 import { access, chmod, copyFile, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -15,6 +16,8 @@ export interface LaunchdValues {
   wrapperPath: string;
   nodePath: string;
   opencliPath: string;
+  codexPath: string;
+  codexModel: string;
   runtimeRoot: string;
   stdoutPath: string;
   stderrPath: string;
@@ -25,13 +28,16 @@ export async function renderLaunchdPlist(templatePath: string, values: LaunchdVa
     WRAPPER_PATH: values.wrapperPath,
     NODE_PATH: values.nodePath,
     OPENCLI_PATH: values.opencliPath,
+    CODEX_PATH: values.codexPath,
+    CODEX_MODEL: values.codexModel,
     RUNTIME_ROOT: values.runtimeRoot,
     STDOUT_PATH: values.stdoutPath,
     STDERR_PATH: values.stderrPath,
   };
   let rendered = await readFile(templatePath, 'utf8');
   for (const [key, value] of Object.entries(replacements)) {
-    if (!path.isAbsolute(value)) throw new Error(`${key} must be an absolute path`);
+    if (key !== 'CODEX_MODEL' && !path.isAbsolute(value)) throw new Error(`${key} must be an absolute path`);
+    if (key === 'CODEX_MODEL' && (!value || /[\r\n\0]/.test(value))) throw new Error('CODEX_MODEL is invalid');
     rendered = rendered.replaceAll(`{{${key}}}`, xmlEscape(value));
   }
   if (/{{[A-Z_]+}}/.test(rendered)) throw new Error('LaunchAgent template contains unresolved placeholders');
@@ -46,7 +52,7 @@ async function resolveExecutable(name: string): Promise<string | null> {
   const candidate = result.exitCode === 0 ? result.stdout.trim() : '';
   if (!candidate || !path.isAbsolute(candidate)) return null;
   try {
-    await access(candidate);
+    await access(candidate, fsConstants.X_OK);
     return candidate;
   } catch {
     return null;
@@ -73,6 +79,8 @@ async function renderToTemporary(
   paths: RuntimePaths,
   nodePath: string,
   opencliPath: string,
+  codexPath: string,
+  codexModel: string,
 ): Promise<{ directory: string; file: string }> {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'ai-auto-content-launchd-'));
   const file = path.join(directory, `${LABEL}.plist`);
@@ -82,6 +90,8 @@ async function renderToTemporary(
       wrapperPath: path.join(paths.runtimeRoot, 'scripts', 'local-scheduler-wrapper.sh'),
       nodePath,
       opencliPath,
+      codexPath,
+      codexModel,
       runtimeRoot: paths.runtimeRoot,
       stdoutPath: path.join(paths.logsDirectory, 'scheduler.stdout.log'),
       stderrPath: path.join(paths.logsDirectory, 'scheduler.stderr.log'),
@@ -100,12 +110,32 @@ export async function installLocalRuntime(
   const nodePath = process.execPath;
   const npmPath = await resolveExecutable('npm');
   const opencliPath = await resolveExecutable('opencli');
-  const missingPrerequisites = [!npmPath && 'npm', !opencliPath && 'opencli'].filter((value): value is string => Boolean(value));
+  const configuredCodex = process.env.TOPIC_CODEX_BIN?.trim();
+  let codexPath: string | null = null;
+  if (configuredCodex && path.isAbsolute(configuredCodex)) {
+    try {
+      await access(configuredCodex, fsConstants.X_OK);
+      codexPath = configuredCodex;
+    } catch {
+      codexPath = null;
+    }
+  } else if (!configuredCodex) {
+    codexPath = await resolveExecutable('codex');
+  }
+  const codexModel = process.env.TOPIC_CODEX_MODEL?.trim() ?? '';
+  const missingPrerequisites = [
+    !npmPath && 'npm',
+    !opencliPath && 'opencli',
+    !codexPath && 'codex',
+    !codexModel && 'TOPIC_CODEX_MODEL',
+  ].filter((value): value is string => Boolean(value));
   const temporary = await renderToTemporary(
     repositoryRoot,
     paths,
     nodePath,
     opencliPath ?? '/usr/local/bin/opencli',
+    codexPath ?? '/usr/local/bin/codex',
+    codexModel || 'codex-model-required',
   );
   let backupFile: string | null = null;
   try {
@@ -120,7 +150,7 @@ export async function installLocalRuntime(
       };
     }
     if (process.platform !== 'darwin') throw new Error('LaunchAgent installation is only supported on macOS');
-    if (missingPrerequisites.length > 0 || !npmPath || !opencliPath) {
+    if (missingPrerequisites.length > 0 || !npmPath || !opencliPath || !codexPath || !codexModel) {
       throw new Error(`Missing installer prerequisites: ${missingPrerequisites.join(', ')}`);
     }
 

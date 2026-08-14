@@ -15,6 +15,8 @@ function values(root: string) {
     wrapperPath: path.join(root, 'runtime/scripts/local-scheduler-wrapper.sh'),
     nodePath: '/usr/local/bin/node',
     opencliPath: '/usr/local/bin/opencli',
+    codexPath: '/usr/local/bin/codex',
+    codexModel: 'fixture-codex-model',
     runtimeRoot: path.join(root, 'runtime'),
     stdoutPath: path.join(root, 'logs/stdout.log'),
     stderrPath: path.join(root, 'logs/stderr.log'),

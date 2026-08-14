@@ -7,6 +7,12 @@ morning:
   window_end: "12:00"
   max_attempts: 2
 
+topic_selection:
+  target_time: "13:00"
+  window_start: "13:00"
+  window_end: "18:00"
+  max_attempts: 2
+
 scheduler:
   check_interval_seconds: 900
 

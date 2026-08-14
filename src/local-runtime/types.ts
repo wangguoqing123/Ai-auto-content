@@ -14,16 +14,20 @@ export const runtimeTaskStatuses = [
 
 export type RuntimeTaskStatus = typeof runtimeTaskStatuses[number];
 export type CompletedCollectionStatus = 'success' | 'partial_success';
+export type RuntimeTaskName = 'morning' | 'topic_selection';
+
+export interface RuntimeScheduleConfig {
+  target_time: string;
+  window_start: string;
+  window_end: string;
+  max_attempts: number;
+}
 
 export interface LocalRuntimeConfig {
   version: 1;
   timezone: 'Asia/Shanghai';
-  morning: {
-    target_time: string;
-    window_start: string;
-    window_end: string;
-    max_attempts: number;
-  };
+  morning: RuntimeScheduleConfig;
+  topic_selection: RuntimeScheduleConfig;
   scheduler: { check_interval_seconds: number };
   runtime: {
     auto_launch_chrome: boolean;
@@ -51,6 +55,7 @@ export const schedulerTaskStateSchema = z.object({
   last_run_id: z.string(),
   last_error: z.string().nullable(),
   last_collection_status: z.enum(['success', 'partial_success']).nullable().default(null),
+  last_topic_decision: z.enum(['SELECT_TOPIC', 'NO_PUBLISH']).nullable().optional(),
 });
 
 export const schedulerStateSchema = z.object({
@@ -58,8 +63,24 @@ export const schedulerStateSchema = z.object({
   timezone: z.literal('Asia/Shanghai'),
   tasks: z.object({
     morning: schedulerTaskStateSchema,
+    topic_selection: schedulerTaskStateSchema.optional(),
   }),
-});
+}).transform((state) => ({
+  ...state,
+  tasks: {
+    morning: state.tasks.morning,
+    topic_selection: state.tasks.topic_selection ?? {
+      date: state.tasks.morning.date,
+      attempts: 0,
+      last_attempt_at: null,
+      last_status: 'not_due' as const,
+      last_run_id: '',
+      last_error: null,
+      last_collection_status: null,
+      last_topic_decision: null,
+    },
+  },
+}));
 
 export type SchedulerTaskState = z.infer<typeof schedulerTaskStateSchema>;
 export type SchedulerState = z.infer<typeof schedulerStateSchema>;
@@ -86,4 +107,7 @@ export interface RuntimeExecutionResult {
   error: string | null;
   collected: boolean;
   gitCommit: string | null;
+  task?: RuntimeTaskName;
+  topicDecision?: 'SELECT_TOPIC' | 'NO_PUBLISH' | null;
+  modelCalls?: number;
 }

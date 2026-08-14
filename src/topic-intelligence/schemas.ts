@@ -271,6 +271,8 @@ export const topicDecisionSchema = z.strictObject({
   model: z.strictObject({
     provider: z.string().min(1),
     model: z.string(),
+    runtime_version: z.string().max(200).nullable().optional(),
+    output_schema_version: z.string().max(200).nullable().optional(),
     calls: z.number().int().min(0).max(2),
     duration_ms: z.number().int().nonnegative(),
     usage: modelUsageSchema.nullable(),

@@ -3,7 +3,7 @@ import { zodTextFormat } from 'openai/helpers/zod';
 import { buildTopicJudgeData, TOPIC_JUDGE_SYSTEM_PROMPT } from '../prompt.js';
 import { topicJudgeProviderResultSchema } from '../schemas.js';
 import type { TopicJudgeInput, TopicJudgeProvider, TopicJudgeProviderCall } from './topic-judge-provider.js';
-import { TopicJudgeTimeoutError, TopicJudgeUnavailableError } from './topic-judge-provider.js';
+import { TOPIC_JUDGE_OUTPUT_SCHEMA_VERSION, TopicJudgeTimeoutError, TopicJudgeUnavailableError } from './topic-judge-provider.js';
 
 export interface OpenAITopicJudgeProviderOptions {
   apiKey: string;
@@ -14,6 +14,8 @@ export interface OpenAITopicJudgeProviderOptions {
 export class OpenAITopicJudgeProvider implements TopicJudgeProvider {
   readonly providerName = 'openai';
   readonly modelName: string;
+  readonly runtimeVersion = null;
+  readonly outputSchemaVersion = TOPIC_JUDGE_OUTPUT_SCHEMA_VERSION;
   private readonly client: OpenAI;
 
   constructor(options: OpenAITopicJudgeProviderOptions) {

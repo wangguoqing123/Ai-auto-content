@@ -17,7 +17,11 @@ class CountingProvider implements TopicJudgeProvider {
   readonly providerName = 'fixture-counting';
   readonly modelName = 'offline-fixture';
   calls = 0;
-  constructor(private readonly delegate = new FixtureTopicJudgeProvider('select')) {}
+  constructor(
+    private readonly delegate = new FixtureTopicJudgeProvider('select'),
+    readonly runtimeVersion: string | null = null,
+    readonly outputSchemaVersion: string | null = 'topic-judge-provider-v1',
+  ) {}
   async judge(input: TopicJudgeInput): Promise<TopicJudgeProviderCall> {
     this.calls += 1;
     return this.delegate.judge(input);
@@ -235,6 +239,20 @@ describe('topic pipeline and providers', () => {
     const second = await runTopicSelection({ rootDir: root, decisionDate: '2026-08-14', provider });
     expect(second.decision.input_hash).not.toBe(first.decision.input_hash);
     expect(provider.calls).toBe(2);
+  });
+
+  it('includes Provider runtime and output schema versions in input_hash', async () => {
+    const root = await createTopicTestRoot(realInputMaterials());
+    roots.push(root);
+    const first = await runTopicSelection({
+      rootDir: root, decisionDate: '2026-08-14', dryRun: true,
+      provider: new CountingProvider(new FixtureTopicJudgeProvider(), 'codex-cli 0.147.0', 'topic-judge-provider-v1'),
+    });
+    const second = await runTopicSelection({
+      rootDir: root, decisionDate: '2026-08-14', dryRun: true,
+      provider: new CountingProvider(new FixtureTopicJudgeProvider(), 'codex-cli 0.148.0', 'topic-judge-provider-v1'),
+    });
+    expect(second.decision.input_hash).not.toBe(first.decision.input_hash);
   });
 
   it('does not write formal files during dry-run', async () => {
