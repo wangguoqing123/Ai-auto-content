@@ -100,12 +100,14 @@ describe('topic report, JSON Schema, and workflows', () => {
     expect(text).not.toMatch(/OPENAI_API_KEY|TOPIC_CODEX|codex exec|schedule:/);
   });
 
-  it('configures the Local Runtime topic window and maximum attempts', async () => {
+  it('configures the Local Runtime topic and research windows and maximum attempts', async () => {
     const text = await readFile(path.join(process.cwd(), 'config', 'local-runtime.yaml'), 'utf8');
     expect(text).toContain('topic_selection:');
     expect(text).toContain('target_time: "13:00"');
     expect(text).toContain('window_end: "18:00"');
-    expect(text.match(/max_attempts: 2/g)).toHaveLength(2);
+    expect(text).toContain('target_time: "13:30"');
+    expect(text).toContain('window_end: "21:00"');
+    expect(text.match(/max_attempts: 2/g)).toHaveLength(3);
   });
 
   it('retains the 15-minute LaunchAgent due check and passes Codex explicitly', async () => {

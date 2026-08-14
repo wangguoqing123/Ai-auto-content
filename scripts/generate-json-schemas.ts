@@ -6,10 +6,17 @@ import { contentFitProfileSchema } from '../src/product/content-fit-profile.js';
 import { productProfileSchema } from '../src/product/product-profile.js';
 import { materialSchema, unifiedMaterialSchema } from '../src/types.js';
 import { topicDecisionSchema } from '../src/topic-intelligence/schemas.js';
+import { researchPackSchema } from '../src/research/schemas.js';
 
 const JSON_SCHEMA_DRAFT = 'https://json-schema.org/draft/2020-12/schema';
 
 const schemas = [
+  {
+    filename: 'research-pack.schema.json',
+    id: 'https://example.local/schemas/research-pack.schema.json',
+    title: 'Evidence-backed Research Pack',
+    schema: researchPackSchema,
+  },
   {
     filename: 'topic-decision.schema.json',
     id: 'https://example.local/schemas/topic-decision.schema.json',

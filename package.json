@@ -17,6 +17,7 @@
     "local:check": "tsx scripts/local-scheduler-cli.ts check",
     "local:morning": "tsx scripts/local-scheduler-cli.ts morning",
     "local:topic": "tsx scripts/local-scheduler-cli.ts topic",
+    "local:research": "tsx scripts/local-scheduler-cli.ts research",
     "local:scheduler": "tsx scripts/local-scheduler-cli.ts scheduler",
     "local:install": "tsx scripts/local-runtime-install.ts",
     "local:uninstall": "tsx scripts/local-runtime-uninstall.ts",
@@ -29,9 +30,15 @@
     "topic:select": "tsx scripts/topic-select.ts",
     "topic:validate": "tsx scripts/topic-validate.ts",
     "topic:inspect-input": "tsx scripts/topic-inspect-input.ts",
-    "topic:paths:check": "tsx scripts/topic-output-paths-check.ts"
+    "topic:paths:check": "tsx scripts/topic-output-paths-check.ts",
+    "research:build": "tsx scripts/research-build.ts",
+    "research:validate": "tsx scripts/research-validate.ts",
+    "research:inspect": "tsx scripts/research-inspect.ts",
+    "research:cache:clean": "tsx scripts/research-cache-clean.ts"
   },
   "dependencies": {
+    "cheerio": "^1.1.2",
+    "ipaddr.js": "^2.2.0",
     "openai": "^7.4.0",
     "p-limit": "^7.1.1",
     "rss-parser": "^3.13.0",

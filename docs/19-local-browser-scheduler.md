@@ -1,11 +1,11 @@
 ---
-title: Mac 本机采集与每日选题调度器
-version: 1.1.0
+title: Mac 本机采集、选题与研究调度器
+version: 1.2.0
 updated_at: 2026-08-14
 status: implemented_not_installed
 ---
 
-# Mac 本机采集与每日选题调度器
+# Mac 本机采集、选题与研究调度器
 
 ## 运行逻辑
 
@@ -21,11 +21,18 @@ LaunchAgent 不是只在 08:00 触发一次，而是 `RunAtLoad=true`、`StartIn
 + 今天 topic_selection 未 success
 + attempts < 2
 → 执行本机 Codex 每日选题
+
+上海时间在 13:30—21:00
++ 今天 research_pack 未 success
++ attempts < 2
+→ 读取 Topic；只抓指定 fact_source；执行研究与安全文本实验
 ```
 
 调度检查先判断时间窗口：其他时间始终输出 `NOT_DUE`，不会因为已达到最大尝试次数而重复通知。窗口内当天完成输出 `ALREADY_COMPLETED`；活锁输出 `LOCK_HELD`。三者都返回 0，不访问平台。
 
-`local:scheduler -- --once` 会依次检查两个任务，各自服从窗口。`local:morning` 和 `local:topic` 是 manual 触发：可在窗口外执行一次，但正式运行仍服从活锁、当天已完成和最多 2 次尝试。两个任务分别保存在 `tasks.morning` 与 `tasks.topic_selection`；`SELECT_TOPIC`、`NO_PUBLISH` 和 `ALREADY_DECIDED` 都会把 topic task 标为完成。
+`local:scheduler -- --once` 依次检查 Morning、Topic Selection、Research Pack。三个 manual 命令可在窗口外执行一次，但正式运行仍服从活锁、当天完成和最多 2 次尝试。状态分别保存在 `tasks.morning`、`tasks.topic_selection` 和 `tasks.research_pack`。
+
+Research Topic 不存在时返回 `WAITING_FOR_TOPIC`、exit 0，不创建状态或增加失败次数；`NO_PUBLISH` 直接完成 `NO_TOPIC`；相同 hash 返回 `ALREADY_RESEARCHED`，不重复抓取、调用 Codex 或运行实验。
 
 ## Topic Selection 顺序
 
@@ -52,12 +59,24 @@ LaunchAgent 不是只在 08:00 触发一次，而是 `RunAtLoad=true`、`StartIn
 10. 再次验证完整 pending 范围；`git pull --rebase origin main` 后重验并正常 push。冲突 abort 并保留本地 commit，绝不 force、reset hard 或重新采集。
 11. 原子更新外部状态，按需发送本机通知，并在 `finally` 中释放锁。
 
+## Research Pack 顺序
+
+1. 判断 13:30—21:00 窗口并检查 Topic Decision；Topic 未到时等待，不计失败。
+2. 同步 Runtime clone，并先恢复合法 Browser、Topic 或 Research pending commit。
+3. `NO_PUBLISH` 直接写 `NO_TOPIC`；`SELECT_TOPIC` 只读取原 fact_source IDs。
+4. 每个 URL 与重定向重新解析 DNS 并拒绝非公网地址；完整清洗正文只写 Runtime clone 外的 0700/0600 本机缓存。
+5. 共用结构化 Codex Runner，最多 4 次调用；quote 由代码精确验证，不做近义匹配。
+6. 必要时运行 baseline 与 structured 各一次；八项验收由代码计算。
+7. 只暂存 `data/research-packs/**`、`data/research-runs/**`、`reports/research/**`，标题固定 `chore(research): build evidence pack YYYY-MM-DD`。
+8. 更新 Research 状态并发送只含决定、Topic 标题和是否完成实验的安全通知。
+
 ## 命令
 
 ```bash
 npm run local:check
 npm run local:morning -- --dry-run
 npm run local:topic -- --dry-run
+npm run local:research -- --dry-run
 npm run local:scheduler -- --once
 npm run local:scheduler -- --once --fixture --dry-run --now=2026-08-14T05:00:00.000Z
 npm run local:install -- --dry-run
@@ -65,7 +84,7 @@ npm run local:uninstall -- --dry-run
 npm run launchd:render
 ```
 
-`local:morning -- --dry-run` 会访问真实平台，但不写状态、正式数据、报告或 Git。`--fixture --dry-run` 完全离线，供测试和 CI 使用。
+`local:morning -- --dry-run` 会访问真实平台；`local:research -- --dry-run` 只访问 Topic 指定官方来源，禁止 X、公众号和 Browser Collector。二者都不写状态、正式数据、报告或 Git。`--fixture --dry-run` 完全离线。
 
 PR 合并后，用户确认 Chrome、Bridge、登录态和 Git 鉴权可用，再显式安装：
 
@@ -75,6 +94,8 @@ export TOPIC_CODEX_MODEL="<explicit model>"
 # TOPIC_CODEX_BIN 可选；留空时安装器从 PATH 解析绝对路径。
 npm run local:install -- --install
 ```
+
+安装器把同一个本机 Codex CLI 与显式模型传给 Topic 和 Research。直接手动运行时可用 `RESEARCH_CODEX_BIN` / `RESEARCH_CODEX_MODEL` 单独覆盖，但 plist 不保存两套配置。
 
 卸载 LaunchAgent 但保留 Runtime、状态和日志：
 
@@ -86,7 +107,7 @@ npm run local:uninstall -- --uninstall
 
 ## 状态与通知
 
-状态文件：`~/Library/Application Support/AiAutoContent/state/scheduler-state.json`。损坏状态不会被静默覆盖；旧状态缺少 topic task 时会安全补成未到期状态。
+状态文件：`~/Library/Application Support/AiAutoContent/state/scheduler-state.json`。损坏状态不会被静默覆盖；旧状态缺少 Topic 或 Research task 时会安全补成未到期状态。
 
 pending 恢复返回其中所有采集日期。恢复日期包含当天时，Morning 以当天外部状态确认结果并跳过平台，避免重复采集；仅包含历史日期时，仍继续执行当天共享健康检查和双平台 Pipeline。
 
@@ -98,7 +119,7 @@ pending 恢复返回其中所有采集日期。恢复日期包含当天时，Mor
 
 | 退出码 | 含义 |
 |---:|---|
-| 0 | success、partial_success、not_due、already_completed、lock_held |
+| 0 | success、partial_success、not_due、waiting_for_topic、already_researched、already_completed、lock_held |
 | 1 | 参数或程序错误 |
 | 2 | Browser Pipeline 完全失败 |
 | 3 | health check 失败 |
@@ -109,4 +130,4 @@ pending 恢复返回其中所有采集日期。恢复日期包含当天时，Mor
 
 ## 当前安装状态
 
-本 PR 只提交代码、模板和 dry-run 安装器；没有 bootstrap、reload 或修改当前生产 LaunchAgent，也没有执行正式平台采集。真实 Codex dry-run 与 `env -i` 精简环境 dry-run 已通过，均未写正式文件。合并后再显式更新 Runtime 与 LaunchAgent。
+本 PR 只提交代码和配置；没有 bootstrap、reload 或修改当前生产 LaunchAgent/Runtime clone，也没有执行 Browser Collector。Research 合并后仍需用户显式更新本机 Runtime 与 LaunchAgent。

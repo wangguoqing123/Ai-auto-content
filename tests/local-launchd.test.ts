@@ -42,6 +42,14 @@ describe('LaunchAgent rendering and dry-run safety', () => {
     expect(rendered).not.toMatch(/auth_token|pass_ticket|Cookie:|Authorization:|github_pat_|ghp_/i);
   });
 
+  it('shares the pinned local Codex binary and model with Topic and Research', async () => {
+    const wrapper = await readFile(path.join(process.cwd(), 'scripts', 'local-scheduler-wrapper.sh'), 'utf8');
+    expect(wrapper).toContain('export TOPIC_CODEX_BIN="$CODEX_BIN"');
+    expect(wrapper).toContain('export TOPIC_CODEX_MODEL="$CODEX_MODEL"');
+    expect(wrapper).toContain('export RESEARCH_CODEX_BIN="$CODEX_BIN"');
+    expect(wrapper).toContain('export RESEARCH_CODEX_MODEL="$CODEX_MODEL"');
+  });
+
   it('install dry-run does not create the Application Support or LaunchAgents target', async () => {
     const home = await mkdtemp(path.join(os.tmpdir(), 'launchd-dry-run-home-'));
     roots.push(home);

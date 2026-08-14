@@ -1,0 +1,103 @@
+version: 1
+tasks:
+  - task_id: public_notes_to_action_brief
+    type: text_to_text
+    name: Public notes to action brief
+    description: Convert synthetic public project notes into an action brief with owners and acceptance checks.
+    synthetic_input: |
+      Project: Community AI practice session
+      Goal: publish an offline practice handout next Tuesday.
+      Known decisions: use only synthetic examples; the handout must work without account login.
+      Contributors: Lin owns the outline; Chen owns the example; Qiao owns the final check.
+      Open constraint: the example must fit on one page and include a pass/fail checklist.
+    required_deliverable_fields:
+      - title
+      - objective
+      - decisions
+      - actions
+      - acceptance_checklist
+      - risks
+    acceptance_criteria:
+      - criterion_id: deliverable_present
+        description: The requested deliverable exists.
+      - criterion_id: required_fields_complete
+        description: Every required deliverable field is populated.
+      - criterion_id: missing_inputs_explicit
+        description: Missing inputs are explicitly recorded.
+      - criterion_id: executable_next_steps
+        description: At least one action has an owner, next step, and acceptance condition.
+      - criterion_id: acceptance_mapped
+        description: The output includes itemized acceptance checks.
+      - criterion_id: assumptions_bounded
+        description: Unsupported assumptions are not presented as facts.
+      - criterion_id: strict_output_format
+        description: The output passes the shared strict schema.
+      - criterion_id: no_major_supplementation
+        description: The deliverable can be checked without the user supplying most of it again.
+
+  - task_id: product_request_to_acceptance_checklist
+    type: text_to_text
+    name: Product request to acceptance checklist
+    description: Convert a synthetic product request into deliverables and an acceptance checklist.
+    synthetic_input: |
+      Request: Add an export button to a fictional notes app.
+      Scope: export the current note as Markdown; do not add cloud sync or PDF.
+      Required states: ready, no note selected, and export failure.
+      Acceptance: downloaded file uses the note title and preserves headings and lists.
+    required_deliverable_fields:
+      - title
+      - objective
+      - decisions
+      - actions
+      - acceptance_checklist
+      - risks
+    acceptance_criteria:
+      - criterion_id: deliverable_present
+        description: The requested deliverable exists.
+      - criterion_id: required_fields_complete
+        description: Every required deliverable field is populated.
+      - criterion_id: missing_inputs_explicit
+        description: Missing inputs are explicitly recorded.
+      - criterion_id: executable_next_steps
+        description: At least one action has an owner, next step, and acceptance condition.
+      - criterion_id: acceptance_mapped
+        description: The output includes itemized acceptance checks.
+      - criterion_id: assumptions_bounded
+        description: Unsupported assumptions are not presented as facts.
+      - criterion_id: strict_output_format
+        description: The output passes the shared strict schema.
+      - criterion_id: no_major_supplementation
+        description: The deliverable can be checked without the user supplying most of it again.
+
+  - task_id: meeting_notes_to_decision_log
+    type: text_to_text
+    name: Meeting notes to decision log
+    description: Convert synthetic meeting notes into decisions, owners, next steps, and acceptance conditions.
+    synthetic_input: |
+      Synthetic meeting notes: The team chose a two-week pilot. Mei will draft the checklist by Friday.
+      Rui will recruit three internal testers. The pilot stops if any sample contains private customer data.
+      Success means all testers can complete the checklist without a live walkthrough.
+    required_deliverable_fields:
+      - title
+      - objective
+      - decisions
+      - actions
+      - acceptance_checklist
+      - risks
+    acceptance_criteria:
+      - criterion_id: deliverable_present
+        description: The requested deliverable exists.
+      - criterion_id: required_fields_complete
+        description: Every required deliverable field is populated.
+      - criterion_id: missing_inputs_explicit
+        description: Missing inputs are explicitly recorded.
+      - criterion_id: executable_next_steps
+        description: At least one action has an owner, next step, and acceptance condition.
+      - criterion_id: acceptance_mapped
+        description: The output includes itemized acceptance checks.
+      - criterion_id: assumptions_bounded
+        description: Unsupported assumptions are not presented as facts.
+      - criterion_id: strict_output_format
+        description: The output passes the shared strict schema.
+      - criterion_id: no_major_supplementation
+        description: The deliverable can be checked without the user supplying most of it again.

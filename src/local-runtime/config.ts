@@ -23,6 +23,12 @@ const localRuntimeConfigSchema = z.object({
     window_end: '18:00',
     max_attempts: 2,
   }),
+  research_pack: schedule.default({
+    target_time: '13:30',
+    window_start: '13:30',
+    window_end: '21:00',
+    max_attempts: 2,
+  }),
   scheduler: z.object({
     check_interval_seconds: z.number().int().min(60),
   }),

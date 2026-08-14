@@ -6,10 +6,13 @@ import {
   AUTOMATED_DATA_PATHS,
   commitAndPushBrowserData,
   commitAndPushTopicData,
+  commitAndPushResearchData,
   GitSyncError,
   inspectPendingBrowserCommits,
   isAutomatedDataPath,
   isTopicDataPath,
+  isResearchDataPath,
+  RESEARCH_DATA_PATHS,
   TOPIC_DATA_PATHS,
   prepareRuntimeRepository,
 } from '../src/local-runtime/git-sync.js';
@@ -70,6 +73,60 @@ describe('runtime Git path and content safety', () => {
 
   it.each(TOPIC_DATA_PATHS)('allows Topic path %s and descendants', (allowed) => {
     expect(isTopicDataPath(`${allowed}/fixture.json`)).toBe(true);
+  });
+
+  it.each(RESEARCH_DATA_PATHS)('allows Research path %s and descendants', (allowed) => {
+    expect(isResearchDataPath(`${allowed}/fixture.json`)).toBe(true);
+  });
+
+  it.each(['.DS_Store', 'data/research-packs/.DS_Store', 'research-cache/source.json', 'src/research/pipeline.ts', '../outside'])
+    ('rejects Research runtime path %s', (file) => {
+      expect(isResearchDataPath(file)).toBe(false);
+    });
+
+  it('commits and pushes only allowlisted Research data', async () => {
+    const repo = await repository();
+    const report = path.join(repo.root, 'reports', 'research', '2026-08-14.md');
+    await mkdir(path.dirname(report), { recursive: true });
+    await writeFile(report, '# Safe fixture research report\n');
+    const result = await commitAndPushResearchData(repo.root, '2026-08-14', config);
+    expect(result).toMatchObject({ status: 'pushed' });
+    expect(await git(repo.root, 'log', '-1', '--pretty=%s')).toBe('chore(research): build evidence pack 2026-08-14');
+    expect(await git(repo.root, 'status', '--short')).toBe('');
+  });
+
+  it('refuses a non-whitelisted change during Research commit', async () => {
+    const repo = await repository();
+    await mkdir(path.join(repo.root, 'src'));
+    await writeFile(path.join(repo.root, 'src', 'unexpected.ts'), 'export {};\n');
+    await expect(commitAndPushResearchData(repo.root, '2026-08-14', config)).rejects.toMatchObject({ kind: 'invalid_staged_paths' });
+  });
+
+  it('refuses a cache path during Research commit', async () => {
+    const repo = await repository();
+    await mkdir(path.join(repo.root, 'research-cache'));
+    await writeFile(path.join(repo.root, 'research-cache', 'source.json'), '{"full":"text"}\n');
+    await expect(commitAndPushResearchData(repo.root, '2026-08-14', config)).rejects.toMatchObject({ kind: 'invalid_staged_paths' });
+  });
+
+  it('refuses an oversized full-webpage-like Research report', async () => {
+    const repo = await repository();
+    const report = path.join(repo.root, 'reports', 'research', '2026-08-14.md');
+    await mkdir(path.dirname(report), { recursive: true });
+    await writeFile(report, `<html>${'third-party article '.repeat(20_000)}</html>`);
+    await expect(commitAndPushResearchData(repo.root, '2026-08-14', config)).rejects.toMatchObject({ kind: 'invalid_staged_paths' });
+  });
+
+  it('inspects and pushes a valid pending Research commit with its research date', async () => {
+    const repo = await repository();
+    const report = path.join(repo.root, 'reports', 'research', '2026-08-14.md');
+    await mkdir(path.dirname(report), { recursive: true });
+    await writeFile(report, '# Pending safe research report\n');
+    await git(repo.root, 'add', '-A', '--', 'reports/research');
+    await git(repo.root, 'commit', '-m', 'chore(research): build evidence pack 2026-08-14');
+    await expect(prepareRuntimeRepository(repo.root, config)).resolves.toMatchObject({
+      status: 'pending_pushed', recoveredResearchDates: ['2026-08-14'],
+    });
   });
 
   it('commits and pushes only allowlisted Topic data', async () => {

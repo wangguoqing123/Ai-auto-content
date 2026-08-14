@@ -13,6 +13,12 @@ topic_selection:
   window_end: "18:00"
   max_attempts: 2
 
+research_pack:
+  target_time: "13:30"
+  window_start: "13:30"
+  window_end: "21:00"
+  max_attempts: 2
+
 scheduler:
   check_interval_seconds: 900
 

@@ -1,0 +1,38 @@
+version: 1
+timezone: Asia/Shanghai
+
+source_fetch:
+  maximum_sources: 5
+  timeout_seconds: 20
+  maximum_redirects: 5
+  maximum_response_bytes: 2097152
+  maximum_clean_text_chars: 80000
+  maximum_committed_quote_chars_per_source: 1500
+  maximum_single_quote_chars: 500
+  allowed_content_types:
+    - text/html
+    - application/xhtml+xml
+    - text/plain
+    - application/json
+    - application/rss+xml
+    - application/atom+xml
+
+research:
+  maximum_questions: 5
+  maximum_verified_claims: 8
+  maximum_codex_calls: 4
+  repair_attempts: 1
+  prompt_version: research-pack-v1
+
+experiment:
+  enabled: true
+  maximum_variants: 2
+  maximum_acceptance_criteria: 8
+  maximum_output_chars_per_variant: 20000
+  maximum_experiment_steps: 5
+
+schedule:
+  target_time: "13:30"
+  window_start: "13:30"
+  window_end: "21:00"
+  max_attempts: 2

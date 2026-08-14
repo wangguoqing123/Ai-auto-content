@@ -162,6 +162,21 @@ Material Card 只有安全、受限字段；restricted 公众号 canonical URL �
 
 ## 6. 实验库 `experiments`
 
+v0 不建立数据库，实验作为当天 Research Pack 的受限子产物保存：
+
+- `data/research-packs/YYYY-MM-DD/research-pack.json`：唯一正式研究决定与写作门槛。
+- `source-manifests/*.json`：来源身份、URL、SHA-256、状态与最多 500 字符的短引用；单来源合计最多 1,500 字符。
+- `experiments/experiment-spec.json`：同模型、同输入 hash、相同超时与两个 Variant prompt hash。
+- `experiments/baseline_chat_request.json` 与 `structured_task_card.json`：合成 text_to_text 输出、代码验收、耗时与 usage。
+- `data/research-runs/research_<timestamp>.json`：每次安全审计记录。
+- `reports/research/YYYY-MM-DD.md`：不包含正文的可读报告。
+
+`researchPackSchema` 区分 `status=success|failed` 与业务 `decision=READY_FOR_WRITING|RESEARCH_INCOMPLETE|NO_TOPIC|null`。基础设施失败必须 `decision=null`；`NO_TOPIC` 不得有来源、模型调用或实验。Topic 快照固定保存 signature、run ID、工作标题、stage、pillar、主模块和 CTA，研究层不能换题。
+
+完整清洗来源段落不属于 Git 数据模型，只在 `~/Library/Application Support/AiAutoContent/research-cache/` 以 0700/0600 权限短期保存。Git Schema 不含 `segments`、HTML、完整正文、原始事件流或思维链。
+
+## 6.1 当前实验字段
+
 核心字段：
 
 - `experiment_id`
