@@ -5,10 +5,17 @@ import { z, type ZodType } from 'zod';
 import { contentFitProfileSchema } from '../src/product/content-fit-profile.js';
 import { productProfileSchema } from '../src/product/product-profile.js';
 import { materialSchema, unifiedMaterialSchema } from '../src/types.js';
+import { topicDecisionSchema } from '../src/topic-intelligence/schemas.js';
 
 const JSON_SCHEMA_DRAFT = 'https://json-schema.org/draft/2020-12/schema';
 
 const schemas = [
+  {
+    filename: 'topic-decision.schema.json',
+    id: 'https://example.local/schemas/topic-decision.schema.json',
+    title: 'Daily Topic Intelligence Decision',
+    schema: topicDecisionSchema,
+  },
   {
     filename: 'unified-material.schema.json',
     id: 'https://example.local/schemas/unified-material.schema.json',
@@ -41,12 +48,42 @@ function serializeSchema(schema: ZodType, id: string, title: string): string {
     throw new Error(`Unexpected JSON Schema draft: ${String(generated.$schema)}`);
   }
   const { $schema: _generatedDraft, ...body } = generated;
-  const document = {
+  const document: Record<string, unknown> = {
     $schema: JSON_SCHEMA_DRAFT,
     $id: id,
     title,
     ...body,
   };
+  if (title === 'Daily Topic Intelligence Decision') {
+    document.allOf = [
+      {
+        if: { properties: { status: { const: 'success' }, decision: { const: 'SELECT_TOPIC' } }, required: ['status', 'decision'] },
+        then: { properties: { selected_topic: { not: { type: 'null' } } }, required: ['selected_topic'] },
+      },
+      {
+        if: { properties: { status: { const: 'success' }, decision: { const: 'NO_PUBLISH' } }, required: ['status', 'decision'] },
+        then: {
+          properties: {
+            selected_topic: { type: 'null' },
+            no_publish_reason_code: { not: { type: 'null' } },
+            no_publish_reason: { type: 'string', minLength: 1 },
+          },
+          required: ['selected_topic', 'no_publish_reason_code', 'no_publish_reason'],
+        },
+      },
+      {
+        if: { properties: { status: { const: 'failed' } }, required: ['status'] },
+        then: {
+          properties: {
+            decision: { type: 'null' },
+            selected_topic: { type: 'null' },
+            error_code: { not: { type: 'null' } },
+          },
+          required: ['decision', 'selected_topic', 'error_code'],
+        },
+      },
+    ];
+  }
   return `${JSON.stringify(document, null, 2)}\n`;
 }
 

@@ -24,9 +24,14 @@
     "typecheck": "tsc --noEmit",
     "product:check": "tsx scripts/product-check.ts",
     "schema:generate": "tsx scripts/generate-json-schemas.ts",
-    "schema:check": "tsx scripts/generate-json-schemas.ts --check"
+    "schema:check": "tsx scripts/generate-json-schemas.ts --check",
+    "topic:select": "tsx scripts/topic-select.ts",
+    "topic:validate": "tsx scripts/topic-validate.ts",
+    "topic:inspect-input": "tsx scripts/topic-inspect-input.ts",
+    "topic:paths:check": "tsx scripts/topic-output-paths-check.ts"
   },
   "dependencies": {
+    "openai": "^7.4.0",
     "p-limit": "^7.1.1",
     "rss-parser": "^3.13.0",
     "yaml": "^2.8.1",

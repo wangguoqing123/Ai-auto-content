@@ -1,0 +1,40 @@
+version: 1
+timezone: Asia/Shanghai
+
+schedule:
+  target_time: "13:00"
+
+input:
+  lookback_hours: 72
+  history_window_days: 30
+  max_total_materials: 60
+  max_cloud_materials: 30
+  max_twitter_materials: 25
+  max_weixin_resolved_materials: 8
+  max_weixin_restricted_materials: 8
+  max_per_author: 3
+  max_per_query: 8
+  max_per_cluster: 5
+  excerpt_max_chars: 500
+  restricted_excerpt_max_chars: 300
+  max_model_input_chars: 80000
+
+candidates:
+  maximum: 3
+  approval_score: 80
+  close_score_tie_range: 3
+
+history:
+  exact_signature_window_days: 30
+  similarity_window_days: 30
+  token_similarity_threshold: 0.72
+
+model:
+  maximum_calls_per_run: 2
+  repair_attempts: 1
+  prompt_version: topic-intelligence-v1
+
+output:
+  maximum_research_questions: 5
+  maximum_experiment_steps: 5
+  maximum_supported_claims: 5
