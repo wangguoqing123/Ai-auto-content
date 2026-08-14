@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadExperimentTaskCatalog, loadResearchIntelligenceConfig } from '../src/research/config.js';
-import { experimentTaskCatalogSchema, researchIntelligenceConfigSchema } from '../src/research/schemas.js';
+import { experimentTaskCatalogSchema, researchAnswerSchema, researchIntelligenceConfigSchema } from '../src/research/schemas.js';
 
 describe('research configuration contracts', () => {
   it('loads the committed strict research configuration', async () => {
@@ -76,5 +76,21 @@ describe('research configuration contracts', () => {
     const catalog = structuredClone(await loadExperimentTaskCatalog(process.cwd()));
     catalog.tasks[0]!.acceptance_criteria[1]!.criterion_id = catalog.tasks[0]!.acceptance_criteria[0]!.criterion_id;
     expect(experimentTaskCatalogSchema.safeParse(catalog).success).toBe(false);
+  });
+
+  it('allows an answered non-factual task-selection question without a source claim', () => {
+    expect(researchAnswerSchema.safeParse({
+      question: 'Which safe synthetic task should be used?',
+      answer_status: 'answered', gap_impact: 'none',
+      answer: 'Use the project-owned product request fixture.',
+      supporting_claim_ids: [], remaining_gap: '',
+    }).success).toBe(true);
+  });
+
+  it('enforces the answered, partial, and unanswered gap-impact combinations', () => {
+    const base = { question: 'Question', answer: 'Bounded answer', supporting_claim_ids: [], remaining_gap: '' };
+    expect(researchAnswerSchema.safeParse({ ...base, answer_status: 'answered', gap_impact: 'blocking' }).success).toBe(false);
+    expect(researchAnswerSchema.safeParse({ ...base, answer_status: 'partial', gap_impact: 'none', remaining_gap: 'Gap' }).success).toBe(false);
+    expect(researchAnswerSchema.safeParse({ ...base, answer_status: 'unanswered', gap_impact: 'blocking' }).success).toBe(false);
   });
 });

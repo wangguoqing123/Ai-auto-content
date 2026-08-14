@@ -50,7 +50,7 @@ describe('local Research Pack scheduler task', () => {
       repositoryRoot: env.repository, now: new Date('2026-08-14T05:30:00.000Z'), fixture: true, dryRun: true,
       config: env.config, paths: env.paths, triggerMode: 'scheduled',
     });
-    expect(result).toMatchObject({ outcome: 'COMPLETED', status: 'success', researchDecision: 'READY_FOR_WRITING' });
+    expect(result).toMatchObject({ outcome: 'COMPLETED', status: 'success', researchDecision: 'RESEARCH_INCOMPLETE' });
   });
 
   it('is DUE at the inclusive 21:00 boundary', async () => {
@@ -115,7 +115,7 @@ describe('local Research Pack scheduler task', () => {
     const updated = await readSchedulerState(env.paths.stateFile);
     expect(updated?.tasks.morning).toMatchObject({ last_status: 'partial_success', attempts: 1 });
     expect(updated?.tasks.topic_selection).toMatchObject({ last_status: 'success', last_topic_decision: 'SELECT_TOPIC' });
-    expect(updated?.tasks.research_pack).toMatchObject({ last_status: 'success', last_research_decision: 'READY_FOR_WRITING' });
+    expect(updated?.tasks.research_pack).toMatchObject({ last_status: 'success', last_research_decision: 'RESEARCH_INCOMPLETE' });
   });
 
   it('increments attempts for a real research failure and preserves its safe error', async () => {

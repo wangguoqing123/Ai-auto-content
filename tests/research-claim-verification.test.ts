@@ -60,14 +60,11 @@ describe('research claim and answer verification', () => {
     expect(errors(result, topic, sources, selectedConfig)).toContain('quote exceeds single quote limit: claim_supported_1');
   });
 
-  it('rejects a time-sensitive supported claim that is partial', () => {
+  it('treats a partial time-sensitive claim as an evidence gap, not a structural error', () => {
     const result = structuredClone(valid);
     result.verified_claims[0]!.support_status = 'partial';
-    result.verified_claims[0]!.scope_limit = 'Only part is supported.';
-    expect(errors(result)).toEqual(expect.arrayContaining([
-      'time-sensitive supported claim is not direct: claim_supported_1',
-      'declared time-sensitive claim lacks direct support: claim_supported_1',
-    ]));
+    result.verified_claims[0]!.scope_limit = 'Only the official RSS excerpt is supported; the full article is unavailable.';
+    expect(errors(result)).toEqual([]);
   });
 
   it('allows partial non-time-sensitive claims only with a scope limit at schema level', () => {
@@ -75,7 +72,7 @@ describe('research claim and answer verification', () => {
     selectedTopic.time_sensitive = false;
     const result = structuredClone(valid);
     result.verified_claims[0]!.support_status = 'partial';
-    result.verified_claims[0]!.scope_limit = 'Limited to the supplied example.';
+    result.verified_claims[0]!.scope_limit = 'Limited to the official RSS excerpt; full article details are unavailable.';
     expect(errors(result, selectedTopic)).toEqual([]);
   });
 
@@ -94,16 +91,34 @@ describe('research claim and answer verification', () => {
   it('rejects an answer that references an unknown claim', () => {
     const result = structuredClone(valid);
     result.research_answers[0]!.supporting_claim_ids = ['claim_missing'];
-    expect(errors(result)).toContain('answer references unverified claim: claim_missing');
+    expect(errors(result)).toContain('answer references unknown claim: claim_missing');
   });
 
-  it('rejects an answer that references an unsupported claim', () => {
+  it('allows the non-factual experiment task-selection question without a source claim', () => {
+    const result = structuredClone(valid);
+    result.research_answers[2] = {
+      question: topic.research_questions[2]!, answer_status: 'answered', gap_impact: 'none',
+      answer: 'Use the bounded project-owned synthetic text task.', supporting_claim_ids: [], remaining_gap: '',
+    };
+    expect(errors(result)).toEqual([]);
+  });
+
+  it('rejects a factual answered question without a verified claim', () => {
+    const result = structuredClone(valid);
+    result.research_answers[0] = {
+      question: topic.research_questions[0]!, answer_status: 'answered', gap_impact: 'none',
+      answer: 'Unsupported factual answer.', supporting_claim_ids: [], remaining_gap: '',
+    };
+    expect(errors(result)).toContain(`factual answered question lacks a verified claim: ${topic.research_questions[0]}`);
+  });
+
+  it('treats an answer reference to an unsupported claim as an evidence gap', () => {
     const result = structuredClone(valid);
     result.verified_claims[0]!.support_status = 'unsupported';
     result.verified_claims[0]!.source_id = null;
     result.verified_claims[0]!.segment_id = null;
     result.verified_claims[0]!.quote = '';
-    expect(errors(result)).toContain('answer references unverified claim: claim_supported_1');
+    expect(errors(result)).toEqual([]);
   });
 
   it('rejects a numeric answer detail absent from its supporting evidence', () => {
@@ -124,7 +139,19 @@ describe('research claim and answer verification', () => {
   it('rejects a writing requirement that references an unsupported claim', () => {
     const result = structuredClone(valid);
     result.writing_requirements.required_claim_ids = ['claim_missing'];
-    expect(errors(result)).toContain('writing requirements reference unverified claim: claim_missing');
+    expect(errors(result)).toContain('writing requirements reference unknown claim: claim_missing');
+  });
+
+  it('requires an explicit full-article limitation for a feed excerpt claim', () => {
+    const result = structuredClone(valid);
+    result.verified_claims[0]!.scope_limit = '';
+    expect(errors(result)).toContain('feed excerpt claim lacks explicit scope limitation: claim_supported_1');
+  });
+
+  it('rejects a feed excerpt claim number absent from the exact quote', () => {
+    const result = structuredClone(valid);
+    result.verified_claims[0]!.claim = `${result.verified_claims[0]!.claim} 47%`;
+    expect(errors(result)).toContain('claim contains unsupported numeric token: 47%');
   });
 
   it('requires an experiment task when Topic Decision requires one', () => {

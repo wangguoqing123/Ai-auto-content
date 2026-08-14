@@ -3,9 +3,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { computeResearchInputHash } from '../src/research/input-hash.js';
+import { buildFixtureResearchSources } from '../src/research/fixture.js';
 import { runResearchBuild } from '../src/research/pipeline.js';
 import { FixtureResearchProvider } from '../src/research/providers/fixture-research-provider.js';
-import { ResearchProviderUnavailableError, type ResearchProviderInput } from '../src/research/providers/research-provider.js';
+import { ResearchProviderTimeoutError, ResearchProviderUnavailableError, type ResearchProviderInput } from '../src/research/providers/research-provider.js';
+import { acquiredSnapshot, acquireResearchSources } from '../src/research/source-acquisition.js';
 import { loadFactSourceMaterials } from '../src/research/source-materials.js';
 import { researchPackSchema } from '../src/research/schemas.js';
 import { topicDecisionSchema } from '../src/topic-intelligence/schemas.js';
@@ -56,10 +58,10 @@ class CountingFixtureProvider extends FixtureResearchProvider {
 }
 
 describe('Research Pack pipeline', () => {
-  it('advances SELECT_TOPIC to READY_FOR_WRITING in the offline fixture', async () => {
+  it('keeps excerpt-only fixture research incomplete while still running the experiment', async () => {
     const repository = await root();
     const result = await runResearchBuild({ rootDir: repository, researchDate: '2026-08-14', fixture: true, dryRun: true });
-    expect(result.pack).toMatchObject({ status: 'success', decision: 'READY_FOR_WRITING' });
+    expect(result.pack).toMatchObject({ status: 'success', decision: 'RESEARCH_INCOMPLETE' });
     expect(result.pack.topic?.working_title).toBe('别再只让 AI 给建议：把一个日常任务改造成可验收的执行流程');
   });
 
@@ -115,8 +117,13 @@ describe('Research Pack pipeline', () => {
     const result = await runResearchBuild({ rootDir: repository, researchDate: '2026-08-14', fixture: true });
     expect(result.files_written).toBe(true);
     const packPath = path.join(repository, 'data/research-packs/2026-08-14/research-pack.json');
-    expect(researchPackSchema.parse(JSON.parse(await readFile(packPath, 'utf8'))).decision).toBe('READY_FOR_WRITING');
-    await expect(stat(path.join(repository, 'reports/research/2026-08-14.md'))).resolves.toBeDefined();
+    expect(researchPackSchema.parse(JSON.parse(await readFile(packPath, 'utf8'))).decision).toBe('RESEARCH_INCOMPLETE');
+    const reportPath = path.join(repository, 'reports/research/2026-08-14.md');
+    await expect(stat(reportPath)).resolves.toBeDefined();
+    const report = await readFile(reportPath, 'utf8');
+    expect(report).toContain('获取方式：persisted_official_rss_excerpt');
+    expect(report).toContain('内容范围：feed_excerpt');
+    expect(report).toContain('降级原因：canonical_access_blocked');
   });
 
   it('committed artifacts contain no clean segments, raw HTML, or event stream', async () => {
@@ -143,22 +150,55 @@ describe('Research Pack pipeline', () => {
     const decision = topicDecisionSchema.parse(JSON.parse(await readFile(path.join(repository, 'data/topic-decisions/2026-08-14.json'), 'utf8')));
     const materials = await loadFactSourceMaterials(repository, decision, 5);
     const common = { rootDir: repository, topicDecision: decision, materials, provider: 'fixture', model: 'offline-fixture', runtimeVersion: 'fixture-v1', promptVersion: 'research-pack-v1' };
-    const first = await computeResearchInputHash({ ...common, sources: materials.map(({ material_id }) => ({ material_id, content_sha256: 'a'.repeat(64) })) });
-    const second = await computeResearchInputHash({ ...common, sources: materials.map(({ material_id }, index) => ({ material_id, content_sha256: (index === 0 ? 'b' : 'a').repeat(64) })) });
+    const hashSource = (materialId: string, hash: string) => ({
+      material_id: materialId, content_sha256: hash, retrieval_method: 'persisted_official_rss_excerpt' as const,
+      content_scope: 'feed_excerpt' as const, retrieval_url: 'https://openai.com/news/rss.xml',
+      canonical_fetch_status: 'blocked' as const, canonical_http_status: 403, fetch_status: 'success' as const,
+    });
+    const first = await computeResearchInputHash({ ...common, sources: materials.map(({ material }) => hashSource(material.material_id, 'a'.repeat(64))) });
+    const second = await computeResearchInputHash({ ...common, sources: materials.map(({ material }, index) => hashSource(material.material_id, (index === 0 ? 'b' : 'a').repeat(64))) });
     expect(first).not.toBe(second);
   });
 
   it('classifies source/network infrastructure failure as status=failed, not RESEARCH_INCOMPLETE', async () => {
     const repository = await root();
+    const provider = new CountingFixtureProvider();
     const result = await runResearchBuild({
       rootDir: repository, researchDate: '2026-08-14', dryRun: true,
-      provider: new CountingFixtureProvider(),
-      fetchSource: async () => { throw new Error('simulated network failure'); },
+      provider,
+      acquireSources: async (materials, config) => acquireResearchSources(materials.map((source) => ({
+        ...source, provenance: { ...source.provenance, source_config_url: null },
+      })), config, { fetchCanonical: async () => { throw new Error('simulated network failure'); } }),
     });
     expect(result.pack).toMatchObject({
       status: 'failed', decision: null, error_code: 'source_fetch_failed',
-      source_summary: { requested: 2, fetched: 0, failed: 1, unsupported_content_type: 0 },
+      source_summary: { requested: 2, fetched: 0, failed: 2, unsupported_content_type: 0, unavailable: 2 },
     });
+    expect(provider.analyzeCalls).toBe(0);
+    expect(provider.experimentCalls).toEqual([]);
+  });
+
+  it('continues with one acquired and one unavailable source as RESEARCH_INCOMPLETE', async () => {
+    const repository = await root();
+    const provider = new CountingFixtureProvider();
+    const result = await runResearchBuild({
+      rootDir: repository, researchDate: '2026-08-14', dryRun: true, provider,
+      cacheRoot: path.join(repository, 'research-cache'),
+      acquireSources: async (materials, config) => acquireResearchSources([
+        materials[0]!,
+        { ...materials[1]!, provenance: { ...materials[1]!.provenance, source_config_url: null } },
+      ], config, {
+        fetchCanonical: async () => { throw new Error('simulated canonical failure'); },
+        replayRss: async () => null,
+      }),
+    });
+    expect(result.pack).toMatchObject({
+      status: 'success', decision: 'RESEARCH_INCOMPLETE',
+      source_summary: { requested: 2, fetched: 1, failed: 1, unavailable: 1 },
+      readiness: { fact_claims_verified: false },
+    });
+    expect(result.pack.verified_claims.find(({ claim_id }) => claim_id === 'claim_supported_2')?.support_status).toBe('unsupported');
+    expect(provider.experimentCalls).toEqual(['baseline_chat_request', 'structured_task_card']);
   });
 
   it('classifies a Codex infrastructure error as status=failed', async () => {
@@ -166,7 +206,7 @@ describe('Research Pack pipeline', () => {
     const provider = new CountingFixtureProvider();
     provider.analyze = async () => { throw new ResearchProviderUnavailableError('codex_not_authenticated'); };
     const result = await runResearchBuild({ rootDir: repository, researchDate: '2026-08-14', fixture: true, dryRun: true, provider });
-    expect(result.pack).toMatchObject({ status: 'failed', decision: null, error_code: 'codex_not_authenticated' });
+    expect(result.pack).toMatchObject({ status: 'failed', decision: null, error_code: 'codex_not_authenticated', model: { calls: 1 } });
   });
 
   it('repairs a quote mismatch once and fails invalid_source_quote when it remains invalid', async () => {
@@ -190,12 +230,50 @@ describe('Research Pack pipeline', () => {
     provider.analyze = async (input) => {
       const call = await original(input);
       call.output.research_answers[0] = {
-        question: input.topic.research_questions[0]!, answer_status: 'unanswered', answer: '', supporting_claim_ids: [], remaining_gap: 'Source does not answer this question.',
+        question: input.topic.research_questions[0]!, answer_status: 'unanswered', gap_impact: 'blocking', answer: '', supporting_claim_ids: [], remaining_gap: 'Source does not answer this question.',
       };
       return call;
     };
     const result = await runResearchBuild({ rootDir: repository, researchDate: '2026-08-14', fixture: true, dryRun: true, provider });
     expect(result.pack).toMatchObject({ status: 'success', decision: 'RESEARCH_INCOMPLETE', readiness: { research_questions_sufficient: false } });
+  });
+
+  it('allows partial non-blocking answers through the research-question sufficiency gate', async () => {
+    const repository = await root();
+    const provider = new CountingFixtureProvider();
+    const original = provider.analyze.bind(provider);
+    provider.analyze = async (input) => {
+      const call = await original(input);
+      call.output.research_answers = input.topic.research_questions.map((question, index) => ({
+        question,
+        answer_status: 'partial' as const,
+        gap_impact: 'non_blocking' as const,
+        answer: 'The available official excerpt provides bounded context.',
+        supporting_claim_ids: [`claim_supported_${Math.min(index + 1, 2)}`],
+        remaining_gap: 'More detail would be useful but is not required for the bounded conclusion.',
+      }));
+      return call;
+    };
+    const result = await runResearchBuild({ rootDir: repository, researchDate: '2026-08-14', fixture: true, dryRun: true, provider });
+    expect(result.pack.readiness.research_questions_sufficient).toBe(true);
+    expect(result.pack.decision).toBe('RESEARCH_INCOMPLETE');
+  });
+
+  it('runs both variants when the experiment task-selection question is answered from the project catalog', async () => {
+    const repository = await root();
+    const provider = new CountingFixtureProvider();
+    const original = provider.analyze.bind(provider);
+    provider.analyze = async (input) => {
+      const call = await original(input);
+      call.output.research_answers[2] = {
+        question: input.topic.research_questions[2]!, answer_status: 'answered', gap_impact: 'none',
+        answer: 'Use the bounded project-owned synthetic text task.', supporting_claim_ids: [], remaining_gap: '',
+      };
+      return call;
+    };
+    const result = await runResearchBuild({ rootDir: repository, researchDate: '2026-08-14', fixture: true, dryRun: true, provider });
+    expect(result.pack).toMatchObject({ status: 'success', decision: 'RESEARCH_INCOMPLETE', model: { calls: 3 } });
+    expect(provider.experimentCalls).toEqual(['baseline_chat_request', 'structured_task_card']);
   });
 
   it('uses no more than four provider calls when research repair and two variants run', async () => {
@@ -210,5 +288,52 @@ describe('Research Pack pipeline', () => {
     const result = await runResearchBuild({ rootDir: repository, researchDate: '2026-08-14', fixture: true, dryRun: true, provider });
     expect(result.pack).toMatchObject({ status: 'success', model: { calls: 4 } });
     expect(provider.experimentCalls).toEqual(['baseline_chat_request', 'structured_task_card']);
+  });
+
+  it('performs source acquisition before the idempotency decision', async () => {
+    const repository = await root();
+    const acquireSources = vi.fn(async (materials: Awaited<ReturnType<typeof loadFactSourceMaterials>>) =>
+      buildFixtureResearchSources(materials).map((snapshot, index) => acquiredSnapshot(materials[index]!, snapshot)));
+    await runResearchBuild({ rootDir: repository, researchDate: '2026-08-14', provider: new CountingFixtureProvider(), acquireSources });
+    const secondProvider = new CountingFixtureProvider();
+    const second = await runResearchBuild({ rootDir: repository, researchDate: '2026-08-14', provider: secondProvider, acquireSources });
+    expect(second.execution_status).toBe('ALREADY_RESEARCHED');
+    expect(acquireSources).toHaveBeenCalledTimes(2);
+    expect(secondProvider.analyzeCalls).toBe(0);
+  });
+
+  it('records analyze timeout as one attempted call', async () => {
+    const repository = await root();
+    const provider = new CountingFixtureProvider();
+    provider.analyze = async () => { throw new ResearchProviderTimeoutError(); };
+    const result = await runResearchBuild({ rootDir: repository, researchDate: '2026-08-14', fixture: true, dryRun: true, provider });
+    expect(result.pack).toMatchObject({ status: 'failed', error_code: 'codex_timeout', model: { calls: 1 } });
+  });
+
+  it('records repair timeout as the second attempted call', async () => {
+    const repository = await root();
+    const provider = new CountingFixtureProvider();
+    const original = provider.analyze.bind(provider);
+    provider.analyze = async (input) => {
+      const call = await original(input);
+      call.output.verified_claims[0]!.quote = 'invalid quote';
+      return call;
+    };
+    provider.repair = async () => { throw new ResearchProviderTimeoutError(); };
+    const result = await runResearchBuild({ rootDir: repository, researchDate: '2026-08-14', fixture: true, dryRun: true, provider });
+    expect(result.pack).toMatchObject({ status: 'failed', error_code: 'codex_timeout', model: { calls: 2 } });
+  });
+
+  it('records a structured variant timeout after analyze and baseline as three attempted calls', async () => {
+    const repository = await root();
+    const provider = new CountingFixtureProvider();
+    const original = provider.runExperiment.bind(provider);
+    provider.runExperiment = async (input) => {
+      if (input.variant === 'structured_task_card') throw new ResearchProviderTimeoutError();
+      return original(input);
+    };
+    const result = await runResearchBuild({ rootDir: repository, researchDate: '2026-08-14', fixture: true, dryRun: true, provider });
+    expect(result.pack).toMatchObject({ status: 'failed', error_code: 'codex_timeout', model: { calls: 3 } });
+    expect(provider.experimentCalls).toEqual(['baseline_chat_request']);
   });
 });

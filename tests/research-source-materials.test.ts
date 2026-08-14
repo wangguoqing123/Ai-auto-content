@@ -22,6 +22,8 @@ async function repository(record: Record<string, unknown> | null) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'research-source-material-'));
   roots.push(root);
   await mkdir(path.join(root, 'data', 'materials'), { recursive: true });
+  await mkdir(path.join(root, 'config'), { recursive: true });
+  await writeFile(path.join(root, 'config/sources.yaml'), await readFile(path.join(process.cwd(), 'config/sources.yaml'), 'utf8'));
   if (record !== null) await writeFile(path.join(root, 'data/materials/fixture.jsonl'), `${JSON.stringify(record)}\n`);
   return root;
 }
@@ -37,13 +39,42 @@ describe('Topic-bound fact source material loading', () => {
   it('loads only the requested accepted official fact source', async () => {
     const root = await repository(material);
     await expect(loadFactSourceMaterials(root, selected(String(material.material_id)), 5)).resolves.toMatchObject([
-      { material_id: material.material_id, status: 'accepted', source_access_status: 'resolved' },
+      {
+        material: { material_id: material.material_id, status: 'accepted', source_access_status: 'resolved' },
+        provenance: {
+          source_id: 'openai-news', source_type: 'rss', source_tier: 'primary',
+          source_config_url: 'https://openai.com/news/rss.xml',
+        },
+      },
     ]);
   });
 
   it('rejects a missing material ID', async () => {
     const root = await repository(null);
     await expect(loadFactSourceMaterials(root, selected('mat_111111111111'), 5)).rejects.toMatchObject({ code: 'source_material_invalid' });
+  });
+
+  it('does not infer official RSS fallback eligibility from the canonical domain', async () => {
+    const record: Record<string, unknown> = { ...material, source_type: 'api', source_tier: 'secondary' };
+    const root = await repository(record);
+    const [loaded] = await loadFactSourceMaterials(root, selected(String(record.material_id)), 5);
+    expect(loaded?.material.canonical_url).toContain('openai.com');
+    expect(loaded?.provenance).toMatchObject({
+      source_type: 'api', source_tier: 'secondary', source_config_url: null,
+    });
+  });
+
+  it('retains the Cloud RSS material and provenance when a newer Browser snapshot shares its identity', async () => {
+    const root = await repository(material);
+    await mkdir(path.join(root, 'data/browser-materials'), { recursive: true });
+    const browser = { ...material, title: 'Newer Browser snapshot', collected_at: '2026-08-14T08:00:00.000Z' };
+    await writeFile(path.join(root, 'data/browser-materials/fixture.jsonl'), `${JSON.stringify(browser)}\n`);
+    const [loaded] = await loadFactSourceMaterials(root, selected(String(material.material_id)), 5);
+    expect(loaded?.material.title).toBe(material.title);
+    expect(loaded?.provenance).toMatchObject({
+      source_id: 'openai-news', source_type: 'rss', source_tier: 'primary',
+      source_config_url: 'https://openai.com/news/rss.xml',
+    });
   });
 
   it.each([

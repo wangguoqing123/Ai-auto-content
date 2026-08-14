@@ -106,6 +106,17 @@ describe('research URL safety', () => {
     })).rejects.toMatchObject({ code: 'unsupported_content_type' });
   });
 
+  it.each([
+    [403, Buffer.from('<html><title>Forbidden</title></html>')],
+    [200, Buffer.from('<html><title>Just a moment...</title><p>Enable JavaScript and cookies to continue</p></html>')],
+  ])('classifies HTTP %s access control as canonical_access_blocked', async (statusCode, body) => {
+    const config = await loadResearchIntelligenceConfig(process.cwd());
+    await expect(fetchPublicSource('https://openai.com/index/example', config.source_fetch, {
+      resolveHostname: async () => [{ address: '8.8.8.8', family: 4 }],
+      request: async () => ({ statusCode, location: null, contentType: 'text/html', body }),
+    })).rejects.toMatchObject({ code: 'canonical_access_blocked', httpStatus: statusCode });
+  });
+
   it('returns no Set-Cookie or Authorization metadata', async () => {
     const config = await loadResearchIntelligenceConfig(process.cwd());
     const result = await fetchPublicSource('https://example.com/', config.source_fetch, {
