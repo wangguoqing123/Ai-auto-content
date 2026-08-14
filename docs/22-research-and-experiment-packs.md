@@ -14,7 +14,7 @@ status: implemented_pending_live_validation
 ```text
 SELECT_TOPIC
 → 读取 selected_topic 与 fact_source_ids
-→ 安全抓取指定 canonical URL
+→ 按第一方来源梯度获取指定事实材料
 → 清洗并编号本机来源段落
 → 精确核验 Claim 引用
 → 回答原 research_questions
@@ -23,7 +23,7 @@ SELECT_TOPIC
 → READY_FOR_WRITING 或 RESEARCH_INCOMPLETE
 ```
 
-`NO_PUBLISH` 直接得到 `NO_TOPIC`，不抓网页、不创建 Provider、不调用 Codex、不运行实验。Topic 文件缺失、损坏、日期不符、Schema 非法或 `status=failed` 都是研究基础设施失败：`status=failed`、`decision=null`。网络、Codex、文件或 Schema 故障也不能伪装成 `RESEARCH_INCOMPLETE`。
+`NO_PUBLISH` 直接得到 `NO_TOPIC`，不抓网页、不创建 Provider、不调用 Codex、不运行实验。Topic 文件缺失、损坏、日期不符、Schema 非法或 `status=failed` 都是研究基础设施失败：`status=failed`、`decision=null`。Codex、文件或 Schema 故障不能伪装成 `RESEARCH_INCOMPLETE`。单条来源不可用属于证据缺口；只有全部指定来源都不可用时才是 `source_fetch_failed`。
 
 本层不生成正文、正式标题、封面、配图、提示词、草稿、发布动作或复盘。`READY_FOR_WRITING` 只表示写作输入达到门槛，不表示已经写稿。
 
@@ -40,6 +40,19 @@ v0 只读取 `selected_topic.fact_source_ids` 对应材料，并要求：
 - 不做开放式搜索，不跟进文章中的链接，不访问登录页面、本机浏览器、Cookie 或 Browser Profile。
 
 当前 2026-08-14 Topic 只允许抓取两条 OpenAI 官方材料。真实 dry-run 明确禁止访问 X 和公众号。
+
+## First-party source acquisition fallback
+
+每条 Topic fact source 独立执行同一梯度，互不连带终止：
+
+1. `canonical_http`：只请求一次材料的 canonical URL。
+2. `official_rss_replay`：若 canonical 返回 401/403/429 或 JavaScript/Cookie challenge，不绕过访问控制；只有原 Material 明确来自 `collector=rss`、`source_kind=official`、`source_type=rss`、`source_tier=primary`，且 `source_id` 在 `config/sources.yaml` 中仍为启用的 RSS，才请求同一第一方官方 Feed。
+3. `persisted_official_rss_excerpt`：Feed 不可访问或已不含历史 item 时，仅使用采集阶段已经保存的该官方 RSS item 标题和摘要。
+4. `unavailable`：不满足以上条件或无安全摘要时，来源保持失败清单；不会改用搜索、浏览器、Cookie、缓存网页或第三方正文代理。
+
+RSS Replay 只选择 canonical URL、`source_item_id`、item link 或 guid 匹配的单个 item，按 `content:encoded → content → summary → description → contentSnippet` 取内容；完整 Feed 不进入 Codex、Cache 或 Git。Material 的 RSS/primary 血缘来自 Cloud Material 原字段，Browser Material 不补推断，也不根据 `openai.com` 等域名猜测。
+
+每个 Source Manifest 明确保存 `retrieval_method`、`content_scope`、`retrieval_url`、`canonical_fetch_status`、HTTP 状态、降级原因和原快照时间。`feed_excerpt` 只证明标题与摘要中直接出现的内容，不等于完整文章，不能支持摘要外企业细节或数字。其稳定 SHA-256 只取规范化的 title、excerpt、published_at、source_id 与 canonical_url，不包含 `collected_at`。
 
 ## 3. 公共 URL 与 SSRF 防护
 
@@ -70,11 +83,13 @@ Git 只保存来源身份、安全 URL、标题、作者、抓取时间、类型
 
 ## 5. Claim 和研究问题
 
-研究 Agent 输出 `direct | partial | unsupported` Claim。代码逐项验证 source、fact_source 身份、segment、quote 连续子串和两级引用长度。`partial` 必须写 `scope_limit`；`unsupported` 不得含引用，也不会进入 Research Pack 的写作事实清单。Topic 为时效题时，原 `supported_claims` 的 `claim_supported_N` 必须全部为 `direct`。
+研究 Agent 输出 `direct | partial | unsupported` Claim。代码逐项验证 source、Topic 声明的 fact_source 归属、segment、quote 连续子串和两级引用长度。`partial` 必须写 `scope_limit`；`unsupported` 不得含引用，但仍保留在 Research Pack 中形成可审计缺口，并自动从写作必用 Claim 中移除。时效 Claim 的 partial/unsupported 是业务证据缺口，不是输出结构错误。
+
+引用 `feed_excerpt` 的 direct/partial Claim 必须在 `scope_limit` 明确“官方 RSS 摘要、未核验全文”；Claim 或答案中的数字必须真实出现在精确 quote 内。缺少 Topic 声明的 Claim 记录、未知 source/segment/claim 或伪造 quote 仍是结构错误。
 
 Quote 不匹配时只允许一次结构修复；第二次仍不匹配即 `status=failed`、`error_code=invalid_source_quote`，不做近义匹配。
 
-研究答案必须逐字对应 Topic Decision 中原问题。`answered` 至少引用一个已核验 Claim；`partial` 写明缺口；`unanswered` 不伪造答案。核心问题存在 `unanswered` 时只能 `RESEARCH_INCOMPLETE`。
+研究答案必须逐字对应 Topic Decision 中原问题，并带 `gap_impact`。`answered` 要求 `none` 且无 remaining gap；允许项目自带实验目录直接回答非事实型任务选择问题。`partial` 要求非空缺口和 `non_blocking | blocking`；`unanswered` 要求 `blocking` 且不伪造答案。`unanswered`、blocking partial 或引用 unsupported Claim 都不能通过研究问题门槛；non-blocking partial 可以通过这一门槛。
 
 ## 6. Codex 隔离执行
 
@@ -82,7 +97,7 @@ Topic 与 Research 共用 `src/local-agent/codex-structured-runner.ts`：解析 
 
 每次调用在 Runtime clone 外部的非 Git 临时目录执行，只继承 `HOME`、`PATH`、`LANG`、`LC_ALL`、`TERM` 和可选 `CODEX_HOME`；不会继承 `OPENAI_API_KEY`、GitHub Token、Cookie 或 Browser Secret。网页段落全部标为 `untrusted_content`，Codex 被明确禁止访问链接、工具、仓库或外部文件。
 
-单次 Research Pack 最多 4 次 Codex 调用：研究一次、必要时结构修复一次、baseline 一次、structured 一次。不会反复运行实验直到得到偏好结果。
+单次 Research Pack 最多 4 次 Codex 调用：研究一次、必要时结构修复一次、baseline 一次、structured 一次。每次在调用前记账，因此 timeout、rate limit、进程失败或非法输出也保留真实 attempt 数；不会反复运行实验直到得到偏好结果。
 
 ## 7. 安全实验和确定性验收
 
@@ -105,18 +120,18 @@ Topic 与 Research 共用 `src/local-agent/codex-structured-runner.ts`：解析 
 只有全部满足才能进入 `READY_FOR_WRITING`：
 
 - Topic 是成功的 `SELECT_TOPIC`，快照未被替换。
-- 原时效 `supported_claims` 都有 direct 精确短引用。
+- 原时效 `supported_claims` 都有足够范围的 direct 精确短引用；`feed_excerpt` 只证明摘要本身，不能补成全文细节。
 - 所有使用来源均为原 Topic fact_source，所有 quote 通过连续子串检查。
-- 原 research questions 全部有可接受答案，没有关键 unanswered。
+- 原 research questions 全部有可接受答案，没有 unanswered、blocking gap 或 unsupported 依赖。
 - 要求实验时，两组各成功一次、严格 Schema 合法、代码验收已记录且 limitations 非空。
 - 写作要求完整记录风险、披露、证据和禁止表达。
 - 不包含 restricted、小红书、UGC 事实或未确认产品权益。
 
-任何研究业务门槛未满足为 `RESEARCH_INCOMPLETE`，禁止自动写作。基础设施故障仍是 `status=failed`。
+任何研究业务门槛未满足为 `RESEARCH_INCOMPLETE`，禁止自动写作。只要至少一个事实来源可用且 Provider/实验基础设施正常，其他来源失败也生成可审计的 `RESEARCH_INCOMPLETE`；全部来源不可用才是 `status=failed`。
 
 ## 9. 幂等、文件和 CLI
 
-`input_hash` 包含 Topic Decision hash/signature/快照、材料 ID/URL、实际 `content_sha256`、研究和实验配置、产品配置、Provider、模型、Codex 版本、Prompt 版本和 Research Pack Schema 版本。同日成功且 hash 相同返回 `ALREADY_RESEARCHED`，不抓取、不调用 Provider、不重复实验；来源 hash 改变会形成新 hash。
+幂等判断发生在本次 Source Acquisition 之后。`input_hash` 包含 Topic Decision hash/signature/快照、来源血缘、实际 retrieval method/content scope/canonical 状态/`content_sha256`、研究/来源/实验/产品配置、Provider、模型、Codex 版本、Prompt 版本和 Research Pack Schema 版本。同日成功且当前 hash 相同才返回 `ALREADY_RESEARCHED`：本次仍已重新核验来源，但不调用模型、不重复实验；来源内容或获取范围变化会形成新 hash 并允许重跑。
 
 正式输出仅为：
 
@@ -149,4 +164,4 @@ Research 自动提交只允许 `data/research-packs/**`、`data/research-runs/**
 
 本 PR 阶段不会安装、重装或 reload LaunchAgent，不修改生产 Runtime clone，不运行 Browser Collector，不访问 X 或公众号，也不生成正文、图片或发布。
 
-2026-08-14 已执行真实本机 `--dry-run`。公共 DNS 解析与 SSRF 检查通过，但两条 OpenAI canonical URL 都返回要求启用 JavaScript/Cookie 的 HTTP 403 challenge；系统在调用 Codex 前以 `status=failed`、`decision=null`、`source_fetch_failed` 停止，成功抓取 0 条且没有写正式 Research Pack。没有使用浏览器、Cookie 或其他来源绕过，因此阶段状态继续保持 `implemented_pending_live_validation`。
+2026-08-14 的最新一次真实 `--dry-run` 中，两条 OpenAI canonical URL 均返回 HTTP 403 JavaScript/Cookie challenge；系统没有绕过，而是从 `https://openai.com/news/rss.xml` 成功匹配两条 item，得到 2/2 个 `official_rss_replay` / `feed_item` 快照并写入 0700/0600 本机 Cache。随后首次 Research Analyze 已发生并计为 1 次，但其结构化结果因旧契约额外要求 answered 问题必须引用事实 Claim 而被拒绝为 `codex_output_invalid`；baseline 与 structured 均未运行，正式 Research Pack 未写入。该额外限制已按本版 `gap_impact` 规则移除并完成离线验证，但没有重复真实 dry-run，因此阶段仍为 `implemented_pending_live_validation`。
