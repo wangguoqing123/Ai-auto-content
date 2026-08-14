@@ -9,6 +9,8 @@ const rendered = await renderLaunchdPlist(
     wrapperPath: path.join(paths.runtimeRoot, 'scripts', 'local-scheduler-wrapper.sh'),
     nodePath: process.execPath,
     opencliPath: '/usr/local/bin/opencli',
+    codexPath: '/usr/local/bin/codex',
+    codexModel: 'codex-model-required',
     runtimeRoot: paths.runtimeRoot,
     stdoutPath: path.join(paths.logsDirectory, 'scheduler.stdout.log'),
     stderrPath: path.join(paths.logsDirectory, 'scheduler.stderr.log'),

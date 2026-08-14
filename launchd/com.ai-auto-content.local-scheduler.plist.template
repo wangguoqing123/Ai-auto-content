@@ -10,6 +10,8 @@
     <string>{{WRAPPER_PATH}}</string>
     <string>{{NODE_PATH}}</string>
     <string>{{OPENCLI_PATH}}</string>
+    <string>{{CODEX_PATH}}</string>
+    <string>{{CODEX_MODEL}}</string>
     <string>{{RUNTIME_ROOT}}</string>
   </array>
   <key>WorkingDirectory</key>

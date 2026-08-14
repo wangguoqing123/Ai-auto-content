@@ -129,6 +129,16 @@ Browser 素材的 `material_id` 优先使用平台稳定 `source_item_id`，没�
 
 ## 5. 选题库 `topics`
 
+当前 v0 不建立数据库或长选题库，而是按天保存一个严格决定：
+
+- `data/topic-decisions/YYYY-MM-DD.json`：当日正式决定。
+- `data/topic-runs/topic_<timestamp>.json`：每次运行的不可覆盖审计记录。
+- `reports/topics/YYYY-MM-DD.md`：只突出一个母题或 NO_PUBLISH。
+
+`topicDecisionSchema` 要求 `SELECT_TOPIC` 只有一个 `selected_topic`，`NO_PUBLISH` 没有 selected topic 且有内容原因，failed 的 `decision` 必须为 null。`evaluated_candidates` 最多 3 个。`topic_signature` 由 learner stage、用户问题、真实任务、最小结果和 core angle 规范化后由代码生成 SHA-256。
+
+Material Card 只有安全、受限字段；restricted 公众号 canonical URL 为 null、摘要最多 300 字，不携带 `content_path` 或正文。input hash 记录材料 ID、角色、互动、历史签名、配置哈希、Provider、模型和 Prompt 版本。
+
 核心字段：
 
 - `topic_id`

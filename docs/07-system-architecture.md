@@ -2,7 +2,7 @@
 title: 系统架构
 version: 0.3.0
 updated_at: 2026-08-14
-status: product_truth_v2_implemented_pending_review
+status: daily_topic_intelligence_live_dry_run_verified_pending_local_activation
 ---
 
 # 系统架构
@@ -23,6 +23,23 @@ status: product_truth_v2_implemented_pending_review
 ```
 
 每天运行不等于每天发布。阶段 2 的自主选题器必须支持 `NO_PUBLISH`。
+
+阶段 2 现已实现：
+
+```text
+Cloud / Browser 已有素材
+→ 72 小时硬过滤与五种来源角色
+→ 确定性去重、聚类、排序和多样性预算
+→ 不可信 Material Cards + 压缩 Product Context
+→ 本机 Codex CLI Provider 最多两次结构化输出调用
+→ 最多 3 个候选
+→ 代码执行硬淘汰、六维重算、产品上限、CTA、Claim 和 30 天去重
+→ 1 个 SELECT_TOPIC 或 NO_PUBLISH
+```
+
+模型网络或结构失败为 `status=failed`，不输出 `NO_PUBLISH`。相同日期和 `input_hash` 的成功决定直接返回 `ALREADY_DECIDED`。完整契约见 `docs/21-daily-topic-intelligence.md`。
+
+真实选题不在 GitHub Actions 调用模型。Mac Local Runtime 复用 `RunAtLoad + StartInterval=900` 的 LaunchAgent：Morning 在 07:30—12:00，Topic Selection 在 13:00—18:00。Codex CLI 只在 `Application Support/AiAutoContent/tmp/topic-judge/**` 的非 Git 临时目录、只读 Sandbox 和最小环境中读取结构化输入并返回 JSON；最终校验、写盘和 Git 白名单提交仍由项目代码执行。
 
 ## 2. 架构原则
 

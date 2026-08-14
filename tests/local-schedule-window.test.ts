@@ -62,3 +62,24 @@ describe('local morning schedule window', () => {
     expect(zonedDateAndMinute(new Date('2026-08-13T16:15:00Z'))).toEqual({ date: '2026-08-14', minute: 15 });
   });
 });
+
+describe('local topic selection schedule window', () => {
+  it.each([
+    ['2026-08-14T04:59:00.000Z', 'NOT_DUE'],
+    ['2026-08-14T05:00:00.000Z', 'DUE'],
+    ['2026-08-14T10:00:59.000Z', 'DUE'],
+    ['2026-08-14T10:01:00.000Z', 'NOT_DUE'],
+  ])('decides %s as %s', (timestamp, expected) => {
+    expect(scheduleDecision(new Date(timestamp), config, null, 'scheduled', 'topic_selection').decision).toBe(expected);
+  });
+
+  it('treats a completed topic decision as already completed', () => {
+    expect(scheduleDecision(
+      new Date('2026-08-14T05:00:00.000Z'),
+      config,
+      state({ last_status: 'success', last_topic_decision: 'NO_PUBLISH' }),
+      'scheduled',
+      'topic_selection',
+    ).decision).toBe('ALREADY_COMPLETED');
+  });
+});

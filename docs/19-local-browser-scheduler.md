@@ -1,11 +1,11 @@
 ---
-title: Mac 本机 Browser Collector 调度器
-version: 1.0.0
-updated_at: 2026-08-13
+title: Mac 本机采集与每日选题调度器
+version: 1.1.0
+updated_at: 2026-08-14
 status: implemented_not_installed
 ---
 
-# Mac 本机 Browser Collector 调度器
+# Mac 本机采集与每日选题调度器
 
 ## 运行逻辑
 
@@ -16,11 +16,27 @@ LaunchAgent 不是只在 08:00 触发一次，而是 `RunAtLoad=true`、`StartIn
 + 今天未 success / partial_success
 + attempts < 2
 → 执行 morning
+
+上海时间在 13:00—18:00
++ 今天 topic_selection 未 success
++ attempts < 2
+→ 执行本机 Codex 每日选题
 ```
 
 调度检查先判断时间窗口：其他时间始终输出 `NOT_DUE`，不会因为已达到最大尝试次数而重复通知。窗口内当天完成输出 `ALREADY_COMPLETED`；活锁输出 `LOCK_HELD`。三者都返回 0，不访问平台。
 
-`local:scheduler -- --once` 是 scheduled 触发，服从上述窗口。`local:morning` 是 manual 触发：可在窗口外执行一次，但正式运行仍服从活锁、当天已完成和最多 2 次尝试。`local:morning -- --dry-run` 不读取或写入正式状态，始终执行健康检查和 Browser dry-run，同时仍获取运行锁；它不写正式数据、报告或 Git。
+`local:scheduler -- --once` 会依次检查两个任务，各自服从窗口。`local:morning` 和 `local:topic` 是 manual 触发：可在窗口外执行一次，但正式运行仍服从活锁、当天已完成和最多 2 次尝试。两个任务分别保存在 `tasks.morning` 与 `tasks.topic_selection`；`SELECT_TOPIC`、`NO_PUBLISH` 和 `ALREADY_DECIDED` 都会把 topic task 标为完成。
+
+## Topic Selection 顺序
+
+1. 获取 Topic 专用锁，读取外部状态并判断 13:00—18:00 窗口。
+2. 同步 Runtime clone 的 `origin/main`，只接受合法 Browser/Topic pending commit。
+3. 由选题管线读取和校验产品配置、Topic 配置、Schema、最近 72 小时素材与 30 天历史。
+4. 无材料时直接 `NO_PUBLISH`，不解析 Codex 路径、不检查登录、不启动进程。
+5. 有材料时使用显式 `TOPIC_CODEX_MODEL` 和解析后的绝对 `TOPIC_CODEX_BIN`，在隔离临时目录与只读 Sandbox 中最多调用 2 次。
+6. 项目代码重新校验证据、Claim、产品上限、CTA、重复和六维评分，只得到一个母题或 `NO_PUBLISH`。
+7. 只暂存 `data/topic-decisions/**`、`data/topic-runs/**`、`reports/topics/**`，敏感扫描后提交、单次 rebase 并 push；Codex 不执行 Git。
+8. 更新 Topic 状态、发送必要通知，并在 `finally` 释放锁。failed 在窗口内最多再试一次。
 
 ## Morning 顺序
 
@@ -41,8 +57,9 @@ LaunchAgent 不是只在 08:00 触发一次，而是 `RunAtLoad=true`、`StartIn
 ```bash
 npm run local:check
 npm run local:morning -- --dry-run
+npm run local:topic -- --dry-run
 npm run local:scheduler -- --once
-npm run local:scheduler -- --once --fixture --dry-run --now=2026-08-14T00:00:00.000Z
+npm run local:scheduler -- --once --fixture --dry-run --now=2026-08-14T05:00:00.000Z
 npm run local:install -- --dry-run
 npm run local:uninstall -- --dry-run
 npm run launchd:render
@@ -54,6 +71,8 @@ PR 合并后，用户确认 Chrome、Bridge、登录态和 Git 鉴权可用，�
 
 ```bash
 npm run opencli:install-adapters
+export TOPIC_CODEX_MODEL="<explicit model>"
+# TOPIC_CODEX_BIN 可选；留空时安装器从 PATH 解析绝对路径。
 npm run local:install -- --install
 ```
 
@@ -63,11 +82,11 @@ npm run local:install -- --install
 npm run local:uninstall -- --uninstall
 ```
 
-默认无参数和 `--dry-run` 都不会修改 `~/Library/LaunchAgents`。安装器不会把 Token、Cookie、密码、PAT 或 Browser Session 写入 plist。
+默认无参数和 `--dry-run` 都不会修改 `~/Library/LaunchAgents`。安装器把 Codex 的绝对路径和非敏感模型名传给 Runtime wrapper，但不会把 Token、Cookie、密码、PAT、API Key 或 Browser Session 写入 plist。
 
 ## 状态与通知
 
-状态文件：`~/Library/Application Support/AiAutoContent/state/scheduler-state.json`。损坏状态不会被静默覆盖。
+状态文件：`~/Library/Application Support/AiAutoContent/state/scheduler-state.json`。损坏状态不会被静默覆盖；旧状态缺少 topic task 时会安全补成未到期状态。
 
 pending 恢复返回其中所有采集日期。恢复日期包含当天时，Morning 以当天外部状态确认结果并跳过平台，避免重复采集；仅包含历史日期时，仍继续执行当天共享健康检查和双平台 Pipeline。
 
@@ -90,4 +109,4 @@ pending 恢复返回其中所有采集日期。恢复日期包含当天时，Mor
 
 ## 当前安装状态
 
-本 PR 只提交代码、模板和 dry-run 安装器；没有 bootstrap 生产 LaunchAgent，也没有执行正式平台采集。生产安装由用户在合并后完成。
+本 PR 只提交代码、模板和 dry-run 安装器；没有 bootstrap、reload 或修改当前生产 LaunchAgent，也没有执行正式平台采集。真实 Codex dry-run 与 `env -i` 精简环境 dry-run 已通过，均未写正式文件。合并后再显式更新 Runtime 与 LaunchAgent。

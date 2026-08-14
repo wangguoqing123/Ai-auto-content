@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- 将每日选题生产 Provider 改为本机已登录的 Codex CLI：非交互 `codex exec`、显式模型、严格 JSON Schema、只读 Sandbox、无人工审批、隔离临时目录、2 MiB 输出上限和最小子进程环境；OpenAI API 仅保留为可选备用。
+- 将真实 Topic Selection 从 GitHub Actions 迁移到 Mac Local Runtime：新增 13:00—18:00 独立任务状态、最多 2 次尝试、Topic 数据 Git 白名单和 pending commit 恢复；PR/CI 不安装或 reload LaunchAgent。
+- 删除 GitHub 真实模型定时 Workflow；PR Validation 继续只运行 Fixture，不访问 Codex 服务、OpenAI API、X、公众号、Chrome 或 Browser Bridge。
+- 完成 2026-08-14 真实 Codex dry-run：常规环境以 1 次调用选择 92 分 Agent 任务验收单母题；`env -i` 精简环境也以 1 次调用完成合法 `NO_PUBLISH`。两次均未写正式输出、未改 Git、未访问平台。
+- 加固每日选题离线正确性：跨日素材按最新快照确定性合并，RSS/AIHOT 共用 Cloud 预算，X 与两类微信预算独立，空 Cloud query 不再误触 8 条上限，并输出安全的 eligible/selected/drop 诊断。
+- 统一 Product Claim 与 novelty evidence 真实解析，只有本次 fact source 或 ID 匹配的合法 evidence JSON 可以通过；虚构引用、txt、损坏/空 JSON、角色错误和路径穿越均拒绝。
+- 无素材时在 Provider 创建前直接 `NO_PUBLISH`；损坏的当日 decision fail closed 且不覆盖；模型 timeout/网络错误和 judge/repair 调用数准确区分，候选及输出异常安全失败。
+- 素材敏感扫描复用 Browser 文件类型感知语义，正常 Authorization/Cookie 技术说明可用，真实凭证、当前 home 与微信临时 URL 继续拒绝。
+- 增加每日选题 v0：72 小时时窗、五种来源角色、restricted 隔离、确定性预筛选和最大 60 条 Material Cards。
+- 增加最多 3 个候选、代码硬淘汰与六维重算、80 分门槛、证据 15/10/5 上限，以及单一 `SELECT_TOPIC` / `NO_PUBLISH` 决策。
+- 从产品真相配置压缩 Product Context，代码执行模块/pillar 最小上限、CTA 交集降级与 Product Claim 真实 evidence reference 校验。
+- 增加 30 天历史签名和 0.72 token 相似度检查、具体 novelty/evidence 解除条件与 input hash 幂等。
+- 增加离线 Fixture 与 OpenAI Responses API 结构化输出 Provider；模型名必须由环境提供，结构修复最多一次，故障不伪装为 NO_PUBLISH。
+- 增加严格 Topic Decision Zod / Draft 2020-12 JSON Schema、受限日报、CLI 和默认关闭的北京时间 13:00 Workflow；自动提交只有三类选题输出路径。
+
 - 增加 `config/product.yaml` 产品真相源，结构化记录定位、用户转变、四个机制、两层学习架构、13 个交付模块、365/499 定价与证据边界。
 - 增加 `config/content-fit.yaml` 策略假设，建立 8 个学习阶段、8 个内容 pillar、模块映射、交付状态适配分上限和 `none/light/club` CTA 规则。
 - 增加严格 Zod 与 Draft 2020-12 产品/内容承接 JSON Schema、无缓存加载器、fail-closed Claim/模块 API 和 `npm run product:check`。

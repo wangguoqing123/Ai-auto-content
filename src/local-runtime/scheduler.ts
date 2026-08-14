@@ -5,9 +5,10 @@ import { loadLocalRuntimeConfig } from './config.js';
 import { runHealthCheck } from './health-check.js';
 import { runMorningTask } from './morning-task.js';
 import { createRuntimePaths } from './paths.js';
+import { runTopicSelectionTask } from './topic-selection-task.js';
 
 interface CliOptions {
-  command: 'check' | 'morning' | 'scheduler';
+  command: 'check' | 'morning' | 'topic' | 'scheduler';
   once: boolean;
   dryRun: boolean;
   fixture: boolean;
@@ -16,8 +17,8 @@ interface CliOptions {
 
 function parseCli(args: string[]): CliOptions {
   const command = args[0];
-  if (command !== 'check' && command !== 'morning' && command !== 'scheduler') {
-    throw new Error('Expected command: check, morning, or scheduler');
+  if (command !== 'check' && command !== 'morning' && command !== 'topic' && command !== 'scheduler') {
+    throw new Error('Expected command: check, morning, topic, or scheduler');
   }
   let once = false;
   let dryRun = false;
@@ -56,17 +57,33 @@ export async function runLocalRuntimeCli(args: string[], repositoryRoot = proces
       process.stdout.write(`${JSON.stringify({ command: 'check', dry_run: options.dryRun, fixture: options.fixture, health }, null, 2)}\n`);
       return health.status === 'success' ? 0 : health.status === 'login_required' ? 4 : health.status === 'blocked' ? 5 : 3;
     }
-    const execution = await runMorningTask({
-      repositoryRoot,
-      now: options.now,
-      dryRun: options.dryRun,
-      fixture: options.fixture,
-      paths,
-      config,
-      triggerMode: options.command === 'morning' ? 'manual' : 'scheduled',
+    if (options.command === 'morning') {
+      const execution = await runMorningTask({
+        repositoryRoot, now: options.now, dryRun: options.dryRun, fixture: options.fixture,
+        paths, config, triggerMode: 'manual',
+      });
+      process.stdout.write(`${JSON.stringify({ command: options.command, once: options.once, dry_run: options.dryRun, fixture: options.fixture, execution }, null, 2)}\n`);
+      return execution.exitCode;
+    }
+    if (options.command === 'topic') {
+      const execution = await runTopicSelectionTask({
+        repositoryRoot, now: options.now, dryRun: options.dryRun, fixture: options.fixture,
+        paths, config, triggerMode: 'manual',
+      });
+      process.stdout.write(`${JSON.stringify({ command: options.command, once: options.once, dry_run: options.dryRun, fixture: options.fixture, execution }, null, 2)}\n`);
+      return execution.exitCode;
+    }
+    const morning = await runMorningTask({
+      repositoryRoot, now: options.now, dryRun: options.dryRun, fixture: options.fixture,
+      paths, config, triggerMode: 'scheduled',
     });
-    process.stdout.write(`${JSON.stringify({ command: options.command, once: options.once, dry_run: options.dryRun, fixture: options.fixture, execution }, null, 2)}\n`);
-    return execution.exitCode;
+    const topicSelection = await runTopicSelectionTask({
+      repositoryRoot, now: options.now, dryRun: options.dryRun, fixture: options.fixture,
+      paths, config, triggerMode: 'scheduled',
+    });
+    const executions = { morning, topic_selection: topicSelection };
+    process.stdout.write(`${JSON.stringify({ command: options.command, once: options.once, dry_run: options.dryRun, fixture: options.fixture, executions }, null, 2)}\n`);
+    return morning.exitCode !== 0 ? morning.exitCode : topicSelection.exitCode;
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
     return 1;

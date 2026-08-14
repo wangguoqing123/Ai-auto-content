@@ -6,14 +6,22 @@ import type { LocalRuntimeConfig } from './types.js';
 
 const time = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
 
+const schedule = z.object({
+  target_time: time,
+  window_start: time,
+  window_end: time,
+  max_attempts: z.number().int().min(1).max(2),
+});
+
 const localRuntimeConfigSchema = z.object({
   version: z.literal(1),
   timezone: z.literal('Asia/Shanghai'),
-  morning: z.object({
-    target_time: time,
-    window_start: time,
-    window_end: time,
-    max_attempts: z.number().int().min(1).max(10),
+  morning: schedule,
+  topic_selection: schedule.default({
+    target_time: '13:00',
+    window_start: '13:00',
+    window_end: '18:00',
+    max_attempts: 2,
   }),
   scheduler: z.object({
     check_interval_seconds: z.number().int().min(60),

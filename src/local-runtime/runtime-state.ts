@@ -10,19 +10,22 @@ export class CorruptSchedulerStateError extends Error {
 }
 
 export function createEmptyState(date: string): SchedulerState {
+  const emptyTask = () => ({
+    date,
+    attempts: 0,
+    last_attempt_at: null,
+    last_status: 'not_due' as const,
+    last_run_id: '',
+    last_error: null,
+    last_collection_status: null,
+    last_topic_decision: null,
+  });
   return {
     version: 1,
     timezone: 'Asia/Shanghai',
     tasks: {
-      morning: {
-        date,
-        attempts: 0,
-        last_attempt_at: null,
-        last_status: 'not_due',
-        last_run_id: '',
-        last_error: null,
-        last_collection_status: null,
-      },
+      morning: emptyTask(),
+      topic_selection: emptyTask(),
     },
   };
 }

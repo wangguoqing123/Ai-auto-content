@@ -36,7 +36,7 @@ status: approved
 - 固定交付状态、产品适配分上限和产品 claim 白名单。
 - Zod、Draft 2020-12 JSON Schema、Claim API 和 `product:check`。
 
-状态：`implemented_pending_review`。
+状态：`production`。
 
 选题器只能读取 `config/product.yaml` 和 `config/content-fit.yaml`，不得从 Prompt 中自行补全产品权益。产品交付状态会直接限制产品适配分和 CTA。只有 PR #4 合并后才开始每日自主选题器。
 
@@ -62,21 +62,36 @@ status: approved
 - 用户 Mac 上的独立 Runtime clone，只跟踪 `main`。
 - `RunAtLoad + StartInterval=900` 的 LaunchAgent 到期检查。
 - 上海时区 07:30—12:00 的 morning 窗口，目标时间 08:00，每天最多 2 次尝试。
+- 上海时区 13:00—18:00 的 topic_selection 窗口，使用本机登录的 Codex CLI，每天最多 2 次尝试。
 - X 和微信公众号采集、外部状态、原子锁、本机日志与安全通知。
 - 只允许 Browser 数据目录进入自动 commit，并在 push 失败时保留本地数据 commit。
 
-状态：X Collector 与 WeChat Collector 均为 `verified_live`，本机生产运行已产生可审计数据；Codex Browser 仍为 `exploration_only`。PR #4 不修改 Runtime clone 或 LaunchAgent。
+状态：X Collector 与 WeChat Collector 均为 `verified_live`，本机生产运行已产生可审计数据；Codex Browser 仍为 `exploration_only`。每日选题调度代码已接入，但 PR 阶段不修改 Runtime clone 或 reload LaunchAgent。
 
 ## 阶段 2：每日自主选题器
 
-对应下一阶段 PR #5：每日自主选题或 `NO_PUBLISH`。
+每日自主选题或 `NO_PUBLISH` 已实现。
 
 输入阶段 1 的合格素材、历史内容和真实用户问题，每天自主决定：
 
 - 产生一个或少量候选题。
 - 因证据、价值、重复度或用户相关度不足输出 `NO_PUBLISH`。
 
-这一阶段才处理语义聚类、历史选题相似度和选题评分，并读取阶段 0.1 的产品契约。本阶段不批量生成 20 个题让人挑选 5 个。
+本阶段已处理基础 opportunity cluster、历史选题相似度、六维评分、产品/CTA/Claim 校验和严格失败语义，并读取阶段 0.1 的产品契约。本阶段不批量生成 20 个题让人挑选 5 个。
+
+状态：`implemented_live_model_dry_run_verified_pending_local_activation`。生产 Provider 为本机 `codex_cli`；真实与精简环境 dry-run 均已完成，GitHub Actions 只运行离线 Fixture，正式 LaunchAgent 等合并后再更新。
+
+## 当前系统状态
+
+| 阶段 | 状态 |
+|---|---|
+| 采集 | `production` |
+| 产品真相层 | `production` |
+| 每日选题 | `implemented_live_model_dry_run_verified_pending_local_activation` |
+| 研究与实验 | `not_started` |
+| 写作 | `not_started` |
+| 配图 | `not_started` |
+| 发布 | `not_started` |
 
 ## 阶段 3：研究、母稿和多平台内容生成
 

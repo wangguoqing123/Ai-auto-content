@@ -1,4 +1,4 @@
-import type { LocalRuntimeConfig, SchedulerTaskState } from './types.js';
+import type { LocalRuntimeConfig, RuntimeTaskName, SchedulerTaskState } from './types.js';
 
 export type ScheduleDecision = 'DUE' | 'NOT_DUE' | 'ALREADY_COMPLETED' | 'MAX_ATTEMPTS_REACHED';
 export type TriggerMode = 'manual' | 'scheduled';
@@ -30,18 +30,20 @@ export function scheduleDecision(
   config: LocalRuntimeConfig,
   state: SchedulerTaskState | null,
   triggerMode: TriggerMode = 'scheduled',
+  task: RuntimeTaskName = 'morning',
 ): { decision: ScheduleDecision; date: string } {
   const current = zonedDateAndMinute(now, config.timezone);
   const today = state?.date === current.date ? state : null;
-  const start = timeToMinutes(config.morning.window_start);
-  const end = timeToMinutes(config.morning.window_end);
+  const schedule = config[task];
+  const start = timeToMinutes(schedule.window_start);
+  const end = timeToMinutes(schedule.window_end);
   if (triggerMode === 'scheduled' && (current.minute < start || current.minute > end)) {
     return { decision: 'NOT_DUE', date: current.date };
   }
   if (today?.last_status === 'success' || today?.last_status === 'partial_success') {
     return { decision: 'ALREADY_COMPLETED', date: current.date };
   }
-  if ((today?.attempts ?? 0) >= config.morning.max_attempts) {
+  if ((today?.attempts ?? 0) >= schedule.max_attempts) {
     return { decision: 'MAX_ATTEMPTS_REACHED', date: current.date };
   }
   return { decision: 'DUE', date: current.date };
