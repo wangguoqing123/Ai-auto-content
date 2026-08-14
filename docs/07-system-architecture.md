@@ -1,8 +1,8 @@
 ---
 title: 系统架构
-version: 0.2.0
-updated_at: 2026-08-12
-status: implemented_stage_1_5
+version: 0.3.0
+updated_at: 2026-08-14
+status: product_truth_v2_implemented_pending_review
 ---
 
 # 系统架构
@@ -33,8 +33,28 @@ status: implemented_stage_1_5
 - 单个外部来源失败不拖垮整次运行，所有来源失败则明确失败。
 - 文件输出保持可审计、可 Git Diff、可跨天恢复。
 - 人只保留少量高价值判断，不承担重复劳动。
+- 产品事实与策略假设分层；未来 Agent 不能从 Prompt 或海报方向补全权益。
 
-## 3. 当前实现：阶段 1
+## 3. 产品真相与内容承接层
+
+每日选题器之前增加一个完全离线、确定性的产品底盘：
+
+```text
+config/product.yaml                   config/content-fit.yaml
+产品事实、交付状态、价格、claims       学习阶段、pillar、适配上限、CTA
+          │                                      │
+          └──────── Zod + JSON Schema ───────────┘
+                              │
+                     npm run product:check
+                              │
+           模块引用、claim 唯一性、比例与上限校验
+                              │
+                    PR #5 每日自主选题器
+```
+
+`config/product.yaml` 是唯一机器可读产品事实源；`config/content-fit.yaml` 明确标记为 `strategy_hypothesis`。产品价格每次从产品配置读取，未知 claim 和模块默认拒绝，交付状态直接限制产品适配分与 CTA。
+
+## 4. 当前采集实现：阶段 1 与 1.5
 
 第一阶段采用 Node.js 20、TypeScript、npm 和 GitHub Actions；阶段 1.5 增加仅在用户自有机器运行的 OpenCLI Browser Collector，仍不引入数据库、n8n 或大模型 API。
 
@@ -61,21 +81,21 @@ status: implemented_stage_1_5
  reports/materials/YYYY-MM-DD.md
 ```
 
-### 3.1 调度层
+### 4.1 调度层
 
 - GitHub Actions 在 UTC 01:00，即北京时间 09:00 启动。
 - 同时支持 `workflow_dispatch` 手动运行。
 - 执行依赖安装、类型检查、离线测试和真实采集。
 - 只在指定输出目录有变化时提交，工作流不监听 `push`，不会因机器人提交自触发。
 
-### 3.2 采集层
+### 4.2 采集层
 
 - Cloud Collector 当前注册 `rss` 与 `aihot`：RSS 同时解析 RSS/Atom，AIHOT 只调用稳定 `/api/v1/items`。
 - 并发上限、超时、重试次数和 User-Agent 由配置控制。
 - 每个来源单独记录开始、结束、抓取、新增、重复、淘汰和错误。
 - 只保留标题、链接、作者、发布时间和最多 500 字摘要，不保存第三方全文。
 
-### 3.3 处理层
+### 4.3 处理层
 
 - URL 规范化删除 fragment 和追踪参数，保留影响内容的查询参数。
 - URL 指纹为 canonical URL 的 SHA-256。
@@ -83,14 +103,14 @@ status: implemented_stage_1_5
 - `data/state/seen-materials.json` 保存两类指纹，实现同日幂等和跨天去重。
 - 评分完全由 `config/scoring.yaml` 的关键词、来源等级、时间分段、权重和阈值决定。
 
-### 3.4 存储与报告层
+### 4.4 存储与报告层
 
 - 只把最近 7 天内的正常素材和发布时间未知的隔离素材追加到 JSONL；更旧内容只更新指纹状态。
 - 达标素材标记为 `accepted`，未达标素材标记为 `rejected` 并保留规则原因。
 - 日报的推荐项只来自 `accepted`，没有合格项时明确显示无高质量新素材。
 - 所有来源失败时仍记录失败日志和日报，然后让任务返回失败状态。
 
-### 3.5 浏览器采集 MVP
+### 4.5 浏览器采集 MVP
 
 - `Cloud Collector` 继续运行 RSS、AIHOT 和公开无登录来源。
 - `Browser Collector` 通过 `child_process.spawn('opencli', args)` 调用 X 和公众号只读命令，查询词不经过 shell 拼接。
@@ -99,9 +119,9 @@ status: implemented_stage_1_5
 - GitHub-hosted Workflow 永远不调用 `collect:browser`。
 - 详细运行边界见 `docs/15-hybrid-collector-runtime.md`，真实能力状态见 `docs/14-opencli-live-capability-spike.md`。
 
-## 4. 后续模块边界
+## 5. 后续模块边界
 
-后续阶段依次增加：自主选题器、研究与内容生成、配图与发布包、平台数据回收、策略记忆。它们读取阶段 1 的结构化结果，但不能反向污染已确认的人物事实、产品知识和真实性规则。
+PR #5 才增加每日自主选题或 `NO_PUBLISH`；之后再增加研究与内容生成、配图与发布包、平台数据回收、策略记忆。它们必须读取产品真相层，不能反向污染人物事实、产品交付状态和真实性规则。
 
 当前不实现：
 
@@ -110,7 +130,7 @@ status: implemented_stage_1_5
 - 已发布内容的效果复盘和策略学习。
 - 数据库、管理后台、社交平台爬虫和反爬绕过。
 
-## 5. 未来状态机
+## 6. 未来状态机
 
 ```text
 COLLECTED
@@ -126,12 +146,13 @@ COLLECTED
 → REVIEWED_PERFORMANCE
 ```
 
-阶段 1 只负责到 `SCORED` 或 `REJECTED_LOW_VALUE`，不越界产生选题或内容。
+当前采集器只负责到 `SCORED` 或 `REJECTED_LOW_VALUE`；产品真相层只提供约束和读取 API，二者都不越界产生选题或内容。
 
-## 6. 安全与可追溯性
+## 7. 安全与可追溯性
 
 - 密钥只放 GitHub Secrets 或环境变量，公开仓库不提交密钥和私密用户数据。
 - 外部错误只保存有界摘要，避免日志无限增长。
 - 所有运行和来源结果都带时间、数量与状态。
 - 配置和输出通过 Zod 校验，损坏的去重状态不会被静默忽略。
+- 产品与内容承接配置使用 Draft 2020-12 JSON Schema，并由 `product:check` fail closed。
 - 自动提交只包含素材、运行日志、状态和日报目录。

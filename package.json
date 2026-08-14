@@ -22,6 +22,7 @@
     "launchd:render": "tsx scripts/render-launchd-plist.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "product:check": "tsx scripts/product-check.ts",
     "schema:generate": "tsx scripts/generate-json-schemas.ts",
     "schema:check": "tsx scripts/generate-json-schemas.ts --check"
   },

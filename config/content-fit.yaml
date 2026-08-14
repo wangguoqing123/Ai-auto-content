@@ -1,0 +1,211 @@
+version: 2
+updated_at: 2026-08-14
+status: strategy_hypothesis
+
+learner_stages:
+  - id: concept_confusion
+    description: 模型、工具、Skill、MCP、Agent 概念混乱。
+  - id: tool_selection
+    description: 收藏很多工具，不知道哪个值得学。
+  - id: unstable_usage
+    description: 会使用 AI，但输出时好时坏。
+  - id: task_breakdown
+    description: 会聊天，但不会完成复杂任务。
+  - id: workflow_building
+    description: 多个工具不会协同，每次从零开始。
+  - id: project_delivery
+    description: 学过知识，却没有完成真实成品。
+  - id: continuous_improvement
+    description: 已经完成一次任务，但没有复盘、Skill 和迭代。
+  - id: business_integration
+    description: 希望把 AI 接入内容、工作或真实业务。
+
+content_pillars:
+  - id: orientation_and_selection
+    name: 认知与工具选择
+    learner_stage: [concept_confusion, tool_selection]
+    product_module_ids: [membership_home, learning_path, beginner_ai_course, faq_and_help]
+    typical_real_tasks:
+      - 判断一个模型或工具是否适合当前任务。
+      - 选择未来 2～4 周要完成的一个成果。
+    minimum_content_result: 用户能说清概念差异，并按任务结果选择一个下一步。
+    proof_formats: [概念对照表, 选择标准, 任务示例]
+    conversion_bridge: 从单次选择进入清晰学习路径和共同基础。
+    delivery_support_status: confirmed_delivered
+    maximum_product_fit_score: 10
+  - id: stable_ai_usage
+    name: 稳定使用
+    learner_stage: [unstable_usage, task_breakdown]
+    product_module_ids: [beginner_ai_course, codex_foundation, learning_path]
+    typical_real_tasks:
+      - 为对话补充目标、背景、资料和验收标准。
+      - 检查并迭代 AI 输出。
+    minimum_content_result: 用户能把一个不稳定对话改成可检查、可迭代的任务。
+    proof_formats: [输入输出对比, 错误示例, 验收清单]
+    conversion_bridge: 从一个稳定小任务进入基础课程与持续练习。
+    delivery_support_status: confirmed_delivered
+    maximum_product_fit_score: 10
+  - id: agents_and_workflows
+    name: 智能体与工作流
+    learner_stage: [task_breakdown, workflow_building, continuous_improvement]
+    product_module_ids: [beginner_ai_course, codex_practice]
+    typical_real_tasks:
+      - 把复杂任务拆成可执行步骤。
+      - 把知识库、Skill、MCP 和多个工具组成可重复流程。
+    minimum_content_result: 用户能画出一个任务流程，并识别可复用的输入、步骤和验收点。
+    proof_formats: [工作流图, Skill 示例, 运行记录]
+    conversion_bridge: 从单次流程进入共同基础中的智能体与工作流练习。
+    delivery_support_status: confirmed_delivered
+    maximum_product_fit_score: 10
+  - id: content_automation
+    name: 内容自动化
+    learner_stage: [workflow_building, project_delivery, continuous_improvement, business_integration]
+    product_module_ids: [ai_content_automation]
+    typical_real_tasks:
+      - 搭建账号定位、素材、选题、写作和复盘工作区。
+      - 把跑通的内容方法封装成 Skills。
+    minimum_content_result: 用户完成一个可复用的内容环节，而不是只拿到一篇 AI 初稿。
+    proof_formats: [真实工作区, 前后稿对比, 交付与复盘记录]
+    conversion_bridge: 从一个内容环节进入完整、可持续的账号内容系统。
+    delivery_support_status: confirmed_delivered
+    maximum_product_fit_score: 10
+  - id: codex_and_productivity
+    name: Codex 与工作提效
+    learner_stage: [task_breakdown, workflow_building, project_delivery, business_integration]
+    product_module_ids: [codex_foundation, codex_practice, ai_tools_and_productivity]
+    typical_real_tasks:
+      - 用 Codex 处理文档、表格、飞书、原型或邮件。
+      - 搭建工作台、知识库、Agent 助手或长期记忆系统。
+    minimum_content_result: 用户用 Codex 完成一个普通职场或创作任务，并能检查成品。
+    proof_formats: [可运行项目, 文件产物, 操作录屏, 验收结果]
+    conversion_bridge: 从一个 Codex 场景进入基础课和 15 个已确认实操场景。
+    delivery_support_status: confirmed_delivered
+    maximum_product_fit_score: 10
+  - id: ai_video_production
+    name: AI 视频
+    learner_stage: [tool_selection, project_delivery, business_integration]
+    product_module_ids: [ai_video_production]
+    typical_real_tasks:
+      - 判断 AI 视频工具是否适合一个具体镜头或成片任务。
+      - 完成一个可验证的视频片段。
+    minimum_content_result: 用户获得一个独立可用的视频判断或小结果，不依赖付费承接才完整。
+    proof_formats: [成片片段, 参数与失败记录, 工具对比]
+    conversion_bridge: 当前只能轻提示系统学习方向，不能宣称已有完整课程承接。
+    delivery_support_status: direction_confirmed_delivery_unverified
+    maximum_product_fit_score: 3
+  - id: projects_cases_and_templates
+    name: 完整项目、案例与模板
+    learner_stage: [project_delivery, continuous_improvement, business_integration]
+    product_module_ids: [complete_projects, real_case_library, templates_and_downloads]
+    typical_real_tasks:
+      - 复盘一个真实项目的成功、失败和调整过程。
+      - 判断案例或模板能否复用到自己的任务。
+    minimum_content_result: 用户能拿走一个完整判断标准、复盘方法或可验证的小模板。
+    proof_formats: [项目记录, 脱敏案例, 前后结果, 模板使用证据]
+    conversion_bridge: 从单个真实案例进入更多实践、复盘与已有资料容器。
+    delivery_support_status: confirmed_partial
+    maximum_product_fit_score: 7
+  - id: curation_and_community
+    name: 筛选与不掉队
+    learner_stage: [tool_selection, continuous_improvement]
+    product_module_ids: [membership_home, course_updates_and_curation]
+    typical_real_tasks:
+      - 筛选值得关注的 AI 变化。
+      - 带着具体问题进入社群交流。
+    minimum_content_result: 用户知道一项变化是否值得行动，以及下一步怎样验证。
+    proof_formats: [筛选清单, 官方来源, 社群问题模板]
+    conversion_bridge: 从一次筛选进入持续更新入口和社群交流，不承诺固定频率。
+    delivery_support_status: confirmed_container
+    maximum_product_fit_score: 5
+
+module_mapping:
+  - module_id: membership_home
+    content_pillar_ids: [orientation_and_selection, curation_and_community]
+  - module_id: learning_path
+    content_pillar_ids: [orientation_and_selection, stable_ai_usage]
+  - module_id: beginner_ai_course
+    content_pillar_ids: [orientation_and_selection, stable_ai_usage, agents_and_workflows]
+  - module_id: ai_content_automation
+    content_pillar_ids: [content_automation]
+  - module_id: codex_foundation
+    content_pillar_ids: [stable_ai_usage, codex_and_productivity]
+  - module_id: codex_practice
+    content_pillar_ids: [agents_and_workflows, codex_and_productivity]
+  - module_id: complete_projects
+    content_pillar_ids: [projects_cases_and_templates]
+  - module_id: real_case_library
+    content_pillar_ids: [projects_cases_and_templates]
+  - module_id: templates_and_downloads
+    content_pillar_ids: [projects_cases_and_templates]
+  - module_id: course_updates_and_curation
+    content_pillar_ids: [curation_and_community]
+  - module_id: faq_and_help
+    content_pillar_ids: [orientation_and_selection]
+  - module_id: ai_video_production
+    content_pillar_ids: [ai_video_production]
+  - module_id: ai_tools_and_productivity
+    content_pillar_ids: [codex_and_productivity]
+
+fit_rules:
+  requires_explicit_module_match: true
+  unrelated_ai_topic_score: 0
+  product_fit_score_range:
+    min: 0
+    max: 10
+  delivery_status_score_caps:
+    confirmed_delivered: 10
+    confirmed_partial: 7
+    confirmed_container: 5
+    direction_confirmed_delivery_unverified: 3
+    unknown: 0
+  rules:
+    - 不能因为话题和 AI 有关就得到产品适配分，必须对应实际课程或交付模块。
+    - 海报方向不能自动当成完整交付。
+    - 产品适配分不能覆盖用户价值和证据不足。
+    - AI 视频交付进一步人工确认前最高只能得到 3 分。
+
+cta_rules:
+  none:
+    allowed_delivery_statuses:
+      - confirmed_delivered
+      - confirmed_partial
+      - confirmed_container
+      - direction_confirmed_delivery_unverified
+      - unknown
+    description: 产品关系弱时只提供独立价值，不强行承接。
+  light:
+    allowed_delivery_statuses:
+      - confirmed_delivered
+      - confirmed_partial
+      - confirmed_container
+      - direction_confirmed_delivery_unverified
+    description: 只提示这类问题适合系统学习，不直接销售或补全未确认权益。
+  club:
+    allowed_delivery_statuses:
+      - confirmed_delivered
+      - confirmed_partial
+    description: 只在真实交付直接承接、免费内容已完整解决一个小问题时使用。
+    constraints:
+      - 必须明确对应 confirmed_delivered 或 confirmed_partial 模块。
+      - 产品承接是更系统的路径、更多实践或社群交流。
+      - 不能故意省略关键步骤逼迫付费。
+      - direction_confirmed_delivery_unverified 模块不能使用 club CTA。
+
+editorial_lens:
+  status: applies_to_all_content
+  steps:
+    - 先定义问题。
+    - 明确任务目标。
+    - 建立判断标准。
+    - 根据任务选择工具。
+    - 设计工作流。
+    - 设置验收标准。
+    - 复盘和迭代。
+
+platform_scope:
+  active_content_outputs:
+    - wechat_official_account
+    - x
+    - wechat_visuals
+  retired_content_outputs:
+    - xiaohongshu

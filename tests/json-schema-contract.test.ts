@@ -3,17 +3,24 @@ import path from 'node:path';
 import { Ajv2020, type ValidateFunction } from 'ajv/dist/2020.js';
 import { describe, expect, it } from 'vitest';
 import { createBrowserMaterial, type BrowserMaterialInput } from '../src/collectors/opencli/material-factory.js';
+import { loadContentFitProfile } from '../src/product/load-content-fit-profile.js';
+import { loadProductProfile } from '../src/product/load-product-profile.js';
+import { productProfileSchema } from '../src/product/product-profile.js';
 import { materialSchema } from '../src/types.js';
 
 const schemasDirectory = path.join(process.cwd(), 'schemas');
 const fixturesDirectory = path.join(process.cwd(), 'tests', 'fixtures');
 const unifiedSchema = JSON.parse(readFileSync(path.join(schemasDirectory, 'unified-material.schema.json'), 'utf8'));
 const materialCardSchema = JSON.parse(readFileSync(path.join(schemasDirectory, 'material-card.schema.json'), 'utf8'));
+const productProfileJsonSchema = JSON.parse(readFileSync(path.join(schemasDirectory, 'product-profile.schema.json'), 'utf8'));
+const contentFitProfileJsonSchema = JSON.parse(readFileSync(path.join(schemasDirectory, 'content-fit-profile.schema.json'), 'utf8'));
 const cloudFixture = JSON.parse(readFileSync(path.join(fixturesDirectory, 'cloud-material.json'), 'utf8')) as Record<string, unknown>;
 
-const ajv = new Ajv2020({ allErrors: true, strict: true, formats: { 'date-time': true } });
+const ajv = new Ajv2020({ allErrors: true, strict: true, formats: { date: true, 'date-time': true } });
 const validateUnified = ajv.compile(unifiedSchema);
 const validateMaterialCard = ajv.compile(materialCardSchema);
+const validateProductProfile = ajv.compile(productProfileJsonSchema);
+const validateContentFitProfile = ajv.compile(contentFitProfileJsonSchema);
 
 function expectValid(validate: ValidateFunction, value: unknown): void {
   expect(validate(value)).toBe(true);
@@ -112,5 +119,27 @@ describe('JSON Schema contracts', () => {
 
   it('accepts current Cloud output with additionalProperties disabled', () => {
     expectValid(validateMaterialCard, materialSchema.parse(cloudFixture));
+  });
+
+  it('accepts the current product profile through Draft 2020-12 JSON Schema', async () => {
+    expectValid(validateProductProfile, await loadProductProfile());
+  });
+
+  it('accepts the current content-fit profile through Draft 2020-12 JSON Schema', async () => {
+    expectValid(validateContentFitProfile, await loadContentFitProfile());
+  });
+
+  it('rejects an extra product property in Zod and JSON Schema', async () => {
+    const invalid = { ...await loadProductProfile(), unexpected_field: true };
+    expect(productProfileSchema.safeParse(invalid).success).toBe(false);
+    expectInvalid(validateProductProfile, invalid);
+  });
+
+  it('rejects an illegal delivery status', async () => {
+    const invalid = structuredClone(await loadProductProfile()) as Record<string, unknown>;
+    const catalog = invalid.delivery_catalog as Array<Record<string, unknown>>;
+    if (catalog[0] === undefined) throw new Error('Missing delivery catalog fixture');
+    catalog[0].delivery_status = 'poster_means_delivered';
+    expectInvalid(validateProductProfile, invalid);
   });
 });

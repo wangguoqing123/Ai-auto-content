@@ -2,6 +2,8 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { z, type ZodType } from 'zod';
+import { contentFitProfileSchema } from '../src/product/content-fit-profile.js';
+import { productProfileSchema } from '../src/product/product-profile.js';
 import { materialSchema, unifiedMaterialSchema } from '../src/types.js';
 
 const JSON_SCHEMA_DRAFT = 'https://json-schema.org/draft/2020-12/schema';
@@ -18,6 +20,18 @@ const schemas = [
     id: 'https://example.local/schemas/material-card.schema.json',
     title: 'Daily Material Record',
     schema: materialSchema,
+  },
+  {
+    filename: 'product-profile.schema.json',
+    id: 'https://example.local/schemas/product-profile.schema.json',
+    title: 'AI Never Fall Behind Product Profile',
+    schema: productProfileSchema,
+  },
+  {
+    filename: 'content-fit-profile.schema.json',
+    id: 'https://example.local/schemas/content-fit-profile.schema.json',
+    title: 'AI Never Fall Behind Content Fit Profile',
+    schema: contentFitProfileSchema,
   },
 ] satisfies Array<{ filename: string; id: string; title: string; schema: ZodType }>;
 
