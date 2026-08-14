@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- 增加 `config/product.yaml` 产品真相源，结构化记录定位、用户转变、四个机制、两层学习架构、13 个交付模块、365/499 定价与证据边界。
+- 增加 `config/content-fit.yaml` 策略假设，建立 8 个学习阶段、8 个内容 pillar、模块映射、交付状态适配分上限和 `none/light/club` CTA 规则。
+- 增加严格 Zod 与 Draft 2020-12 产品/内容承接 JSON Schema、无缓存加载器、fail-closed Claim/模块 API 和 `npm run product:check`。
+- 将产品知识库和内容策略升级到 v2，区分海报方向、当前交付、容器、部分交付与未知权益，并新增产品真相层维护文档。
+- `config/project.yaml` 不再保存重复价格和简化产品权益，只引用产品/承接配置；内容比例改为按 pillar 的 `strategy_hypothesis`。
+- PR CI 增加产品契约检查；全流程不调用模型、不访问真实平台、不修改 LaunchAgent，也不提交海报、照片或二维码截图。
 - 将 Browser 数据敏感扫描改为文件类型感知：JSON/JSONL 必须逐条解析并递归检查敏感键、`content_path` 与真实路径值；Markdown 允许正常 Authorization/Cookie/ct0 说明、代码路径示例和占位凭证，只拦截明确真实值、当前 home 与微信临时访问 URL。
 - 将公众号正文的临时参数检测限制到 `mp.weixin.qq.com` 和 `weixin.sogou.com`；外部域名的 `signature`、`sessionid` 等普通签名 URL 不再误报，微信与搜狗微信访问参数继续 fail closed。
 - 以稳定 `material_id` 隔离公众号正文下载目录，避免同日同标题文章互相覆盖；正式 `content_path` 保持仓库相对 POSIX 路径，dry-run 为 `null`，命令摘要隐藏本机输出路径。

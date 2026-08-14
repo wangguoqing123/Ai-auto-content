@@ -1,7 +1,7 @@
 ---
 title: MVP 实施路线
-version: 0.3.0
-updated_at: 2026-08-13
+version: 0.4.0
+updated_at: 2026-08-14
 status: approved
 ---
 
@@ -25,7 +25,20 @@ status: approved
 
 验收：不编造第一人称，不自动补全产品权益，事实和观点可追溯。
 
-状态：已完成基础版本，后续只按真实变化维护。
+状态：基础账号、人物与真实性规则已完成。
+
+## 阶段 0.1：产品真相层 v2
+
+交付物：
+
+- `config/product.yaml` 唯一机器可读产品事实源。
+- `config/content-fit.yaml` 学习阶段、内容 pillar、模块映射与 CTA 策略。
+- 固定交付状态、产品适配分上限和产品 claim 白名单。
+- Zod、Draft 2020-12 JSON Schema、Claim API 和 `product:check`。
+
+状态：`implemented_pending_review`。
+
+选题器只能读取 `config/product.yaml` 和 `config/content-fit.yaml`，不得从 Prompt 中自行补全产品权益。产品交付状态会直接限制产品适配分和 CTA。只有 PR #4 合并后才开始每日自主选题器。
 
 ## 阶段 1：每日素材采集器
 
@@ -52,16 +65,18 @@ status: approved
 - X 和微信公众号采集、外部状态、原子锁、本机日志与安全通知。
 - 只允许 Browser 数据目录进入自动 commit，并在 push 失败时保留本地数据 commit。
 
-状态：X Collector 与 WeChat Collector 均为 `verified_live`，待本 PR 合并后由用户安装调度；Codex Browser 仍为 `exploration_only`。只有完成至少一次正式自动运行后，才进入阶段 2。
+状态：X Collector 与 WeChat Collector 均为 `verified_live`，本机生产运行已产生可审计数据；Codex Browser 仍为 `exploration_only`。PR #4 不修改 Runtime clone 或 LaunchAgent。
 
 ## 阶段 2：每日自主选题器
+
+对应下一阶段 PR #5：每日自主选题或 `NO_PUBLISH`。
 
 输入阶段 1 的合格素材、历史内容和真实用户问题，每天自主决定：
 
 - 产生一个或少量候选题。
 - 因证据、价值、重复度或用户相关度不足输出 `NO_PUBLISH`。
 
-这一阶段才处理语义聚类、历史选题相似度和选题评分。本阶段不批量生成 20 个题让人挑选 5 个。
+这一阶段才处理语义聚类、历史选题相似度和选题评分，并读取阶段 0.1 的产品契约。本阶段不批量生成 20 个题让人挑选 5 个。
 
 ## 阶段 3：研究、母稿和多平台内容生成
 
@@ -103,7 +118,7 @@ status: approved
 新的顺序是：
 
 ```text
-事实与规则
+事实与规则 + 产品真相层 v2
 → 每日素材感知
 → 每日自主选题或 NO_PUBLISH
 → 研究和内容生产

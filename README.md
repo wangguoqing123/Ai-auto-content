@@ -1,12 +1,14 @@
 # AI Auto Content
 
-面向 AI 小白与轻度进阶用户的每日自主内容系统。
+面向已经接触 AI、但还没有稳定用起来和形成完整工作流的人构建的每日自主内容系统。
 
 项目以互联网产品经理「七天假」为内容主体。系统每天自动感知和整理素材，后续阶段再逐步接入自主选题、研究写作、发布包和数据复盘；人保留最终审核、上传与发布责任。
 
 > 系统每天运行，但不要求每天发布。没有足够高质量的题目时，后续选题阶段必须允许输出 `NO_PUBLISH`。
 
-## 当前阶段：Cloud Collector + X / 微信公众号本机调度运行时
+## 当前阶段：产品真相层 v2 + 已有素材采集运行时
+
+PR #4 只建立每日选题器之前的产品底盘：`config/product.yaml` 是唯一机器可读产品事实源，`config/content-fit.yaml` 保存学习阶段、内容 pillar、产品适配分上限与 CTA 策略假设。本阶段不实现每日选题、`NO_PUBLISH` 决策、模型调用、写作、配图或发布。
 
 Cloud Collector 与 Local Browser Collector 是两个独立运行通道。Cloud 在 GitHub Actions 每天北京时间 09:00 运行；本机 Browser 调度器每 15 分钟做一次轻量到期检查，在北京时间 07:30—12:00 窗口内只执行一次 X 与微信公众号早晨采集。手动 `local:morning` 可在窗口外运行一次，但仍服从锁、当天已完成和最多尝试次数保护。
 
@@ -14,8 +16,8 @@ Cloud Collector 与 Local Browser Collector 是两个独立运行通道。Cloud 
 |---|---|---|
 | RSS | `verified_live` | 是 |
 | AIHOT | `verified_live` | 是 |
-| OpenCLI X | `verified_live` | 待合并后安装本机调度 |
-| OpenCLI 公众号 | `verified_live` | 待合并后安装本机调度 |
+| OpenCLI X | `verified_live` | 本机独立通道 |
+| OpenCLI 公众号 | `verified_live` | 本机独立通道 |
 | Codex Browser | `exploration_only` | 否 |
 
 ```text
@@ -28,13 +30,13 @@ Local Browser Collector（用户 Mac）→ X / 微信公众号
 → pull --rebase 后安全 push main
 ```
 
-Local Browser Runtime 使用独立 clone：`~/Library/Application Support/AiAutoContent/runtime`。状态、锁和配置保存在 Runtime clone 外部，日志写入 `~/Library/Logs/AiAutoContent/`。默认不自动启动 Chrome；必须提前打开 Chrome、保持 X 登录并连接 Browser Bridge。安装器与 LaunchAgent 模板已经提供，但本 PR 开发和 CI 不会正式安装。
+Local Browser Runtime 使用独立 clone：`~/Library/Application Support/AiAutoContent/runtime`。状态、锁和配置保存在 Runtime clone 外部，日志写入 `~/Library/Logs/AiAutoContent/`。默认不自动启动 Chrome；必须提前打开 Chrome、保持 X 登录并连接 Browser Bridge。安装器与 LaunchAgent 模板已经提供；PR #4 和 CI 都不修改或安装 LaunchAgent。
 
 Morning 的共享健康检查只以 Node、npm、OpenCLI、Chrome、daemon、Extension 和 Connectivity 判断是否阻断整条流水线。X 登录探测与公众号公开搜索探测彼此独立；单个平台失败时，另一个平台仍会采集，已有成功数据继续落盘、生成报告并安全同步 Git，只有两个平台都失败时整次 Browser Pipeline 才为 `failed`。
 
 小红书已因用户主动降低账号与自动化风险的产品决策退出采集、内容生产、发布和复盘范围。旧材料 Schema 继续兼容历史 `source_platform`，过去的实测审计文档保持原样，不得据此重新启用活跃命令。详见 `docs/18-platform-scope-decision.md`。
 
-本阶段仍不调用大模型，不开发自动选题、写作、配图或发布。
+产品真相层的所有校验均为离线确定性处理，不调用大模型，也不访问 X、公众号或 Browser Bridge。
 
 ## 快速开始
 
@@ -43,6 +45,7 @@ Morning 的共享健康检查只以 Node、npm、OpenCLI、Chrome、daemon、Ext
 ```bash
 npm ci
 npm run typecheck
+npm run product:check
 npm run schema:check
 npm test
 npm run collect:fixture
@@ -113,6 +116,8 @@ Local Runtime 退出码：0 表示成功、部分成功、未到期、当天已�
 config/sources.yaml                 已核验的 RSS / Atom 信源
 config/scoring.yaml                 评分关键词、权重、阈值与采集参数
 config/platform-queries.yaml        浏览器平台关键词、预算与轮换
+config/product.yaml                 唯一机器可读产品事实与 claim 真相源
+config/content-fit.yaml             学习阶段、内容承接、适配上限与 CTA 策略
 data/materials/YYYY-MM-DD.jsonl     最近 7 天内及隔离区 RSS 素材
 data/browser-materials/YYYY-MM-DD.jsonl  浏览器非 dry-run 素材
 data/browser-runs/                  浏览器平台运行日志
@@ -133,12 +138,14 @@ reports/browser/YYYY-MM-DD.md       X / 公众号 Browser 素材日报
 
 - `schemas/unified-material.schema.json`：Browser Collector 和跨来源核心素材契约，对应 `unifiedMaterialSchema`。
 - `schemas/material-card.schema.json`：Cloud Material 完整契约，对应 `materialSchema`。
+- `schemas/product-profile.schema.json`：产品事实、交付状态、价格和 claim 契约，对应 `productProfileSchema`。
+- `schemas/content-fit-profile.schema.json`：学习阶段、pillar、模块映射、适配上限与 CTA 契约，对应 `contentFitProfileSchema`。
 
-两份提交文件都从 `src/types.ts` 中的 Zod Schema 生成。修改运行时模型后执行 `npm run schema:generate` 更新文件；`npm run schema:check` 会在临时目录重新生成并比较，发现漂移时返回非零退出码。PR CI 会运行该检查，过程不访问真实平台或网络。
+四份提交文件都从 Zod Schema 生成。修改运行时模型后执行 `npm run schema:generate` 更新文件；`npm run schema:check` 会在临时目录重新生成并比较，发现漂移时返回非零退出码。`npm run product:check` 额外校验模块引用、claim 唯一性、内容比例和状态分数上限。PR CI 会运行这些检查，过程不访问真实平台或模型。
 
 ## 项目目标
 
-- 服务 AI 小白和轻度进阶用户，而不是只服务技术从业者。
+- 服务已经开始接触 AI、但还没有稳定用起来和形成完整方法的人，而不是只服务技术从业者。
 - 建立「互联网产品经理拆 AI」的稳定个人品牌。
 - 用真实用户问题、可靠资料和真实实验形成内容壁垒。
 - 将合适用户自然承接到「AI 不掉队俱乐部」。
@@ -148,10 +155,13 @@ reports/browser/YYYY-MM-DD.md       X / 公众号 Browser 素材日报
 
 - 产品名称：AI 不掉队俱乐部
 - 当前价格：365 元/年
-- 当前产品形态：社群交流 + AI 教程
-- 已确认教程方向：AI 基础、自动化内容工厂、AI 自动剪辑、AI 视频、AI 编程
+- 产品形态：以学习路径、基础课程、工具实操、完整项目、真实案例和社群交流支持实践的长期学习社群
+- 核心主张：不是追每一个新工具，而是把 AI 真正用起来
+- 当前标准价格：499 元/年；剩余早鸟名额未知，不能自动生成名额或涨价倒计时
+- 已确认交付：会员首页、学习路径、小白基础课、AI 内容自动化、Codex 基础课、Codex 15 个实操场景和常见问题帮助
+- 方向已确认但完整交付未验证：AI 视频生产
 
-更新频率、答疑频率、课程数量、会员人数、退款规则等未确认信息，不得由 AI 自动补全。
+详细状态、证据和 claim 白名单只读取 `config/product.yaml`。更新频率、答疑频率、课程数量、会员人数、退款规则等未确认信息，不得由 AI 自动补全。
 
 ## 文档阅读顺序
 
@@ -174,6 +184,7 @@ reports/browser/YYYY-MM-DD.md       X / 公众号 Browser 素材日报
 17. `docs/17-opencli-browser-live-validation.md`
 18. `docs/18-platform-scope-decision.md`
 19. `docs/19-local-browser-scheduler.md`
+20. `docs/20-product-truth-and-content-fit.md`
 
 发生冲突时，真实性与合规规则、人物事实库和产品知识库优先。资料不足时必须标记 `UNKNOWN`，不得自行补全。
 
