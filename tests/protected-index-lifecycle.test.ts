@@ -180,7 +180,13 @@ describe('fail-closed Protected Transfer resolution', () => {
     await persistDocuments(corpusRoot, documents);
     await writeProtectedTransferIndex(corpusRoot, buildProtectedTransferIndex(documents, [{ kind: 'signature_phrase', text: phrase, source_document_ids: [], extraction_reason: 'inspect fixture' }], '2026-08-15T00:00:00.000Z'));
     const { stdout } = await execFileAsync(process.execPath, ['--import', 'tsx', 'scripts/style-protected-inspect.ts', '--corpus-root', corpusRoot, '--profile-id', 'inspect-index'], { cwd: process.cwd() });
-    expect(JSON.parse(stdout)).toMatchObject({ profile_id: 'inspect-index', status: 'ready', entry_count: 1, counts: { signature_phrase: 1 } });
+    expect(JSON.parse(stdout)).toEqual({
+      profile_id: 'inspect-index',
+      corpus_hash: computeStyleCorpusHash(documents),
+      created_at: '2026-08-15T00:00:00.000Z',
+      status: 'ready',
+      counts: { signature_phrase: 1, unique_metaphor: 0, personal_experience_entity: 0, distinctive_short_fragment: 0 },
+    });
     expect(stdout).not.toContain(phrase);
   });
 });

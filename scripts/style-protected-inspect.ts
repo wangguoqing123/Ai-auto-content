@@ -17,6 +17,5 @@ console.log(JSON.stringify({
   corpus_hash: index.corpus_hash,
   created_at: index.created_at,
   status: 'ready',
-  entry_count: index.entries.length,
   counts: protectedEntryCounts(index),
 }, null, 2));
