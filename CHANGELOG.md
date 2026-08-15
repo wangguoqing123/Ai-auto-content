@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+- 固定 vendored human-writing 1.1.0（`4fda173f3fef7fb808f3eba991eeb2528ea4b189`）与 no-ai-slop（`d30eddb9e04562234f2070b5ee63ca4649d9a05e`），保留 MIT License、上游 URL、逐文件 SHA-256 和已知可执行文件 allowlist；CI 不联网下载 Skill。
+- 增加本机 0700/0600 私有 style corpus，支持 Markdown、纯文本和 JSONL 导入；完整文章、反馈和 Profile 缓存不进入 Git，也不自动抓取作者内容。
+- 增加严格 Style Profile 与 Style Recipe Schema，分离内容、语言和转化模式，计算确定性节奏指标，并限制 owner/reference/platform 权重与最多两个参考 Profile。
+- 复用只读 Codex structured runner 完成最多 Distill + Repair 两次风格蒸馏；CI 继续只用离线 Fixture，另在用户明确授权下用项目自有合成语料完成一次真实 Codex 集成验证。
+- 增加动态 article type 结构、human-writing 前后阶段 adapter、no-ai-slop detect-only Reviewer、规则优先级、上下文敏感 TypeScript Lint 和本机防抄袭。
+- 增加人工改稿反馈记录；一次改稿不更新 Profile，三次一致修改只产生待用户批准的 `proposed_profile_delta`。
+- 本阶段不生成正式公众号文章、X 内容、图片或发布包，也不访问 X、公众号、Browser Bridge、生产 Runtime、Scheduler 或 LaunchAgent。
+- 加固 Style Recipe：`selected_rules` 成为唯一事实源，逐条保存 Profile、来源角色、实际权重和选择原因；owner/reference/platform/baseline 通过确定性配额与交错真实参与选择，权重总和严格校验为 1。
+- Corpus Document 增加 creator、canonical URL、platform item、发布时间、权利依据、许可记录、确认时间和显式 model-processing consent；同 Profile 按正文 hash 与来源 item 去重，denied 文档零 Codex 调用并产出 `processing_not_allowed`。
+- 增加最多 30 篇、单篇 12,000 字符、总计 240,000 字符的确定性开头/中段/结尾输入预算，分别记录完整 corpus hash、实际 model input hash、逐篇覆盖率，并把 evidence distance 改为单篇计算后按判断数量加权。
+- 增加本机 0700/0600 Protected Transfer Index；候选必须是原文连续精确子串，短口头禅、专属比喻、个人实体和独特片段只进入 Reviewer，不进入 Profile、Recipe 或 Writer。
+- Research Quote 豁免改为只接收经过严格 Research Pack Schema、READY_FOR_WRITING 状态和 Claim/quote/source/segment 全字段核对的内部对象；正文仍必须显式使用引号或 Markdown 引用块。
+- 删除“工具/应用/平台/系统”共现的指代误报，新增结构化 Entity Naming Audit；区分商业硬黑话和学习/反馈/执行闭环等 warning，并把完全重复段落准确命名为 `exact_duplicate_paragraph`。
+- 增加带 Skill commit、来源文件/章节、适配方式与严重度的 Adaptation Map；Writing Issue 保存 `rule_origin` 和 `source_commit`，运行时不直接加载上游 Skill 文件作为 Prompt。
+- 反馈一致性改为同一 change signature、三个不同 Writing Pack、三个不同 draft、兼容平台/文体且零 rejection；Proposal 保存支持反馈 ID，仍只提案、不自动更新 Profile。
+- 完成真实语料导入前的最终加固：同一 Profile 只要一篇 denied 就完全跳过 Codex 初始化、环境读取与 CLI 探测；JSONL 顶层 rights/model consent 覆盖直接拒绝，授权只来自 CLI 或可信本地 Manifest。
+- Corpus Root、Source 与私有树改为逐次 lstat/realpath、拒绝 symlink 和特殊文件；`secureCorpusWrite` 使用同目录 0600 临时文件、fsync 与 atomic rename，读写都复验私有权限和真实仓库边界。
+- Style Distill 改为严格 Bundle，一次响应同时生成抽象 Profile 与 Public Reference Protected Candidates；代码重扫完整 Corpus、重算真实来源 ID、自动写入或在 hash 变化时重建 Index，Owner/已授权语料禁止返回候选，总调用仍最多两次。
+- Protected Resolver 使用不可伪造内部句柄；生产 Lint 对 Index 缺失、过期、非法或不安全 fail closed。新增只输出 hash、时间、状态和分类计数的 `style:protected:inspect`，Profile、Index、Inspect 与 Lint 统一使用 `computeStyleCorpusHash()`。
+- 完成 Synthetic live Codex integration validation：`codex-cli 0.147.0` / `gpt-5.6-sol` 对合成 Owner/Reference 各 8 篇分别执行 1 次外层 Distill，内部均 1 次调用并返回 `ready`；自动 Index 为 2/1/1/1，Recipe 为 owner 0.80 / reference 0.20、rules 10/2，正常 Lint、Protected hard block 与 stale rejection 均通过。未导入真实语料、访问平台、生成内容或提交任何临时产物，状态保持 `implemented_live_provider_verified_pending_real_corpus` 而非 production。
+
 - 增加自动研究、证据核验与安全实验包 v0：严格消费正式 Topic Decision，只输出 `READY_FOR_WRITING`、`RESEARCH_INCOMPLETE` 或 `NO_TOPIC`，基础设施故障保持 failed。
 - 增加公共 URL 与 SSRF 防护：HTTP(S)/80/443、每次请求和重定向 DNS 全地址检查、固定已验证 IP、20 秒超时、2 MiB 上限和 Content-Type 白名单。
 - 增加本机 0700/0600 研究缓存、7 天清理命令和第三方版权边界；Git 只保存精确短引用，单条 500 字符、单来源合计 1,500 字符。

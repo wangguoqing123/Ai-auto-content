@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/style-feedback.schema.json",
+  "title": "Style Feedback Entry",
+  "type": "object",
+  "properties": {
+    "feedback_id": {
+      "type": "string",
+      "pattern": "^feedback_[a-f0-9]{16}$"
+    },
+    "writing_pack_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "writing_input_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "draft_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "profile_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,100}$"
+    },
+    "profile_version": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+    },
+    "change_signature": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "before": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000000
+    },
+    "after": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000000
+    },
+    "accepted_changes": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "change_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "direction": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "affected_rule_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "change_id",
+          "direction",
+          "description",
+          "affected_rule_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "rejected_changes": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "change_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "direction": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "affected_rule_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "change_id",
+          "direction",
+          "description",
+          "affected_rule_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "reason_labels": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      }
+    },
+    "platform": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "article_type": {
+      "type": "string",
+      "enum": [
+        "tutorial",
+        "analysis",
+        "case_breakdown",
+        "opinion",
+        "checklist"
+      ]
+    },
+    "cross_type": {
+      "type": "boolean"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+    }
+  },
+  "required": [
+    "feedback_id",
+    "writing_pack_id",
+    "writing_input_hash",
+    "draft_hash",
+    "profile_id",
+    "profile_version",
+    "change_signature",
+    "before",
+    "after",
+    "accepted_changes",
+    "rejected_changes",
+    "reason_labels",
+    "platform",
+    "article_type",
+    "cross_type",
+    "timestamp"
+  ],
+  "additionalProperties": false
+}

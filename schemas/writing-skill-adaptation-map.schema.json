@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/writing-skill-adaptation-map.schema.json",
+  "title": "Writing Skill Adaptation Map",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "number",
+      "const": 1
+    },
+    "rules": {
+      "minItems": 1,
+      "maxItems": 200,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "internal_rule_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{2,100}$"
+          },
+          "skill_id": {
+            "type": "string",
+            "enum": [
+              "human-writing",
+              "no-ai-slop",
+              "project"
+            ]
+          },
+          "skill_commit": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "source_file": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "source_section": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "adaptation_mode": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "contextualized",
+              "project_override"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "hard_blocker",
+              "blocking_style_issue",
+              "warning",
+              "profile_preference"
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "internal_rule_id",
+          "skill_id",
+          "skill_commit",
+          "source_file",
+          "source_section",
+          "adaptation_mode",
+          "severity",
+          "notes"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "rules"
+  ],
+  "additionalProperties": false
+}

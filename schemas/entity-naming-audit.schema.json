@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/entity-naming-audit.schema.json",
+  "title": "Entity Naming Audit",
+  "type": "object",
+  "properties": {
+    "entity_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "labels_used": {
+      "minItems": 1,
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 300
+      }
+    },
+    "locations": {
+      "minItems": 1,
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 300
+      }
+    },
+    "is_same_referent": {
+      "type": "boolean"
+    },
+    "issue": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "synonym_cycling"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "entity_id",
+    "labels_used",
+    "locations",
+    "is_same_referent",
+    "issue"
+  ],
+  "additionalProperties": false
+}

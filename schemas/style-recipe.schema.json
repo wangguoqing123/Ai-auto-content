@@ -1,0 +1,338 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/style-recipe.schema.json",
+  "title": "Style Recipe",
+  "type": "object",
+  "properties": {
+    "primary_owner_profile": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reference_profiles": {
+      "maxItems": 2,
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "platform_profile": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "fallback_mode": {
+      "type": "string",
+      "enum": [
+        "owner_profile",
+        "editorial_voice_human_writing"
+      ]
+    },
+    "claims_owner_voice_learned": {
+      "type": "boolean"
+    },
+    "article_type": {
+      "type": "string",
+      "enum": [
+        "tutorial",
+        "analysis",
+        "case_breakdown",
+        "opinion",
+        "checklist"
+      ]
+    },
+    "selected_rules": {
+      "minItems": 1,
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "pattern": "^rule_[a-f0-9]{16}$"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "voice",
+              "structure",
+              "explanation",
+              "cta",
+              "positive_constraint"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "source_role": {
+            "type": "string",
+            "enum": [
+              "baseline",
+              "owner",
+              "reference",
+              "platform"
+            ]
+          },
+          "source_profile_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_weight": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "selection_reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "rule_id",
+          "category",
+          "text",
+          "source_role",
+          "source_profile_id",
+          "source_weight",
+          "selection_reason"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "selected_voice_signals": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    },
+    "selected_structural_patterns": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    },
+    "selected_explanation_patterns": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    },
+    "selected_cta_patterns": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    },
+    "positive_constraints": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    },
+    "forbidden_transfers": {
+      "maxItems": 6,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "personal_experience",
+          "personal_identity",
+          "signature_phrase",
+          "unique_metaphor",
+          "factual_claim",
+          "client_or_student_story"
+        ]
+      }
+    },
+    "source_weights": {
+      "type": "object",
+      "properties": {
+        "baseline": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "owner": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "references": {
+          "maxItems": 2,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "profile_id": {
+                "type": "string"
+              },
+              "weight": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 0.2
+              }
+            },
+            "required": [
+              "profile_id",
+              "weight"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "platform": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.15
+        }
+      },
+      "required": [
+        "baseline",
+        "owner",
+        "references",
+        "platform"
+      ],
+      "additionalProperties": false
+    },
+    "recipe_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "required": [
+    "primary_owner_profile",
+    "reference_profiles",
+    "platform_profile",
+    "fallback_mode",
+    "claims_owner_voice_learned",
+    "article_type",
+    "selected_rules",
+    "selected_voice_signals",
+    "selected_structural_patterns",
+    "selected_explanation_patterns",
+    "selected_cta_patterns",
+    "positive_constraints",
+    "forbidden_transfers",
+    "source_weights",
+    "recipe_hash"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "primary_owner_profile": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "primary_owner_profile"
+        ]
+      },
+      "then": {
+        "properties": {
+          "fallback_mode": {
+            "const": "owner_profile"
+          },
+          "claims_owner_voice_learned": {
+            "const": true
+          },
+          "source_weights": {
+            "type": "object",
+            "properties": {
+              "owner": {
+                "type": "number",
+                "minimum": 0.6
+              }
+            },
+            "required": [
+              "owner"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "primary_owner_profile": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "primary_owner_profile"
+        ]
+      },
+      "then": {
+        "properties": {
+          "fallback_mode": {
+            "const": "editorial_voice_human_writing"
+          },
+          "claims_owner_voice_learned": {
+            "const": false
+          },
+          "reference_profiles": {
+            "type": "array",
+            "maxItems": 0
+          },
+          "source_weights": {
+            "type": "object",
+            "properties": {
+              "owner": {
+                "type": "number",
+                "const": 0
+              },
+              "references": {
+                "type": "array",
+                "maxItems": 0
+              },
+              "baseline": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            },
+            "required": [
+              "owner",
+              "references",
+              "baseline"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

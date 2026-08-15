@@ -75,6 +75,10 @@ AI 视频不是永久为 0；人工确认交付深度后，才能修改状态、
 
 答不清产品模块时，产品适配分为 0，但选题仍可因独立用户价值而存在；不能为了转化虚构承接。
 
+写作阶段不再使用全局固定的 3 到 5 步。`tutorial`、`analysis`、`case_breakdown`、`opinion` 和 `checklist` 各自使用与任务匹配的结构，只有 tutorial 与 checklist 强制步骤或清单。每篇只从 Style Recipe 选择少量相关技巧，不能把多个参考作者的全部特征叠加。
+
+风格只调整表达，不改变 Research Claim、Persona 事实、Product Claim 或平台硬规则。public reference 只能贡献抽象技巧和统计特征，不能迁移身份、观点、经历、口头禅、比喻、事实或客户故事。完整边界见 `docs/23-style-intelligence-and-writing-skills.md`。
+
 ## 6. 当前选题优先级
 
 优先：
@@ -152,3 +156,4 @@ AI 视频不是永久为 0；人工确认交付深度后，才能修改状态、
 - 比例只在 `config/project.yaml` 的 `content_mix` 维护，并必须合计为 1。
 - 每次变更运行 `npm run product:check`、`npm run schema:check` 和测试。
 - 发布数据只能调整策略假设，不能反向改写产品事实或交付状态。
+- 人工改稿至少出现三次同方向变化后，才允许生成 `proposed_profile_delta`；Profile 版本升级仍需用户明确批准。

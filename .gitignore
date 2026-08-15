@@ -7,3 +7,9 @@ dist/
 .env.local
 .env.*
 !.env.example
+
+# Private writing corpus and feedback. The production path is outside the repo.
+style-corpus/
+**/style-corpus/
+*.style-corpus.jsonl
+*.style-feedback.json

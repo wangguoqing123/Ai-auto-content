@@ -6,19 +6,30 @@
 
 > 系统每天运行，但不要求每天发布。没有足够高质量的题目时，后续选题阶段必须允许输出 `NO_PUBLISH`。
 
-## 当前阶段：真实研究 dry-run 已验证，等待本机生产激活
+## 当前阶段：真实 Provider 已用合成语料验证，等待真实私有语料
 
-产品真相层、素材采集和每日选题已经进入 production。研究与实验 v0 只接受正式 `SELECT_TOPIC`，按 `canonical HTTP → 同一第一方官方 RSS item → 已保存官方 RSS 摘要 → unavailable` 获取 Topic 指定的 fact_source，保存本机清洗快照，精确核验短引用，回答原研究问题，并在需要时各运行一次 baseline / structured 合成文本实验。访问控制不会用浏览器、Cookie 或第三方代理绕过；摘要明确标记 `feed_excerpt`，不能补成完整正文。2026-08-15 的第二次获准真实 dry-run 已对 2026-08-14 Topic Decision 完成整条链路：两条 canonical 403 后取得 2/2 个官方 RSS `feed_item`，Analyze 输出合法 `RESEARCH_INCOMPLETE`，两个实验 Variant 各成功运行一次且未写正式文件。代码只输出 `READY_FOR_WRITING`、`RESEARCH_INCOMPLETE` 或 `NO_TOPIC`；全部来源不可用或 Provider 等基础设施故障保持 `status=failed`。本阶段仍不生成正文、配图或发布，也尚未激活生产 Research Runtime。
+产品真相层、素材采集、每日选题和研究已经进入 production。风格智能 v0 固定 human-writing 与 no-ai-slop，并用可审计 Adaptation Map 连接内部规则；本机私有语料具备逐篇来源、权利依据和显式模型处理授权，Style Recipe 的权重会真实改变带来源的 `selected_rules`，Research Quote 只能从 READY_FOR_WRITING Pack 严格解析，公共参考在获准 Distill 时自动生成本机 Protected Transfer Index。2026-08-15 已使用项目自有合成 Owner/Reference 语料完成一次真实本机 Codex Provider 验证；尚未导入七天假与参考作者的真实语料，也没有声称已经学会七天假的风格。本阶段不生成正文、X 内容、图片或发布包。
+
+> 本机 Codex CLI 不是离线模型。只有同一 Profile 的全部语料在 CLI 或可信本地 Manifest 中明确 `model_processing=allowed` 才可发送给 Codex 服务；任一文档 denied 时连 Codex CLI 版本、帮助或登录探测都不会触发，也不要求 `STYLE_CODEX_MODEL`。JSONL 正文不能决定或覆盖 rights/consent。Protected Index 只供 Reviewer 使用，绝不进入 Writer。
+
+Corpus Root、Corpus 内文件和 Source File 都拒绝 symlink，并用 `realpath` 复验仓库边界；私有文件以 `0600` 同目录临时文件、fsync 和 atomic rename 写入。Public Reference 的 Index 与 Profile 共用同一个完整 Corpus Hash；`style:lint` 遇到缺失、过期、损坏或不安全 Index 会 fail closed。`npm run style:protected:inspect -- --profile-id <id>` 只显示 hash、状态和分类数量，不显示受保护短语。
 
 | 系统阶段 | 状态 |
 |---|---|
 | 采集 | `production` |
 | 产品真相层 | `production` |
 | 每日选题 | `production` |
-| 研究与实验 | `implemented_live_validation_verified_pending_local_activation` |
+| 研究与实验 | `production` |
+| 风格智能 | `implemented_live_provider_verified_pending_real_corpus` |
 | 写作 | `not_started` |
 | 配图 | `not_started` |
 | 发布 | `not_started` |
+
+## Synthetic live Codex integration validation
+
+在执行前 PR Head `b9c4df754075fc1ebc2a02dc94be1069a291ccd0` 上，`codex-cli 0.147.0` 使用 `gpt-5.6-sol` 完成项目自有合成 Owner/Reference 各 8 篇的真实集成验证。Owner 与 Reference 外层 Distill 各执行 1 次，内部 Codex 均为 1 次调用并返回 `ready`；Reference Index 为 `ready`，分类计数为 2/1/1/1。非 Fixture Recipe 使用 owner 0.80 / reference 0.20，Selected Rules 为 10/2；正常 Lint 通过，Protected Transfer 成功 hard block，stale Index 返回 `protected_index_stale`。
+
+验证显式清除 API/GitHub Token 环境，没有访问平台或网页；合成 Corpus、Profile、Index、Codex 结果和临时脚本都没有进入 Git。该结果只把风格智能推进到 `implemented_live_provider_verified_pending_real_corpus`，不是 production，仍等待真实语料及其逐篇来源、权利和模型处理授权。
 
 Cloud Collector 与 Mac Local Runtime 是两个独立运行通道。Cloud 在 GitHub Actions 每天北京时间 09:00 运行；本机 LaunchAgent 每 15 分钟做一次轻量到期检查：07:30—12:00 执行 X/微信公众号 Morning，13:00—18:00 执行 Topic Selection，13:30—21:00 执行 Research Pack。三个任务分别保存状态且每天最多尝试 2 次。
 
@@ -56,12 +67,16 @@ Morning 的共享健康检查只以 Node、npm、OpenCLI、Chrome、daemon、Ext
 npm ci
 npm run typecheck
 npm run product:check
+npm run writing-skills:check
 npm run schema:check
 npm test
 npm run collect:fixture
 npm run topic:select -- --fixture --date=2026-08-14
 npm run topic:inspect-input -- --date=2026-08-14
 npm run research:build -- --fixture --date=2026-08-14
+npm run style:distill -- --fixture
+npm run style:protected:inspect -- --profile-id <id>
+npm run style:lint -- --fixture
 npm run local:scheduler -- --once --fixture --dry-run --now=2026-08-14T05:30:00.000Z
 npm run local:morning -- --fixture --dry-run --now=2026-08-14T06:00:00.000Z
 npm run local:install -- --dry-run
@@ -155,6 +170,7 @@ reports/topics/YYYY-MM-DD.md        单一最终母题或 NO_PUBLISH 日报
 data/research-packs/YYYY-MM-DD/     Research Pack、短引用来源清单与合成实验结果
 data/research-runs/research_*.json  每次研究运行的安全审计记录
 reports/research/YYYY-MM-DD.md      不含正文的研究与实验报告
+~/Library/Application Support/AiAutoContent/style-corpus/  0700/0600 本机私有语料、反馈和 Profile 缓存，不进入 Git
 ```
 
 首次运行时，7 天以前的 RSS 只写入指纹状态，不写入当天素材；发布时间未知的素材进入 `quarantined`。缺失互动字段保存为 `null`，不以 0 冒充真实数据。
@@ -171,8 +187,12 @@ reports/research/YYYY-MM-DD.md      不含正文的研究与实验报告
 - `schemas/content-fit-profile.schema.json`：学习阶段、pillar、模块映射、适配上限与 CTA 契约，对应 `contentFitProfileSchema`。
 - `schemas/topic-decision.schema.json`：每日选题成功/失败、单一母题和最多 3 个候选契约，对应 `topicDecisionSchema`。
 - `schemas/research-pack.schema.json`：研究决定、来源短引用、Claim、问题答案、实验和写作门槛契约，对应 `researchPackSchema`。
+- `schemas/style-profile.schema.json`：三类风格蒸馏结果、确定性指标、版权与禁迁移契约，对应 `styleProfileSchema`。
+- `schemas/style-distillation-bundle.schema.json`：单次 Distill 同时返回 Profile Fragment 与受保护候选的严格契约。
+- `schemas/protected-transfer-index.schema.json`：本机 Reviewer Index 的来源、精确子串与 hash 契约。
+- `schemas/style-recipe.schema.json`：Owner/Reference/平台权重、动态文体选择和 fallback 契约，对应 `styleRecipeSchema`。
 
-六份提交文件都从 Zod Schema 生成。修改运行时模型后执行 `npm run schema:generate` 更新文件；`npm run schema:check` 会在临时目录重新生成并比较，发现漂移时返回非零退出码。PR CI 使用 Fixture 运行 Topic 与 Research 检查，不访问真实网页、平台或模型。
+十四份提交文件都从 Zod Schema 生成。修改运行时模型后执行 `npm run schema:generate` 更新文件；`npm run schema:check` 会在临时目录重新生成并比较，发现漂移时返回非零退出码。PR CI 使用 Fixture 运行 Topic、Research、风格蒸馏和写作 Lint，不访问真实网页、平台或模型。
 
 ## 项目目标
 
@@ -218,6 +238,7 @@ reports/research/YYYY-MM-DD.md      不含正文的研究与实验报告
 20. `docs/20-product-truth-and-content-fit.md`
 21. `docs/21-daily-topic-intelligence.md`
 22. `docs/22-research-and-experiment-packs.md`
+23. `docs/23-style-intelligence-and-writing-skills.md`
 
 发生冲突时，真实性与合规规则、人物事实库和产品知识库优先。资料不足时必须标记 `UNKNOWN`，不得自行补全。
 
