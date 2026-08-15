@@ -70,9 +70,9 @@ describe('Style Recipe', () => {
     expect(low.recipe_hash).not.toBe(high.recipe_hash);
   });
 
-  it('requires a Protected Index for formal public-reference recipes', () => {
-    expect(firstReference.protected_index_status).toBe('missing');
-    expect(() => buildStyleRecipe({ articleType: 'analysis', ownerProfile: owner, referenceProfiles: [firstReference] })).toThrow('reference_protected_index_required');
+  it('uses the automatically ready Protected Index for formal public-reference recipes', () => {
+    expect(firstReference.protected_index_status).toBe('ready');
+    expect(buildStyleRecipe({ articleType: 'analysis', ownerProfile: owner, referenceProfiles: [firstReference] }).fallback_mode).toBe('owner_profile');
   });
 
   it('uses a dynamic structure per article type and only forces steps for tutorial/checklist', () => {

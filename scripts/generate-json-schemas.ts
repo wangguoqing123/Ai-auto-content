@@ -9,6 +9,7 @@ import { topicDecisionSchema } from '../src/topic-intelligence/schemas.js';
 import { researchPackSchema } from '../src/research/schemas.js';
 import { corpusDocumentSchema, styleProfileSchema, styleRecipeSchema } from '../src/style-intelligence/schemas.js';
 import { protectedTransferIndexSchema } from '../src/style-intelligence/protected-transfer.js';
+import { styleDistillationBundleSchema } from '../src/style-intelligence/provider.js';
 import { writingSkillAdaptationMapSchema } from '../src/writing-skills/adaptation-map.js';
 import { styleFeedbackEntrySchema } from '../src/style-intelligence/feedback.js';
 import { entityNamingAuditSchema } from '../src/writing-lint/entity-naming-audit.js';
@@ -21,6 +22,9 @@ const schemas = [
   },
   {
     filename: 'protected-transfer-index.schema.json', id: 'https://example.local/schemas/protected-transfer-index.schema.json', title: 'Protected Transfer Index', schema: protectedTransferIndexSchema,
+  },
+  {
+    filename: 'style-distillation-bundle.schema.json', id: 'https://example.local/schemas/style-distillation-bundle.schema.json', title: 'Style Distillation Bundle', schema: styleDistillationBundleSchema,
   },
   {
     filename: 'writing-skill-adaptation-map.schema.json', id: 'https://example.local/schemas/writing-skill-adaptation-map.schema.json', title: 'Writing Skill Adaptation Map', schema: writingSkillAdaptationMapSchema,

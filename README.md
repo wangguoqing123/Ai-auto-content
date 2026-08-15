@@ -8,9 +8,11 @@
 
 ## 当前阶段：风格智能已实现，等待真实私有语料
 
-产品真相层、素材采集、每日选题和研究已经进入 production。风格智能 v0 固定 human-writing 与 no-ai-slop，并用可审计 Adaptation Map 连接内部规则；本机私有语料具备逐篇来源、权利依据和显式模型处理授权，Style Recipe 的权重会真实改变带来源的 `selected_rules`，Research Quote 只能从 READY_FOR_WRITING Pack 严格解析，公共参考还需要本机 Protected Transfer Index。当前只使用合成 Fixture，尚未导入七天假与参考作者的真实语料，也没有声称已经学会七天假的风格。本阶段不生成正文、X 内容、图片或发布包。
+产品真相层、素材采集、每日选题和研究已经进入 production。风格智能 v0 固定 human-writing 与 no-ai-slop，并用可审计 Adaptation Map 连接内部规则；本机私有语料具备逐篇来源、权利依据和显式模型处理授权，Style Recipe 的权重会真实改变带来源的 `selected_rules`，Research Quote 只能从 READY_FOR_WRITING Pack 严格解析，公共参考在获准 Distill 时自动生成本机 Protected Transfer Index。当前只使用合成 Fixture，尚未导入七天假与参考作者的真实语料，也没有声称已经学会七天假的风格。本阶段不生成正文、X 内容、图片或发布包。
 
-> 本机 Codex CLI 不是离线模型。只有导入时明确 `model_processing=allowed` 的语料才可发送给 Codex 服务；任一文档 denied 时只计算本地指标，零模型调用。Protected Index 只供 Reviewer 使用，绝不进入 Writer。
+> 本机 Codex CLI 不是离线模型。只有同一 Profile 的全部语料在 CLI 或可信本地 Manifest 中明确 `model_processing=allowed` 才可发送给 Codex 服务；任一文档 denied 时连 Codex CLI 版本、帮助或登录探测都不会触发，也不要求 `STYLE_CODEX_MODEL`。JSONL 正文不能决定或覆盖 rights/consent。Protected Index 只供 Reviewer 使用，绝不进入 Writer。
+
+Corpus Root、Corpus 内文件和 Source File 都拒绝 symlink，并用 `realpath` 复验仓库边界；私有文件以 `0600` 同目录临时文件、fsync 和 atomic rename 写入。Public Reference 的 Index 与 Profile 共用同一个完整 Corpus Hash；`style:lint` 遇到缺失、过期、损坏或不安全 Index 会 fail closed。`npm run style:protected:inspect -- --profile-id <id>` 只显示 hash、状态和分类数量，不显示受保护短语。
 
 | 系统阶段 | 状态 |
 |---|---|
@@ -67,6 +69,7 @@ npm run topic:select -- --fixture --date=2026-08-14
 npm run topic:inspect-input -- --date=2026-08-14
 npm run research:build -- --fixture --date=2026-08-14
 npm run style:distill -- --fixture
+npm run style:protected:inspect -- --profile-id <id>
 npm run style:lint -- --fixture
 npm run local:scheduler -- --once --fixture --dry-run --now=2026-08-14T05:30:00.000Z
 npm run local:morning -- --fixture --dry-run --now=2026-08-14T06:00:00.000Z
@@ -179,9 +182,11 @@ reports/research/YYYY-MM-DD.md      不含正文的研究与实验报告
 - `schemas/topic-decision.schema.json`：每日选题成功/失败、单一母题和最多 3 个候选契约，对应 `topicDecisionSchema`。
 - `schemas/research-pack.schema.json`：研究决定、来源短引用、Claim、问题答案、实验和写作门槛契约，对应 `researchPackSchema`。
 - `schemas/style-profile.schema.json`：三类风格蒸馏结果、确定性指标、版权与禁迁移契约，对应 `styleProfileSchema`。
+- `schemas/style-distillation-bundle.schema.json`：单次 Distill 同时返回 Profile Fragment 与受保护候选的严格契约。
+- `schemas/protected-transfer-index.schema.json`：本机 Reviewer Index 的来源、精确子串与 hash 契约。
 - `schemas/style-recipe.schema.json`：Owner/Reference/平台权重、动态文体选择和 fallback 契约，对应 `styleRecipeSchema`。
 
-八份提交文件都从 Zod Schema 生成。修改运行时模型后执行 `npm run schema:generate` 更新文件；`npm run schema:check` 会在临时目录重新生成并比较，发现漂移时返回非零退出码。PR CI 使用 Fixture 运行 Topic、Research、风格蒸馏和写作 Lint，不访问真实网页、平台或模型。
+十四份提交文件都从 Zod Schema 生成。修改运行时模型后执行 `npm run schema:generate` 更新文件；`npm run schema:check` 会在临时目录重新生成并比较，发现漂移时返回非零退出码。PR CI 使用 Fixture 运行 Topic、Research、风格蒸馏和写作 Lint，不访问真实网页、平台或模型。
 
 ## 项目目标
 

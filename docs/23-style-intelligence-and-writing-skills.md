@@ -40,7 +40,7 @@ human-writing 在第一稿前只提供材料门槛、说话位置、当前文体
     └── protected/
 ```
 
-目录固定 `0700`，文件固定 `0600`，并且 corpus root 必须在 Git 仓库外。每篇 `CorpusDocument` 除正文、Profile、平台和内容类型外，还必须记录：
+目录固定 `0700`，文件固定 `0600`。Corpus Root 和 Source File 都会在创建或读取时逐级 `lstat`、拒绝 symlink，再用 `realpath` 确认真实位置不在当前 Git worktree 或 `.git` 内；Corpus 内的 registry、owner、references、feedback、cache 和 protected 文件也会在每次读取时复验，目录、FIFO、device、socket 等都不能冒充普通 Source File。每篇 `CorpusDocument` 除正文、Profile、平台和内容类型外，还必须记录：
 
 - `content_sha256`
 - `source.creator_id`、`creator_display_name`、`canonical_url`、`platform_item_id`、`published_at`、`source_filename`
@@ -49,9 +49,9 @@ human-writing 在第一稿前只提供材料门槛、说话位置、当前文体
 
 `owned_by_user` 只接受 `user_owned`；`licensed` 只接受 `explicit_license`；`public_reference` 只接受 `public_reference_analysis`，且必须有 creator、HTTP(S) URL、平台，并只能生成 `reference_technique`。
 
-`model_processing.allowed` 必须在导入时明确传 `allowed` 或 `denied`，没有默认 true。JSONL 可以逐条覆盖 source、rights 和 model-processing 元数据。相同 Profile 内，重复 `content_sha256` 或相同 `canonical_url + platform_item_id` 不会重复导入，也不会增加 sample count。
+`model_processing.allowed` 必须在导入时明确传 `allowed` 或 `denied`，没有默认 true。权利声明与模型授权只能来自用户执行的 CLI 参数或可信本地 Manifest；待分析 JSONL 不能提供或覆盖 `rights`、`model_processing`、consent、permission reference 或 rights basis，出现这些顶层字段会直接拒绝。JSONL 只允许逐篇覆盖标题、正文、平台、内容类型和经过 Corpus Schema 验证的 source 元数据。相同 Profile 内，重复 `content_sha256` 或相同 `canonical_url + platform_item_id` 不会重复导入，也不会增加 sample count。
 
-本机 Codex CLI 不是离线模型。只有明确 `allowed` 且 `provider_scope=codex_cli` 的语料，才会作为模型输入发送给 Codex 服务；程序不输出认证信息。任一文档为 denied 时，蒸馏不调用 Provider，只计算本地确定性指标，Profile 状态为 `processing_not_allowed`，不能进入正式 Recipe。
+本机 Codex CLI 不是离线模型。只有同一 Profile 的每一篇语料都明确 `allowed` 且 `provider_scope=codex_cli`，才会作为模型输入发送给 Codex 服务；程序不输出认证信息。任一文档为 denied 时，整个 Profile 都不会初始化 Provider，也不会读取 `STYLE_CODEX_MODEL`、解析 Codex 路径、执行版本/帮助/登录探测或要求本机安装和登录 Codex；只计算本地确定性指标，输出 `processing_not_allowed`、`model_calls=0`，不能进入正式 Recipe。
 
 ## 4. 输入预算与 Profile 内容审计
 
@@ -63,9 +63,11 @@ Public Reference Profile 只保存抽象 structure、explanation、evidence plac
 
 ## 5. Protected Transfer Index
 
-每个 Public Reference Profile 的本机 Reviewer Index 保存到 `cache/protected/<profile_id>.protected.json`。条目可标记 `signature_phrase`、`unique_metaphor`、`personal_experience_entity` 或 `distinctive_short_fragment`，必须记录来源文档，并由代码确认 `text` 是原文连续精确子串；口头禅至少含 4 个中文字符。
+每个 Public Reference Profile 的本机 Reviewer Index 保存到 `cache/protected/<profile_id>.protected.json`。同一次 Distill 的严格 Bundle 同时返回抽象 Profile Fragment 和 Protected Candidates，不增加第三次模型调用；Owner/Licensed Bundle 的候选必须为空。条目可标记 `signature_phrase`、`unique_metaphor`、`personal_experience_entity` 或 `distinctive_short_fragment`。模型声明的来源 ID 只是提示，代码会重扫完整 Profile Corpus，确认 `text` 是原文连续精确子串，重算所有真实来源并稳定排序；口头禅至少含 4 个中文字符。
 
-Protected Index 只供 plagiarism Reviewer 使用，绝不进入 Style Profile、Style Recipe、Writer Prompt 或 Git。Guard 自动加载当前公共参考 Profile 对应的 Index，检查短口头禅、专属比喻、个人实体和独特短片段。缺 Index 的公共 Reference Profile 只能用于 Fixture 或 metrics-only，不能进入正式写作 Recipe。
+`style:distill` 会先以同目录临时文件、`0600`、fsync 和 atomic rename 自动写 Index，再写 Profile。匹配 `profile_id + corpus_hash` 的旧 Index 可复用，Corpus 变化则自动重建；Profile 与 Index 共用 `computeStyleCorpusHash()`，成功的 Public Reference Profile 得到 `protected_index_status=ready`。
+
+Protected Index 只供 plagiarism Reviewer 使用，绝不进入 Style Profile、Style Recipe、Writer Prompt 或 Git。生产 Guard 只接受 Resolver 生成的不可伪造 `ResolvedProtectedTransferIndexes`。`style:lint` 对每个 Public Reference Profile 检查正确路径、0600、非 symlink、严格 Schema、profile ID 和完整 corpus hash；缺失、过期、损坏或不安全分别以 `protected_index_missing`、`protected_index_stale`、`protected_index_invalid`、`protected_index_insecure` 非零退出，不会继续一个不完整的检查。Fixture bypass 必须显式调用。Inspect 只输出 hash、时间、状态和各类数量，不输出短语正文。
 
 ## 6. Style Recipe：权重真实选择规则
 
@@ -124,8 +126,9 @@ npm run style:import -- \
   --model-processing allowed --consent-recorded-at <iso>
 npm run style:inspect
 npm run style:distill -- --fixture
+npm run style:protected:inspect -- --profile-id <id>
 npm run style:lint -- --fixture
 npm run style:lint -- --draft <file> --research-pack <ready-pack.json>
 ```
 
-真实语料导入前仍需要用户提供每篇来源、权利依据和明确的模型处理授权，并为每个公共 Reference Profile 建好经精确子串验证的 Protected Index。满足这些输入条件不等于自动生成或发布内容；PR #8 仍需单独接入写作和人工确认。
+真实语料导入前仍需要用户通过 CLI 或可信本地 Manifest 提供每篇来源、权利依据和明确的模型处理授权；Public Reference Index 会在获准 Distill 时自动生成，不再要求手写 JSON。当前仍未导入任何七天假或参考作者真实语料。满足这些输入条件不等于自动生成或发布内容；PR #8 仍需单独接入写作和人工确认。

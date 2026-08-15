@@ -29,6 +29,7 @@
     "style:import": "tsx scripts/style-import.ts",
     "style:inspect": "tsx scripts/style-inspect.ts",
     "style:distill": "tsx scripts/style-distill.ts",
+    "style:protected:inspect": "tsx scripts/style-protected-inspect.ts",
     "style:feedback": "tsx scripts/style-feedback.ts",
     "style:lint": "tsx scripts/style-lint.ts",
     "schema:generate": "tsx scripts/generate-json-schemas.ts",

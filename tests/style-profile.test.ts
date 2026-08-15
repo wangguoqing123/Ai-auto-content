@@ -4,12 +4,16 @@ import path from 'node:path';
 import { Ajv2020 } from 'ajv/dist/2020.js';
 import { distillStyleProfile } from '../src/style-intelligence/distill.js';
 import { buildStyleFixtureDocuments, FixtureStyleProvider } from '../src/style-intelligence/fixture.js';
-import { StyleProviderOutputError, type StyleDistillInput, type StyleDistillProvider } from '../src/style-intelligence/provider.js';
+import { StyleProviderOutputError, type StyleDistillationBundle, type StyleDistillInput, type StyleDistillProvider } from '../src/style-intelligence/provider.js';
 import { requiredPublicReferenceForbiddenTransfers, styleProfileSchema, type StyleQualitative } from '../src/style-intelligence/schemas.js';
 import { buildProtectedTransferIndex } from '../src/style-intelligence/protected-transfer.js';
 import { computeRhythmMetrics } from '../src/style-intelligence/rhythm-metrics.js';
 
 async function fixtureQualitative(input: StyleDistillInput): Promise<StyleQualitative> {
+  return (await new FixtureStyleProvider().distill(input)).profile_fragment;
+}
+
+async function fixtureBundle(input: StyleDistillInput): Promise<StyleDistillationBundle> {
   return new FixtureStyleProvider().distill(input);
 }
 
@@ -37,9 +41,9 @@ describe('Style Profile distillation', () => {
       providerName: 'fixture',
       async distill(input) {
         const base = await fixtureQualitative(input);
-        return { ...base, voice_signals: [sourceSentence, '我在 2025年带过一名学员', ...base.voice_signals], preferred_terms: ['某作者口头禅'] };
+        return { profile_fragment: { ...base, voice_signals: [sourceSentence, '我在 2025年带过一名学员', ...base.voice_signals], preferred_terms: ['某作者口头禅'] }, protected_transfer_candidates: [] };
       },
-      async repair(input) { return fixtureQualitative(input); },
+      async repair(input) { return fixtureBundle(input); },
     };
     const result = await distillStyleProfile({ documents, provider });
     expect(result.profile.voice_signals).not.toContain(sourceSentence);
@@ -50,13 +54,13 @@ describe('Style Profile distillation', () => {
   it('removes Protected Index entries from a public-reference Profile', async () => {
     const documents = buildStyleFixtureDocuments({ profileId: 'protected-reference', profileType: 'reference_technique', rightsStatus: 'public_reference' });
     const phrase = '页面会保留原输入';
-    const protectedIndex = buildProtectedTransferIndex(documents, [{ kind: 'signature_phrase', text: phrase, source_document_ids: [documents[0]!.document_id], extraction_method: 'test' }]);
+    const protectedIndex = buildProtectedTransferIndex(documents, [{ kind: 'signature_phrase', text: phrase, source_document_ids: [documents[0]!.document_id], extraction_reason: 'test' }]);
     const provider: StyleDistillProvider = {
       providerName: 'fixture',
-      async distill(input) { const base = await fixtureQualitative(input); return { ...base, structural_patterns: [phrase, ...base.structural_patterns] }; },
-      async repair(input) { return fixtureQualitative(input); },
+      async distill(input) { const base = await fixtureQualitative(input); return { profile_fragment: { ...base, structural_patterns: [phrase, ...base.structural_patterns] }, protected_transfer_candidates: [{ kind: 'signature_phrase', text: phrase, source_document_ids: [], extraction_reason: 'test' }] }; },
+      async repair(input) { return fixtureBundle(input); },
     };
-    const result = await distillStyleProfile({ documents, provider, protectedIndex });
+    const result = await distillStyleProfile({ documents, provider, existingProtectedIndex: protectedIndex });
     expect(result.profile.protected_index_status).toBe('ready');
     expect(result.profile.structural_patterns).not.toContain(phrase);
   });
@@ -66,16 +70,50 @@ describe('Style Profile distillation', () => {
     const fixture = new FixtureStyleProvider();
     const repairable: StyleDistillProvider = {
       providerName: 'fixture',
-      async distill(input) { const base = await fixture.distill(input); return { ...base, structural_patterns: ['我在 2025 年带过 12 个学员项目'] }; },
+      async distill(input) { const base = await fixture.distill(input); return { ...base, profile_fragment: { ...base.profile_fragment, structural_patterns: ['我在 2025 年带过 12 个学员项目'] } }; },
       async repair(input) { return fixture.repair(input, []); },
     };
     expect(await distillStyleProfile({ documents, provider: repairable })).toMatchObject({ model_calls: 2, profile: { status: 'ready' } });
     const persistent: StyleDistillProvider = {
       providerName: 'fixture',
-      async distill(input) { const base = await fixture.distill(input); return { ...base, explanation_patterns: ['去年我从客户项目赚了 8 万元'] }; },
-      async repair(input) { const base = await fixture.repair(input, []); return { ...base, explanation_patterns: ['去年我从客户项目赚了 8 万元'] }; },
+      async distill(input) { const base = await fixture.distill(input); return { ...base, profile_fragment: { ...base.profile_fragment, explanation_patterns: ['去年我从客户项目赚了 8 万元'] } }; },
+      async repair(input) { const base = await fixture.repair(input, []); return { ...base, profile_fragment: { ...base.profile_fragment, explanation_patterns: ['去年我从客户项目赚了 8 万元'] } }; },
     };
     await expect(distillStyleProfile({ documents, provider: persistent })).rejects.toThrow('style_profile_content_audit_failed');
+  });
+
+  it('requires Owner and Licensed bundles to return no protected candidates', async () => {
+    const documents = buildStyleFixtureDocuments();
+    const fixture = new FixtureStyleProvider();
+    const repairable: StyleDistillProvider = {
+      providerName: 'fixture',
+      async distill(input) {
+        const base = await fixture.distill(input);
+        return { ...base, protected_transfer_candidates: [{ kind: 'distinctive_short_fragment', text: '页面会保留原输入', source_document_ids: [], extraction_reason: 'must be rejected for owner' }] };
+      },
+      async repair(input) { return fixture.repair(input, []); },
+    };
+    expect(await distillStyleProfile({ documents, provider: repairable })).toMatchObject({ model_calls: 2, profile: { status: 'ready', protected_index_status: 'not_required' } });
+    const persistent: StyleDistillProvider = {
+      providerName: 'fixture',
+      async distill(input) { return repairable.distill(input); },
+      async repair(input) { return repairable.distill(input); },
+    };
+    await expect(distillStyleProfile({ documents, provider: persistent })).rejects.toThrow('protected_candidates_not_allowed_for_owned_or_licensed_corpus');
+  });
+
+  it('repairs a public candidate that is not an exact source substring without a third call', async () => {
+    const documents = buildStyleFixtureDocuments({ profileId: 'candidate-repair-reference', profileType: 'reference_technique', rightsStatus: 'public_reference' });
+    const fixture = new FixtureStyleProvider();
+    const provider: StyleDistillProvider = {
+      providerName: 'fixture',
+      async distill(input) {
+        const base = await fixture.distill(input);
+        return { ...base, protected_transfer_candidates: [{ kind: 'unique_metaphor', text: '不存在于语料的模型幻觉', source_document_ids: [], extraction_reason: 'invalid first call' }] };
+      },
+      async repair(input) { return fixture.repair(input, []); },
+    };
+    expect(await distillStyleProfile({ documents, provider })).toMatchObject({ model_calls: 2, profile: { protected_index_status: 'ready' }, protected_index: { profile_id: 'candidate-repair-reference' } });
   });
 
   it('keeps factual claims out of the strict Profile schema', async () => {

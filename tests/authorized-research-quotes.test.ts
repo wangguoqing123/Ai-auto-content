@@ -5,6 +5,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { importCorpusDocuments } from '../src/style-intelligence/corpus.js';
+import { buildProtectedTransferIndex, resolveFixtureProtectedTransferIndexes, writeProtectedTransferIndex } from '../src/style-intelligence/protected-transfer.js';
 import { loadAuthorizedResearchQuotes, resolveAuthorizedResearchQuote } from '../src/writing-lint/authorized-research-quotes.js';
 import { guardAgainstPlagiarism } from '../src/writing-lint/plagiarism-guard.js';
 
@@ -67,8 +68,9 @@ describe('authorized Research Pack quotations', () => {
       ...(await import('../src/style-intelligence/fixture.js')).buildStyleFixtureDocuments({ profileId: 'quote-ref', profileType: 'reference_technique', rightsStatus: 'public_reference', count: 1 })[0]!,
       text: quote,
     }];
-    expect(guardAgainstPlagiarism({ draft: `作者直接说 ${quote}`, corpus, authorizedResearchQuotes }).status).toBe('blocked');
-    expect(guardAgainstPlagiarism({ draft: `公开资料写道：“${quote}”`, corpus, authorizedResearchQuotes }).status).toBe('pass');
+    const protectedIndexes = resolveFixtureProtectedTransferIndexes();
+    expect(guardAgainstPlagiarism({ draft: `作者直接说 ${quote}`, corpus, authorizedResearchQuotes, protectedIndexes }).status).toBe('blocked');
+    expect(guardAgainstPlagiarism({ draft: `公开资料写道：“${quote}”`, corpus, authorizedResearchQuotes, protectedIndexes }).status).toBe('pass');
   });
 
   it('style:lint provides no exemption without --research-pack and only legal exemptions with it', async () => {
@@ -82,12 +84,13 @@ describe('authorized Research Pack quotations', () => {
     await writeFile(sourcePath, quote);
     await writeFile(draftPath, `公开资料写道：“${quote}”`);
     await writeFile(packPath, JSON.stringify(pack));
-    await importCorpusDocuments({
+    const imported = await importCorpusDocuments({
       corpusRoot, sourcePath, profileId: 'quote-reference', profileType: 'reference_technique', rightsStatus: 'public_reference', platform: 'web', contentType: 'analysis',
       source: { creator_id: 'openai', creator_display_name: 'OpenAI', canonical_url: 'https://example.com/source', platform_item_id: 'source-1', published_at: '2026-08-14T00:00:00.000Z' },
       rights: { basis: 'public_reference_analysis', permission_reference: 'public-page-analysis', confirmed_at: '2026-08-15T00:00:00.000Z' },
       modelProcessing: { allowed: false, consent_recorded_at: '2026-08-15T00:00:00.000Z' },
     });
+    await writeProtectedTransferIndex(corpusRoot, buildProtectedTransferIndex(imported, [], '2026-08-15T00:00:00.000Z'));
     const args = ['--import', 'tsx', 'scripts/style-lint.ts', '--draft', draftPath, '--corpus-root', corpusRoot];
     await expect(execFileAsync(process.execPath, args, { cwd: process.cwd() })).rejects.toMatchObject({ code: 1 });
     const { stdout } = await execFileAsync(process.execPath, [...args, '--research-pack', packPath], { cwd: process.cwd() });

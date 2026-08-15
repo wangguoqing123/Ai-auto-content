@@ -48,7 +48,6 @@
           },
           "source_document_ids": {
             "minItems": 1,
-            "maxItems": 30,
             "type": "array",
             "items": {
               "type": "string",

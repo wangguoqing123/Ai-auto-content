@@ -1,9 +1,18 @@
-import { chmod, lstat, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { chmod, lstat, mkdir, readdir, realpath } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import YAML from 'yaml';
 import { corpusDocumentSchema, profileTypeSchema, rightsStatusSchema } from './schemas.js';
-import { sha256, stableJson } from './hash.js';
+import { computeStyleCorpusHash, sha256, stableJson } from './hash.js';
+import {
+  assertCorpusTreeSecure,
+  assertNoSymlinkComponents,
+  assertRegularPrivateFile,
+  readPrivateCorpusFile,
+  readVerifiedSourceFile,
+  resolveVerifiedCorpusRoot,
+  secureAtomicWrite,
+} from './safe-local-path.js';
 import type { CorpusDocument, CorpusImportOptions } from './types.js';
 
 const corpusDirectories = ['owner', 'references', 'feedback', 'cache', 'cache/protected'] as const;
@@ -31,8 +40,6 @@ interface ParsedSourceDocument {
   platform?: string;
   content_type?: string;
   source?: Partial<CorpusDocument['source']>;
-  rights?: Partial<CorpusDocument['rights']>;
-  model_processing?: Partial<CorpusDocument['model_processing']>;
 }
 
 export function defaultStyleCorpusRoot(homeDirectory = os.homedir()): string {
@@ -49,40 +56,55 @@ export function assertCorpusOutsideRepository(corpusRoot: string, repositoryRoot
 }
 
 async function secureDirectory(directory: string): Promise<void> {
-  await mkdir(directory, { recursive: true, mode: 0o700 });
+  await assertNoSymlinkComponents(path.dirname(directory));
+  try {
+    const existing = await lstat(directory);
+    if (existing.isSymbolicLink()) throw new Error(`corpus_directory_symlink_not_allowed:${directory}`);
+    if (!existing.isDirectory()) throw new Error(`corpus_directory_required:${directory}`);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    await mkdir(directory, { mode: 0o700 });
+  }
+  const info = await lstat(directory);
+  if (info.isSymbolicLink() || !info.isDirectory()) throw new Error(`corpus_directory_invalid:${directory}`);
   await chmod(directory, 0o700);
 }
 
 export async function secureCorpusWrite(filename: string, content: string): Promise<void> {
-  await secureDirectory(path.dirname(filename));
-  await writeFile(filename, content, { encoding: 'utf8', mode: 0o600 });
-  await chmod(filename, 0o600);
+  await secureAtomicWrite(filename, content);
 }
 
-export async function ensureStyleCorpus(corpusRoot = defaultStyleCorpusRoot()): Promise<void> {
+export async function ensureStyleCorpus(corpusRoot = defaultStyleCorpusRoot()): Promise<string> {
   assertCorpusOutsideRepository(corpusRoot);
-  await secureDirectory(corpusRoot);
-  for (const directory of corpusDirectories) await secureDirectory(path.join(corpusRoot, directory));
-  const registryPath = path.join(corpusRoot, 'sources.local.yaml');
+  const resolvedRoot = await resolveVerifiedCorpusRoot(corpusRoot);
+  for (const directory of corpusDirectories) await secureDirectory(path.join(resolvedRoot, directory));
+  const registryPath = path.join(resolvedRoot, 'sources.local.yaml');
   try {
-    await lstat(registryPath);
-    await chmod(registryPath, 0o600);
-  } catch {
+    await assertRegularPrivateFile(registryPath, resolvedRoot);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     await secureCorpusWrite(registryPath, YAML.stringify({ version: 2, sources: [] } satisfies CorpusRegistry));
   }
+  await assertCorpusTreeSecure(resolvedRoot);
+  return resolvedRoot;
 }
 
 export async function inspectCorpusPermissions(corpusRoot: string): Promise<{ directories_secure: boolean; files_secure: boolean }> {
-  const directoryModes = await Promise.all([corpusRoot, ...corpusDirectories.map((directory) => path.join(corpusRoot, directory))]
+  const root = await ensureStyleCorpus(corpusRoot);
+  const directoryModes = await Promise.all([root, ...corpusDirectories.map((directory) => path.join(root, directory))]
     .map(async (directory) => (await lstat(directory)).mode & 0o777));
-  const files: string[] = [path.join(corpusRoot, 'sources.local.yaml')];
-  for (const directory of corpusDirectories) {
-    for (const entry of await readdir(path.join(corpusRoot, directory), { withFileTypes: true })) {
-      if (entry.isFile()) files.push(path.join(corpusRoot, directory, entry.name));
+  let filesSecure = true;
+  const walk = async (directory: string): Promise<void> => {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const child = path.join(directory, entry.name);
+      if (entry.isDirectory()) await walk(child);
+      else {
+        try { await assertRegularPrivateFile(child, root); } catch { filesSecure = false; }
+      }
     }
-  }
-  const fileModes = await Promise.all(files.map(async (filename) => (await lstat(filename)).mode & 0o777));
-  return { directories_secure: directoryModes.every((mode) => mode === 0o700), files_secure: fileModes.every((mode) => mode === 0o600) };
+  };
+  await walk(root);
+  return { directories_secure: directoryModes.every((mode) => mode === 0o700), files_secure: filesSecure };
 }
 
 function objectOrUndefined(value: unknown, line: number, field: string): Record<string, unknown> | undefined {
@@ -91,9 +113,8 @@ function objectOrUndefined(value: unknown, line: number, field: string): Record<
   return value as Record<string, unknown>;
 }
 
-async function parseSourceDocuments(sourcePath: string): Promise<ParsedSourceDocument[]> {
+function parseSourceDocuments(sourcePath: string, raw: string): ParsedSourceDocument[] {
   const extension = path.extname(sourcePath).toLocaleLowerCase();
-  const raw = await readFile(sourcePath, 'utf8');
   if (extension === '.md' || extension === '.markdown' || extension === '.txt') {
     const heading = raw.match(/^#\s+(.+)$/mu)?.[1]?.trim();
     return [{ title: heading ?? path.basename(sourcePath, extension), text: raw.trim() }];
@@ -105,18 +126,20 @@ async function parseSourceDocuments(sourcePath: string): Promise<ParsedSourceDoc
       if (typeof value === 'string') return { title: `${path.basename(sourcePath)} ${lineNumber}`, text: value.trim() };
       if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new Error(`Invalid JSONL document at line ${lineNumber}`);
       const record = value as Record<string, unknown>;
+      if ('rights' in record || 'permission_reference' in record || 'rights_basis' in record || 'confirmed_at' in record) {
+        throw new Error('inline_rights_metadata_not_allowed');
+      }
+      if ('model_processing' in record || 'consent' in record || 'consent_recorded_at' in record || 'provider_scope' in record) {
+        throw new Error('inline_model_processing_metadata_not_allowed');
+      }
       if (typeof record.text !== 'string' || record.text.trim() === '') throw new Error(`Missing text at JSONL line ${lineNumber}`);
       const source = objectOrUndefined(record.source, lineNumber, 'source');
-      const rights = objectOrUndefined(record.rights, lineNumber, 'rights');
-      const modelProcessing = objectOrUndefined(record.model_processing, lineNumber, 'model_processing');
       return {
         title: typeof record.title === 'string' && record.title.trim() !== '' ? record.title.trim() : `${path.basename(sourcePath)} ${lineNumber}`,
         text: record.text.trim(),
         ...(typeof record.platform === 'string' ? { platform: record.platform } : {}),
         ...(typeof record.content_type === 'string' ? { content_type: record.content_type } : {}),
         ...(source === undefined ? {} : { source: source as Partial<CorpusDocument['source']> }),
-        ...(rights === undefined ? {} : { rights: rights as Partial<CorpusDocument['rights']> }),
-        ...(modelProcessing === undefined ? {} : { model_processing: modelProcessing as Partial<CorpusDocument['model_processing']> }),
       };
     });
   }
@@ -141,17 +164,16 @@ function registryEntry(document: CorpusDocument, documentFile: string): CorpusSo
 }
 
 export async function importCorpusDocuments(options: CorpusImportOptions): Promise<CorpusDocument[]> {
-  assertCorpusOutsideRepository(options.corpusRoot);
-  if (pathIsInside(process.cwd(), options.sourcePath)) throw new Error('style_source_must_be_outside_repository');
-  await ensureStyleCorpus(options.corpusRoot);
+  const verifiedSource = await readVerifiedSourceFile(options.sourcePath);
+  const corpusRoot = await ensureStyleCorpus(options.corpusRoot);
   const profileType = profileTypeSchema.parse(options.profileType);
   const rightsStatus = rightsStatusSchema.parse(options.rightsStatus);
   if (typeof options.modelProcessing?.allowed !== 'boolean') throw new Error('model_processing_allowed_must_be_explicit');
   const importedAt = options.importedAt ?? new Date().toISOString();
-  const parsed = await parseSourceDocuments(options.sourcePath);
+  const parsed = parseSourceDocuments(verifiedSource.path, verifiedSource.content);
   if (parsed.length === 0) throw new Error('style_source_contains_no_documents');
   const targetDirectory = profileType === 'owner_voice' ? 'owner' : 'references';
-  const existing = await loadCorpusDocuments(options.corpusRoot, options.profileId);
+  const existing = await loadCorpusDocuments(corpusRoot, options.profileId);
   const seenHashes = new Set(existing.map(({ content_sha256 }) => content_sha256));
   const seenItems = new Set(existing.map(({ source }) => `${source.canonical_url}\n${source.platform_item_id}`));
   const documents: CorpusDocument[] = [];
@@ -159,7 +181,7 @@ export async function importCorpusDocuments(options: CorpusImportOptions): Promi
     const contentSha256 = sha256(source.text);
     const provenance = {
       ...options.source,
-      source_filename: path.basename(options.sourcePath),
+      source_filename: path.basename(verifiedSource.path),
       ...(source.source ?? {}),
     };
     const itemKey = `${provenance.canonical_url}\n${provenance.platform_item_id}`;
@@ -176,24 +198,23 @@ export async function importCorpusDocuments(options: CorpusImportOptions): Promi
       text: source.text,
       content_sha256: contentSha256,
       source: provenance,
-      rights: { ...options.rights, ...(source.rights ?? {}) },
+      rights: options.rights,
       model_processing: {
         allowed: options.modelProcessing.allowed,
         provider_scope: options.modelProcessing.allowed ? 'codex_cli' : 'none',
         consent_recorded_at: options.modelProcessing.consent_recorded_at,
-        ...(source.model_processing ?? {}),
       },
       imported_at: importedAt,
     });
     const relative = path.posix.join(targetDirectory, `${documentId}.json`);
-    await secureCorpusWrite(path.join(options.corpusRoot, relative), `${JSON.stringify(document, null, 2)}\n`);
+    await secureCorpusWrite(path.join(corpusRoot, relative), `${JSON.stringify(document, null, 2)}\n`);
     documents.push(document);
     seenHashes.add(contentSha256);
     seenItems.add(itemKey);
   }
   if (documents.length === 0) return [];
-  const registryPath = path.join(options.corpusRoot, 'sources.local.yaml');
-  const rawRegistry = YAML.parse(await readFile(registryPath, 'utf8')) as Partial<CorpusRegistry>;
+  const registryPath = path.join(corpusRoot, 'sources.local.yaml');
+  const rawRegistry = YAML.parse(await readPrivateCorpusFile(registryPath, corpusRoot)) as Partial<CorpusRegistry>;
   const registry: CorpusRegistry = { version: 2, sources: Array.isArray(rawRegistry.sources) ? rawRegistry.sources : [] };
   registry.sources.push(...documents.map((document) => registryEntry(document, path.posix.join(targetDirectory, `${document.document_id}.json`))));
   await secureCorpusWrite(registryPath, YAML.stringify(registry));
@@ -201,12 +222,17 @@ export async function importCorpusDocuments(options: CorpusImportOptions): Promi
 }
 
 export async function loadCorpusDocuments(corpusRoot: string, profileId?: string): Promise<CorpusDocument[]> {
-  await ensureStyleCorpus(corpusRoot);
+  const root = await ensureStyleCorpus(corpusRoot);
   const documents: CorpusDocument[] = [];
   for (const directory of ['owner', 'references'] as const) {
-    for (const entry of await readdir(path.join(corpusRoot, directory), { withFileTypes: true })) {
+    const absoluteDirectory = path.join(root, directory);
+    for (const entry of await readdir(absoluteDirectory, { withFileTypes: true })) {
+      const filename = path.join(absoluteDirectory, entry.name);
+      const info = await lstat(filename);
+      if (info.isSymbolicLink()) throw new Error(`corpus_symlink_not_allowed:${filename}`);
       if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
-      const document = corpusDocumentSchema.parse(JSON.parse(await readFile(path.join(corpusRoot, directory, entry.name), 'utf8')));
+      const document = corpusDocumentSchema.parse(JSON.parse(await readPrivateCorpusFile(filename, root)));
+      if (document.content_sha256 !== sha256(document.text)) throw new Error(`corpus_content_hash_mismatch:${document.document_id}`);
       if (profileId === undefined || document.profile_id === profileId) documents.push(document);
     }
   }
@@ -219,17 +245,18 @@ export async function inspectStyleCorpus(corpusRoot: string): Promise<{
   profiles: Array<{ profile_id: string; sample_count: number; corpus_hash: string }>;
   permissions: { directories_secure: boolean; files_secure: boolean };
 }> {
-  const documents = await loadCorpusDocuments(corpusRoot);
+  const root = await ensureStyleCorpus(corpusRoot);
+  const documents = await loadCorpusDocuments(root);
   const grouped = new Map<string, CorpusDocument[]>();
   for (const document of documents) grouped.set(document.profile_id, [...(grouped.get(document.profile_id) ?? []), document]);
   return {
-    root: corpusRoot,
+    root: await realpath(root),
     document_count: documents.length,
     profiles: [...grouped].sort(([left], [right]) => left.localeCompare(right)).map(([profile_id, items]) => ({
       profile_id,
       sample_count: items.length,
-      corpus_hash: sha256(stableJson(items.map(({ document_id, content_sha256 }) => ({ document_id, content_sha256 })))),
+      corpus_hash: computeStyleCorpusHash(items),
     })),
-    permissions: await inspectCorpusPermissions(corpusRoot),
+    permissions: await inspectCorpusPermissions(root),
   };
 }

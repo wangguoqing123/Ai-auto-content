@@ -1,9 +1,16 @@
+import { z } from 'zod';
 import { computeRhythmMetrics } from './rhythm-metrics.js';
 import { buildStyleInputBudget } from './input-budget.js';
-import { requiredPublicReferenceForbiddenTransfers, styleProfileSchema, styleQualitativeSchema, type StyleProfile, type StyleQualitative } from './schemas.js';
-import { sha256, stableJson } from './hash.js';
-import { StyleProviderOutputError, type StyleDistillInput, type StyleDistillProvider } from './provider.js';
-import type { ProtectedTransferIndex } from './protected-transfer.js';
+import { requiredPublicReferenceForbiddenTransfers, styleProfileSchema, type StyleProfile, type StyleQualitative } from './schemas.js';
+import { computeStyleCorpusHash, stableJson } from './hash.js';
+import {
+  StyleProviderOutputError,
+  styleDistillationBundleSchema,
+  type StyleDistillationBundle,
+  type StyleDistillInput,
+  type StyleDistillProvider,
+} from './provider.js';
+import { buildProtectedTransferIndex, type ProtectedTransferIndex } from './protected-transfer.js';
 import type { CorpusDocument } from './types.js';
 
 const emptyQualitative: StyleQualitative = {
@@ -46,6 +53,11 @@ function sanitizePublicReference(qualitative: StyleQualitative, documents: reado
   };
 }
 
+function publicReferenceAuditFailures(qualitative: StyleQualitative, documents: readonly CorpusDocument[], protectedTexts: readonly string[]): string[] {
+  const failures = qualitativeStrings(qualitative).filter((value) => unsafeReferenceDetail(value, documents, protectedTexts));
+  return failures.length === 0 ? [] : ['public_reference_profile_contains_forbidden_transfer'];
+}
+
 function qualitativeStrings(qualitative: StyleQualitative): string[] {
   return Object.entries(qualitative).flatMap(([, value]) => {
     if (Array.isArray(value)) return value as string[];
@@ -72,30 +84,80 @@ function assertConsistentCorpus(documents: readonly CorpusDocument[]): CorpusDoc
   const first = documents[0];
   if (first === undefined) throw new Error('style_corpus_empty');
   for (const document of documents) {
-    if (document.profile_id !== first.profile_id || document.profile_type !== first.profile_type || document.rights_status !== first.rights_status) {
-      throw new Error('style_corpus_profile_mismatch');
-    }
+    if (document.profile_id !== first.profile_id || document.profile_type !== first.profile_type || document.rights_status !== first.rights_status) throw new Error('style_corpus_profile_mismatch');
   }
   if (first.rights_status === 'public_reference' && first.profile_type !== 'reference_technique') throw new Error('public_reference_requires_reference_technique');
   return first;
 }
 
+function parseBundle(value: unknown): StyleDistillationBundle {
+  try { return styleDistillationBundleSchema.parse(value); }
+  catch (error) {
+    if (error instanceof z.ZodError) throw new StyleProviderOutputError();
+    throw error;
+  }
+}
+
+function sameProtectedEntries(left: ProtectedTransferIndex, right: ProtectedTransferIndex): boolean {
+  return left.profile_id === right.profile_id && left.corpus_hash === right.corpus_hash && stableJson(left.entries) === stableJson(right.entries);
+}
+
+interface AuditedBundle {
+  qualitative: StyleQualitative;
+  protectedIndex: ProtectedTransferIndex | null;
+  failures: string[];
+}
+
+function auditBundle(
+  bundle: StyleDistillationBundle,
+  documents: readonly CorpusDocument[],
+  first: CorpusDocument,
+  createdAt: string,
+  existingProtectedIndex: ProtectedTransferIndex | undefined,
+): AuditedBundle {
+  const failures: string[] = [];
+  let protectedIndex: ProtectedTransferIndex | null = null;
+  if (first.rights_status === 'public_reference') {
+    try {
+      const built = buildProtectedTransferIndex(documents, bundle.protected_transfer_candidates, createdAt);
+      protectedIndex = existingProtectedIndex !== undefined && sameProtectedEntries(existingProtectedIndex, built) ? existingProtectedIndex : built;
+    } catch (error) {
+      failures.push(error instanceof Error ? error.message : 'protected_candidate_audit_failed');
+    }
+  } else {
+    if (bundle.protected_transfer_candidates.length > 0) failures.push('protected_candidates_not_allowed_for_owned_or_licensed_corpus');
+    failures.push(...ownerAuditFailures(bundle.profile_fragment, documents));
+  }
+  return { qualitative: bundle.profile_fragment, protectedIndex, failures: [...new Set(failures)] };
+}
+
 export interface DistillProfileOptions {
   documents: CorpusDocument[];
   provider?: StyleDistillProvider;
-  protectedIndex?: ProtectedTransferIndex;
+  existingProtectedIndex?: ProtectedTransferIndex;
   createdAt?: string;
   version?: number;
 }
 
-export async function distillStyleProfile(options: DistillProfileOptions): Promise<{ profile: StyleProfile; model_calls: number }> {
+export interface DistillProfileResult {
+  profile: StyleProfile;
+  protected_index: ProtectedTransferIndex | null;
+  model_calls: number;
+}
+
+export async function distillStyleProfile(options: DistillProfileOptions): Promise<DistillProfileResult> {
   const first = assertConsistentCorpus(options.documents);
   const documents = [...options.documents].sort((left, right) => left.document_id.localeCompare(right.document_id));
   const metrics = computeRhythmMetrics(documents);
-  const corpusHash = sha256(stableJson(documents.map(({ document_id, title, text }) => ({ document_id, title, text }))));
-  const processingAllowed = documents.every(({ model_processing }) => model_processing.allowed && model_processing.provider_scope === 'codex_cli');
+  const corpusHash = computeStyleCorpusHash(documents);
+  const processingAllowed = documents.length > 0 && documents.every(({ model_processing }) => model_processing.allowed && model_processing.provider_scope === 'codex_cli');
   const budget = buildStyleInputBudget(documents, processingAllowed);
+  const createdAt = options.createdAt ?? new Date().toISOString();
   let qualitative = emptyQualitative;
+  let protectedIndex = first.rights_status === 'public_reference'
+    && options.existingProtectedIndex?.profile_id === first.profile_id
+    && options.existingProtectedIndex.corpus_hash === corpusHash
+    ? options.existingProtectedIndex : null;
   let modelCalls = 0;
   if (documents.length >= 8 && processingAllowed) {
     if (options.provider === undefined) throw new Error('style_provider_required_for_ready_profile');
@@ -106,33 +168,35 @@ export async function distillStyleProfile(options: DistillProfileOptions): Promi
       quantitative_features: metrics,
       documents: budget.documents,
     };
+    let bundle: StyleDistillationBundle;
     try {
       modelCalls += 1;
-      qualitative = styleQualitativeSchema.parse(await options.provider.distill(input));
+      bundle = parseBundle(await options.provider.distill(input));
     } catch (error) {
       if (!(error instanceof StyleProviderOutputError)) throw error;
       modelCalls += 1;
-      qualitative = styleQualitativeSchema.parse(await options.provider.repair(input, ['style_provider_output_invalid']));
+      bundle = parseBundle(await options.provider.repair(input, ['style_provider_output_invalid']));
     }
-    if (first.rights_status === 'owned_by_user' || first.rights_status === 'licensed') {
-      let failures = ownerAuditFailures(qualitative, documents);
-      if (failures.length > 0 && modelCalls < 2) {
-        modelCalls += 1;
-        qualitative = styleQualitativeSchema.parse(await options.provider.repair(input, failures));
-        failures = ownerAuditFailures(qualitative, documents);
-      }
-      if (failures.length > 0) throw new Error(`style_profile_content_audit_failed:${failures.join(',')}`);
+    let audited = auditBundle(bundle, documents, first, createdAt, options.existingProtectedIndex);
+    if (audited.failures.length > 0 && modelCalls < 2) {
+      modelCalls += 1;
+      bundle = parseBundle(await options.provider.repair(input, audited.failures));
+      audited = auditBundle(bundle, documents, first, createdAt, options.existingProtectedIndex);
     }
+    if (audited.failures.length > 0) throw new Error(`style_profile_content_audit_failed:${audited.failures.join(',')}`);
+    qualitative = audited.qualitative;
+    protectedIndex = audited.protectedIndex;
   }
   if (first.rights_status === 'public_reference') {
-    qualitative = sanitizePublicReference(qualitative, documents, options.protectedIndex?.entries.map(({ text }) => text) ?? []);
+    const protectedTexts = protectedIndex?.entries.map(({ text }) => text) ?? [];
+    qualitative = sanitizePublicReference(qualitative, documents, protectedTexts);
+    const failures = publicReferenceAuditFailures(qualitative, documents, protectedTexts);
+    if (failures.length > 0) throw new Error(`style_profile_content_audit_failed:${failures.join(',')}`);
   }
   if (modelCalls > 2) throw new Error('style_codex_call_limit_exceeded');
   qualitative = { ...qualitative, confidence: Math.min(qualitative.confidence, Math.max(0.25, budget.coverage.coverage_ratio)) };
   const forbidden = first.rights_status === 'public_reference' ? [...requiredPublicReferenceForbiddenTransfers] : ['factual_claim'] as const;
-  const protectedIndexReady = first.rights_status === 'public_reference'
-    && options.protectedIndex?.profile_id === first.profile_id
-    && options.protectedIndex.corpus_hash === corpusHash;
+  const protectedIndexReady = first.rights_status === 'public_reference' && protectedIndex?.profile_id === first.profile_id && protectedIndex.corpus_hash === corpusHash;
   const status = !processingAllowed ? 'processing_not_allowed' : documents.length < 8 ? 'insufficient_samples' : 'ready';
   const profile = styleProfileSchema.parse({
     profile_id: first.profile_id,
@@ -149,8 +213,8 @@ export async function distillStyleProfile(options: DistillProfileOptions): Promi
     quantitative_features: metrics,
     ...qualitative,
     forbidden_transfer: forbidden,
-    created_at: options.createdAt ?? new Date().toISOString(),
+    created_at: createdAt,
     version: options.version ?? 1,
   });
-  return { profile, model_calls: modelCalls };
+  return { profile, protected_index: protectedIndex, model_calls: modelCalls };
 }

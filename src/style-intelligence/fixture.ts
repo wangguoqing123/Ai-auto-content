@@ -1,7 +1,7 @@
 import type { CorpusDocument } from './types.js';
 import { sha256 } from './hash.js';
 import type { RightsStatus } from './schemas.js';
-import type { StyleDistillInput, StyleDistillProvider } from './provider.js';
+import type { StyleDistillationBundle, StyleDistillInput, StyleDistillProvider } from './provider.js';
 import type { StyleQualitative } from './schemas.js';
 
 const fixtureBodies = [
@@ -99,6 +99,18 @@ export class FixtureStyleProvider implements StyleDistillProvider {
   readonly providerName = 'fixture' as const;
   distillCalls = 0;
   repairCalls = 0;
-  async distill(input: StyleDistillInput): Promise<StyleQualitative> { this.distillCalls += 1; return qualitative(input); }
-  async repair(input: StyleDistillInput, _validationErrors: string[]): Promise<StyleQualitative> { this.repairCalls += 1; return qualitative(input); }
+  private bundle(input: StyleDistillInput): StyleDistillationBundle {
+    const reference = input.rights_status === 'public_reference';
+    return {
+      profile_fragment: qualitative(input),
+      protected_transfer_candidates: reference ? [{
+        kind: 'signature_phrase',
+        text: '页面会保留原输入',
+        source_document_ids: input.documents.slice(0, 1).map(({ document_id }) => document_id),
+        extraction_reason: 'deterministic fixture exact phrase',
+      }] : [],
+    };
+  }
+  async distill(input: StyleDistillInput): Promise<StyleDistillationBundle> { this.distillCalls += 1; return this.bundle(input); }
+  async repair(input: StyleDistillInput, _validationErrors: string[]): Promise<StyleDistillationBundle> { this.repairCalls += 1; return this.bundle(input); }
 }

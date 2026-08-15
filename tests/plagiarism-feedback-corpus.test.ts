@@ -8,7 +8,7 @@ import { distillStyleProfile } from '../src/style-intelligence/distill.js';
 import { computeStyleChangeSignature, loadStyleFeedback, proposeProfileDelta, recordStyleFeedback, type StyleFeedbackChange } from '../src/style-intelligence/feedback.js';
 import { buildStyleFixtureDocuments, FixtureStyleProvider } from '../src/style-intelligence/fixture.js';
 import { sha256 } from '../src/style-intelligence/hash.js';
-import { buildProtectedTransferIndex, writeProtectedTransferIndex } from '../src/style-intelligence/protected-transfer.js';
+import { buildProtectedTransferIndex, resolveFixtureProtectedTransferIndexes, writeProtectedTransferIndex } from '../src/style-intelligence/protected-transfer.js';
 import type { CorpusImportOptions } from '../src/style-intelligence/types.js';
 import { guardAgainstPlagiarism } from '../src/writing-lint/plagiarism-guard.js';
 
@@ -115,13 +115,13 @@ describe('private corpus provenance and transfer protection', () => {
     const corpus = buildStyleFixtureDocuments({ profileId: 'public-ref', profileType: 'reference_technique', rightsStatus: 'public_reference' });
     const phrase = '页面会保留原输入';
     const index = buildProtectedTransferIndex(corpus, [
-      { kind: 'signature_phrase', text: phrase, source_document_ids: [corpus[0]!.document_id], extraction_method: 'fixture-test-exact-substring' },
-      { kind: 'unique_metaphor', text: '任务跑了一遍', source_document_ids: [corpus[0]!.document_id], extraction_method: 'fixture-test-exact-substring' },
+      { kind: 'signature_phrase', text: phrase, source_document_ids: [corpus[0]!.document_id], extraction_reason: 'fixture-test-exact-substring' },
+      { kind: 'unique_metaphor', text: '任务跑了一遍', source_document_ids: [corpus[0]!.document_id], extraction_reason: 'fixture-test-exact-substring' },
     ], '2026-08-15T00:00:00.000Z');
     const filename = await writeProtectedTransferIndex(root, index);
     expect((await stat(filename)).mode & 0o777).toBe(0o600);
-    expect(guardAgainstPlagiarism({ draft: `这句照搬了：${phrase}`, corpus: [], protectedIndexes: [index] }).issues.map(({ issue_code }) => issue_code)).toContain('signature_phrase_transfer');
-    expect(() => buildProtectedTransferIndex(corpus, [{ kind: 'unique_metaphor', text: '原文没有的比喻', source_document_ids: [corpus[0]!.document_id], extraction_method: 'bad' }])).toThrow('protected_candidate_not_exact_source_substring');
+    expect(guardAgainstPlagiarism({ draft: `这句照搬了：${phrase}`, corpus: [], protectedIndexes: resolveFixtureProtectedTransferIndexes([index]) }).issues.map(({ issue_code }) => issue_code)).toContain('signature_phrase_transfer');
+    expect(() => buildProtectedTransferIndex(corpus, [{ kind: 'unique_metaphor', text: '原文没有的比喻', source_document_ids: [corpus[0]!.document_id], extraction_reason: 'bad' }])).toThrow('protected_candidate_not_exact_source_substring');
   });
 });
 

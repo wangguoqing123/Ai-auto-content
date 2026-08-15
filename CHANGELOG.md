@@ -17,6 +17,10 @@
 - 删除“工具/应用/平台/系统”共现的指代误报，新增结构化 Entity Naming Audit；区分商业硬黑话和学习/反馈/执行闭环等 warning，并把完全重复段落准确命名为 `exact_duplicate_paragraph`。
 - 增加带 Skill commit、来源文件/章节、适配方式与严重度的 Adaptation Map；Writing Issue 保存 `rule_origin` 和 `source_commit`，运行时不直接加载上游 Skill 文件作为 Prompt。
 - 反馈一致性改为同一 change signature、三个不同 Writing Pack、三个不同 draft、兼容平台/文体且零 rejection；Proposal 保存支持反馈 ID，仍只提案、不自动更新 Profile。
+- 完成真实语料导入前的最终加固：同一 Profile 只要一篇 denied 就完全跳过 Codex 初始化、环境读取与 CLI 探测；JSONL 顶层 rights/model consent 覆盖直接拒绝，授权只来自 CLI 或可信本地 Manifest。
+- Corpus Root、Source 与私有树改为逐次 lstat/realpath、拒绝 symlink 和特殊文件；`secureCorpusWrite` 使用同目录 0600 临时文件、fsync 与 atomic rename，读写都复验私有权限和真实仓库边界。
+- Style Distill 改为严格 Bundle，一次响应同时生成抽象 Profile 与 Public Reference Protected Candidates；代码重扫完整 Corpus、重算真实来源 ID、自动写入或在 hash 变化时重建 Index，Owner/已授权语料禁止返回候选，总调用仍最多两次。
+- Protected Resolver 使用不可伪造内部句柄；生产 Lint 对 Index 缺失、过期、非法或不安全 fail closed。新增只输出 hash、时间、状态和分类计数的 `style:protected:inspect`，Profile、Index、Inspect 与 Lint 统一使用 `computeStyleCorpusHash()`。
 
 - 增加自动研究、证据核验与安全实验包 v0：严格消费正式 Topic Decision，只输出 `READY_FOR_WRITING`、`RESEARCH_INCOMPLETE` 或 `NO_TOPIC`，基础设施故障保持 failed。
 - 增加公共 URL 与 SSRF 防护：HTTP(S)/80/443、每次请求和重定向 DNS 全地址检查、固定已验证 IP、20 秒超时、2 MiB 上限和 Content-Type 白名单。

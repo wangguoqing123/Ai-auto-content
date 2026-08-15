@@ -1,5 +1,5 @@
 import type { CorpusDocument } from '../style-intelligence/types.js';
-import { protectedEntriesForGuard, protectedTransferIndexSchema, type ProtectedTransferIndex } from '../style-intelligence/protected-transfer.js';
+import { protectedEntriesForGuard, type ResolvedProtectedTransferIndexes } from '../style-intelligence/protected-transfer.js';
 import type { WritingIssue } from '../writing-skills/types.js';
 import { authorizedResearchQuoteRecords, type ResolvedAuthorizedQuotes } from './authorized-research-quotes.js';
 
@@ -7,7 +7,7 @@ export interface PlagiarismGuardOptions {
   draft: string;
   corpus: CorpusDocument[];
   authorizedResearchQuotes?: ResolvedAuthorizedQuotes;
-  protectedIndexes?: ProtectedTransferIndex[];
+  protectedIndexes: ResolvedProtectedTransferIndexes;
   minimumContinuousCharacters?: number;
   ngramOverlapThreshold?: number;
 }
@@ -88,8 +88,7 @@ export function guardAgainstPlagiarism(options: PlagiarismGuardOptions): { statu
       });
     }
   }
-  const protectedIndexes = (options.protectedIndexes ?? []).map((index) => protectedTransferIndexSchema.parse(index));
-  const protectedEntries = protectedEntriesForGuard(protectedIndexes);
+  const protectedEntries = protectedEntriesForGuard(options.protectedIndexes);
   for (const phrase of [...protectedEntries.signaturePhrases, ...protectedEntries.distinctiveShortFragments]) {
     if (phrase.length >= 4 && normalize(checkedDraft).includes(normalize(phrase))) issues.push({
       issue_code: 'signature_phrase_transfer', pattern: 'Signature phrase transfer', quoted_text: phrase, location: 'draft', severity: 'hard_blocker',
