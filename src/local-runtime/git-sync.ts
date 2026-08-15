@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { runCommand, type CommandResult } from './process.js';
-import { assertSafeBrowserDataFile, assertSafeTopicDataFile } from './sensitive-content.js';
+import { assertSafeBrowserDataFile, assertSafeResearchDataFile, assertSafeTopicDataFile } from './sensitive-content.js';
 import type { LocalRuntimeConfig } from './types.js';
 
 export const AUTOMATED_DATA_PATHS = [
@@ -16,6 +16,12 @@ export const TOPIC_DATA_PATHS = [
   'reports/topics',
 ] as const;
 
+export const RESEARCH_DATA_PATHS = [
+  'data/research-packs',
+  'data/research-runs',
+  'reports/research',
+] as const;
+
 export class GitSyncError extends Error {
   constructor(message: string, readonly kind: 'git_sync_failed' | 'invalid_staged_paths') {
     super(message);
@@ -28,6 +34,7 @@ export interface GitSyncResult {
   commit: string | null;
   recoveredCollectionDates: string[];
   recoveredTopicDecisionDates?: string[];
+  recoveredResearchDates?: string[];
 }
 
 export interface PendingBrowserCommit {
@@ -38,7 +45,7 @@ export interface PendingBrowserCommit {
 
 export interface PendingRuntimeCommit {
   sha: string;
-  task: 'morning' | 'topic_selection';
+  task: 'morning' | 'topic_selection' | 'research_pack';
   date: string;
   files: string[];
 }
@@ -68,6 +75,7 @@ function validCollectionDate(value: string): boolean {
 function assertSafeContent(file: string, content: string): void {
   try {
     if (isTopicDataPath(file)) assertSafeTopicDataFile(file, content);
+    else if (isResearchDataPath(file)) assertSafeResearchDataFile(file, content);
     else assertSafeBrowserDataFile(file, content);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -85,6 +93,12 @@ export function isTopicDataPath(filePath: string): boolean {
   const normalized = filePath.split(path.sep).join('/').replace(/^\.\//, '');
   if (!normalized || normalized.includes('..') || normalized === '.DS_Store' || normalized.endsWith('/.DS_Store')) return false;
   return TOPIC_DATA_PATHS.some((prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`));
+}
+
+export function isResearchDataPath(filePath: string): boolean {
+  const normalized = filePath.split(path.sep).join('/').replace(/^\.\//, '');
+  if (!normalized || normalized.includes('..') || normalized === '.DS_Store' || normalized.endsWith('/.DS_Store')) return false;
+  return RESEARCH_DATA_PATHS.some((prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`));
 }
 
 function parsePorcelainPaths(output: string): string[] {
@@ -155,15 +169,16 @@ export async function inspectPendingRuntimeCommits(
       const subject = (await git(execute, repositoryRoot, ['show', '-s', '--format=%s', sha])).stdout.trim();
       const browserMatch = subject.match(/^chore\(browser-data\): collect X and WeChat (\d{4}-\d{2}-\d{2})$/);
       const topicMatch = subject.match(/^chore\(topic\): decide daily topic (\d{4}-\d{2}-\d{2})$/);
-      const task = browserMatch ? 'morning' : topicMatch ? 'topic_selection' : null;
-      const date = browserMatch?.[1] ?? topicMatch?.[1] ?? '';
+      const researchMatch = subject.match(/^chore\(research\): build evidence pack (\d{4}-\d{2}-\d{2})$/);
+      const task = browserMatch ? 'morning' : topicMatch ? 'topic_selection' : researchMatch ? 'research_pack' : null;
+      const date = browserMatch?.[1] ?? topicMatch?.[1] ?? researchMatch?.[1] ?? '';
       if (task === null || !validCollectionDate(date)) {
         throw new GitSyncError(`Invalid pending Runtime data commit subject: ${sha}`, 'invalid_staged_paths');
       }
       const files = parseNameList((await git(execute, repositoryRoot, [
         'diff-tree', '--root', '--no-commit-id', '--name-only', '-r', '-z', sha,
       ])).stdout);
-      const allowed = task === 'morning' ? isAutomatedDataPath : isTopicDataPath;
+      const allowed = task === 'morning' ? isAutomatedDataPath : task === 'topic_selection' ? isTopicDataPath : isResearchDataPath;
       if (files.length === 0 || files.some((file) => !allowed(file))) {
         throw new GitSyncError(`Pending commit contains non-whitelisted paths: ${sha}`, 'invalid_staged_paths');
       }
@@ -272,6 +287,7 @@ export async function prepareRuntimeRepository(
       commit,
       recoveredCollectionDates: recoveredDates(pending, 'morning'),
       recoveredTopicDecisionDates: recoveredDates(pending, 'topic_selection'),
+      recoveredResearchDates: recoveredDates(pending, 'research_pack'),
     };
   }
   if (behind > 0) await git(execute, repositoryRoot, ['merge', '--ff-only', `${config.git_sync.remote}/${config.git_sync.branch}`]);
@@ -336,4 +352,34 @@ export async function commitAndPushTopicData(
   if (push.exitCode !== 0) throw new GitSyncError(`Push failed; local topic commit ${commit} was preserved`, 'git_sync_failed');
   const pushedCommit = (await git(execute, repositoryRoot, ['rev-parse', 'HEAD'])).stdout.trim();
   return { status: 'pushed', commit: pushedCommit, recoveredCollectionDates: [], recoveredTopicDecisionDates: [] };
+}
+
+export async function commitAndPushResearchData(
+  repositoryRoot: string,
+  date: string,
+  config: LocalRuntimeConfig,
+  execute: Execute = runCommand,
+): Promise<GitSyncResult> {
+  if (!config.git_sync.enabled) return { status: 'no_changes', commit: null, recoveredCollectionDates: [], recoveredResearchDates: [] };
+  await assertOnlyAutomatedChanges(execute, repositoryRoot, isResearchDataPath);
+  for (const allowedPath of RESEARCH_DATA_PATHS) {
+    await git(execute, repositoryRoot, ['add', '-A', '--', allowedPath], true);
+  }
+  const staged = parseNameList((await git(execute, repositoryRoot, ['diff', '--cached', '--name-only', '-z'])).stdout);
+  if (staged.length === 0) return { status: 'no_changes', commit: null, recoveredCollectionDates: [], recoveredResearchDates: [] };
+  await scanStagedContent(execute, repositoryRoot, staged, isResearchDataPath);
+  await git(execute, repositoryRoot, ['commit', '-m', `chore(research): build evidence pack ${date}`]);
+  const commit = (await git(execute, repositoryRoot, ['rev-parse', 'HEAD'])).stdout.trim();
+  const remoteRef = `${config.git_sync.remote}/${config.git_sync.branch}`;
+  await inspectPendingRuntimeCommits(repositoryRoot, remoteRef, execute);
+  const rebase = await git(execute, repositoryRoot, ['pull', '--rebase', config.git_sync.remote, config.git_sync.branch], true);
+  if (rebase.exitCode !== 0) {
+    await git(execute, repositoryRoot, ['rebase', '--abort'], true);
+    throw new GitSyncError(`Rebase failed; local research commit ${commit} was preserved`, 'git_sync_failed');
+  }
+  await inspectPendingRuntimeCommits(repositoryRoot, remoteRef, execute);
+  const push = await git(execute, repositoryRoot, ['push', config.git_sync.remote, config.git_sync.branch], true);
+  if (push.exitCode !== 0) throw new GitSyncError(`Push failed; local research commit ${commit} was preserved`, 'git_sync_failed');
+  const pushedCommit = (await git(execute, repositoryRoot, ['rev-parse', 'HEAD'])).stdout.trim();
+  return { status: 'pushed', commit: pushedCommit, recoveredCollectionDates: [], recoveredResearchDates: [] };
 }

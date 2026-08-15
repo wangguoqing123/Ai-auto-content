@@ -1,7 +1,7 @@
 ---
 title: MVP 实施路线
-version: 0.4.0
-updated_at: 2026-08-14
+version: 0.4.1
+updated_at: 2026-08-15
 status: approved
 ---
 
@@ -63,6 +63,7 @@ status: approved
 - `RunAtLoad + StartInterval=900` 的 LaunchAgent 到期检查。
 - 上海时区 07:30—12:00 的 morning 窗口，目标时间 08:00，每天最多 2 次尝试。
 - 上海时区 13:00—18:00 的 topic_selection 窗口，使用本机登录的 Codex CLI，每天最多 2 次尝试。
+- 上海时区 13:30—21:00 的 research_pack 窗口，只抓 Topic 指定的官方 fact_source，并使用同一 Codex CLI 完成研究与合成文本实验，每天最多 2 次尝试。
 - X 和微信公众号采集、外部状态、原子锁、本机日志与安全通知。
 - 只允许 Browser 数据目录进入自动 commit，并在 push 失败时保留本地数据 commit。
 
@@ -79,7 +80,7 @@ status: approved
 
 本阶段已处理基础 opportunity cluster、历史选题相似度、六维评分、产品/CTA/Claim 校验和严格失败语义，并读取阶段 0.1 的产品契约。本阶段不批量生成 20 个题让人挑选 5 个。
 
-状态：`implemented_live_model_dry_run_verified_pending_local_activation`。生产 Provider 为本机 `codex_cli`；真实与精简环境 dry-run 均已完成，GitHub Actions 只运行离线 Fixture，正式 LaunchAgent 等合并后再更新。
+状态：`production`。生产 Provider 为本机 `codex_cli`，当天正式 Topic Decision 已进入 main；GitHub Actions 只运行离线 Fixture。
 
 ## 当前系统状态
 
@@ -87,19 +88,21 @@ status: approved
 |---|---|
 | 采集 | `production` |
 | 产品真相层 | `production` |
-| 每日选题 | `implemented_live_model_dry_run_verified_pending_local_activation` |
-| 研究与实验 | `not_started` |
+| 每日选题 | `production` |
+| 研究与实验 | `implemented_live_validation_verified_pending_local_activation` |
 | 写作 | `not_started` |
 | 配图 | `not_started` |
 | 发布 | `not_started` |
 
-## 阶段 3：研究、母稿和多平台内容生成
+## 阶段 3：研究、证据核验与安全实验
 
-- 为已批准选题建立研究包和证据链。
-- 需要“实测”时先创建真实实验任务。
-- 生成平台无关母稿。
-- 分别生成公众号和 X 原生版本。
-- 执行事实、人格、产品和质量审核。
+- 为正式 `SELECT_TOPIC` 建立 Research Pack 和精确短引用证据链。
+- 只抓原 Topic 指定的 fact_source canonical URL，并执行 SSRF、类型、大小、超时和版权边界。
+- 使用三个合成 text_to_text 任务之一，让 baseline 与 structured 各运行一次。
+- 由代码计算验收项，只输出 `READY_FOR_WRITING`、`RESEARCH_INCOMPLETE` 或 `NO_TOPIC`。
+- 状态：`implemented_live_validation_verified_pending_local_activation`。第二次获准的真实 dry-run 已对 2026-08-14 Topic Decision 完成一次完整链路：两条 canonical 403 后安全降级到 2/2 个官方 RSS `feed_item`，Analyze 得到 `RESEARCH_INCOMPLETE`，baseline 与 structured 各成功运行一次；没有写正式 Research Pack，也没有激活生产 Runtime 或 LaunchAgent。
+
+研究之后的写作仍为 `not_started`：本阶段不生成平台无关母稿、公众号/X 正文、标题、配图或发布包。
 
 ## 阶段 4：配图与发布包
 

@@ -19,6 +19,7 @@ export function createEmptyState(date: string): SchedulerState {
     last_error: null,
     last_collection_status: null,
     last_topic_decision: null,
+    last_research_decision: null,
   });
   return {
     version: 1,
@@ -26,6 +27,7 @@ export function createEmptyState(date: string): SchedulerState {
     tasks: {
       morning: emptyTask(),
       topic_selection: emptyTask(),
+      research_pack: emptyTask(),
     },
   };
 }

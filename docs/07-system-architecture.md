@@ -2,7 +2,7 @@
 title: 系统架构
 version: 0.3.0
 updated_at: 2026-08-14
-status: daily_topic_intelligence_live_dry_run_verified_pending_local_activation
+status: research_pack_implemented_pending_live_validation
 ---
 
 # 系统架构
@@ -39,7 +39,22 @@ Cloud / Browser 已有素材
 
 模型网络或结构失败为 `status=failed`，不输出 `NO_PUBLISH`。相同日期和 `input_hash` 的成功决定直接返回 `ALREADY_DECIDED`。完整契约见 `docs/21-daily-topic-intelligence.md`。
 
-真实选题不在 GitHub Actions 调用模型。Mac Local Runtime 复用 `RunAtLoad + StartInterval=900` 的 LaunchAgent：Morning 在 07:30—12:00，Topic Selection 在 13:00—18:00。Codex CLI 只在 `Application Support/AiAutoContent/tmp/topic-judge/**` 的非 Git 临时目录、只读 Sandbox 和最小环境中读取结构化输入并返回 JSON；最终校验、写盘和 Git 白名单提交仍由项目代码执行。
+阶段 3 的研究与安全实验 v0 已实现：
+
+```text
+Topic Decision
+→ 只读取 selected_topic.fact_source_ids
+→ 公共 URL / DNS / 每次重定向 SSRF 检查
+→ 本机 0700/0600 清洗段落缓存
+→ Codex 只读结构化研究，代码精确验证 quote 子串
+→ 必要时 baseline 与 structured 各一次 text_to_text 实验
+→ 代码计算 8 项验收
+→ READY_FOR_WRITING / RESEARCH_INCOMPLETE / NO_TOPIC
+```
+
+网络、Codex、文件或 Schema 故障保持 `status=failed`、`decision=null`。Research Pack 只提交短引用，不提交第三方完整网页；完整契约见 `docs/22-research-and-experiment-packs.md`。
+
+真实选题和研究不在 GitHub Actions 调用模型。Mac Local Runtime 复用 `RunAtLoad + StartInterval=900` 的 LaunchAgent：Morning 在 07:30—12:00，Topic Selection 在 13:00—18:00，Research Pack 在 13:30—21:00。Topic 与 Research 共用结构化 Codex Runner；最终校验、写盘和 Git 白名单提交仍由项目代码执行。
 
 ## 2. 架构原则
 

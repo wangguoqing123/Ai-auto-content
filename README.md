@@ -6,21 +6,21 @@
 
 > 系统每天运行，但不要求每天发布。没有足够高质量的题目时，后续选题阶段必须允许输出 `NO_PUBLISH`。
 
-## 当前阶段：真实 Codex dry-run 已验证，等待合并后启用本机调度
+## 当前阶段：真实研究 dry-run 已验证，等待本机生产激活
 
-产品真相层和素材采集已经进入 production。每日选题 v0 已实现 72 小时输入、五种来源角色、确定性预筛选、最多 3 个内部候选、六维评分、产品/CTA/Claim 校验、30 天重复检查、`SELECT_TOPIC` / `NO_PUBLISH`、严格 Schema 和幂等。生产 Topic Judge 已改为本机登录的 Codex CLI，并加入同一个 Mac Local Scheduler；GitHub Actions 只做离线 Fixture 验证，不执行真实模型。仍不实现研究执行、正文、配图或发布。
+产品真相层、素材采集和每日选题已经进入 production。研究与实验 v0 只接受正式 `SELECT_TOPIC`，按 `canonical HTTP → 同一第一方官方 RSS item → 已保存官方 RSS 摘要 → unavailable` 获取 Topic 指定的 fact_source，保存本机清洗快照，精确核验短引用，回答原研究问题，并在需要时各运行一次 baseline / structured 合成文本实验。访问控制不会用浏览器、Cookie 或第三方代理绕过；摘要明确标记 `feed_excerpt`，不能补成完整正文。2026-08-15 的第二次获准真实 dry-run 已对 2026-08-14 Topic Decision 完成整条链路：两条 canonical 403 后取得 2/2 个官方 RSS `feed_item`，Analyze 输出合法 `RESEARCH_INCOMPLETE`，两个实验 Variant 各成功运行一次且未写正式文件。代码只输出 `READY_FOR_WRITING`、`RESEARCH_INCOMPLETE` 或 `NO_TOPIC`；全部来源不可用或 Provider 等基础设施故障保持 `status=failed`。本阶段仍不生成正文、配图或发布，也尚未激活生产 Research Runtime。
 
 | 系统阶段 | 状态 |
 |---|---|
 | 采集 | `production` |
 | 产品真相层 | `production` |
-| 每日选题 | `implemented_live_model_dry_run_verified_pending_local_activation` |
-| 研究与实验 | `not_started` |
+| 每日选题 | `production` |
+| 研究与实验 | `implemented_live_validation_verified_pending_local_activation` |
 | 写作 | `not_started` |
 | 配图 | `not_started` |
 | 发布 | `not_started` |
 
-Cloud Collector 与 Mac Local Runtime 是两个独立运行通道。Cloud 在 GitHub Actions 每天北京时间 09:00 运行；本机 LaunchAgent 每 15 分钟做一次轻量到期检查：07:30—12:00 执行 X/微信公众号 Morning，13:00—18:00 执行本机 Codex Topic Selection。两个任务分别保存状态且每天最多尝试 2 次。
+Cloud Collector 与 Mac Local Runtime 是两个独立运行通道。Cloud 在 GitHub Actions 每天北京时间 09:00 运行；本机 LaunchAgent 每 15 分钟做一次轻量到期检查：07:30—12:00 执行 X/微信公众号 Morning，13:00—18:00 执行 Topic Selection，13:30—21:00 执行 Research Pack。三个任务分别保存状态且每天最多尝试 2 次。
 
 | 模块 | 状态 | 是否每日运行 |
 |---|---|---|
@@ -61,7 +61,8 @@ npm test
 npm run collect:fixture
 npm run topic:select -- --fixture --date=2026-08-14
 npm run topic:inspect-input -- --date=2026-08-14
-npm run local:scheduler -- --once --fixture --dry-run --now=2026-08-14T05:00:00.000Z
+npm run research:build -- --fixture --date=2026-08-14
+npm run local:scheduler -- --once --fixture --dry-run --now=2026-08-14T05:30:00.000Z
 npm run local:morning -- --fixture --dry-run --now=2026-08-14T06:00:00.000Z
 npm run local:install -- --dry-run
 ```
@@ -89,17 +90,20 @@ npm run opencli:install-adapters
 npm run local:check
 npm run local:morning -- --dry-run
 npm run local:topic -- --dry-run
+npm run local:research -- --dry-run
 npm run local:scheduler -- --once
 npm run local:install -- --dry-run
 npm run local:uninstall -- --dry-run
 ```
 
-`local:morning -- --dry-run` 不受调度窗口限制，仍会执行健康检查和真实 X / 公众号 Browser dry-run；`local:topic -- --dry-run` 只读取仓库已有数据并调用已配置的本机 Codex，不访问平台。两者都不写状态、正式数据、报告或 Git。CI 只运行 `--fixture --dry-run`，不会访问 Codex 服务、平台、Chrome 或 Browser Bridge。生产安装必须由用户在 PR 合并后显式执行，并显式配置 `TOPIC_CODEX_MODEL`：
+`local:morning -- --dry-run` 不受调度窗口限制，仍会执行健康检查和真实 X / 公众号 Browser dry-run；`local:topic -- --dry-run` 不访问平台；`local:research -- --dry-run` 只允许访问 Topic 指定的官方 fact_source 并运行文本实验。三者都不写状态、正式数据、报告或 Git。CI 只运行 Fixture，不访问真实 Codex、网页、平台、Chrome 或 Browser Bridge。生产安装必须由用户在 PR 合并后显式执行，并配置模型：
 
 ```bash
 export TOPIC_CODEX_MODEL="<explicit model>"
 npm run local:install -- --install
 ```
+
+安装器把同一个本机 Codex CLI 与显式模型同时提供给 Topic 和 Research；手动运行时仍可用 `RESEARCH_CODEX_BIN` / `RESEARCH_CODEX_MODEL` 单独覆盖。
 
 仍保留的人工诊断命令：
 
@@ -124,7 +128,7 @@ Local Runtime 退出码：0 表示成功、部分成功、未到期、当天已�
 
 仓库需在 **Settings → Actions → General → Workflow permissions** 中允许 **Read and write permissions**，否则 `GITHUB_TOKEN` 无法推送自动采集结果。
 
-真实每日选题不在 GitHub Actions 运行，也不需要 `OPENAI_API_KEY`。Mac Local Runtime 在北京时间 13:00—18:00 调用 `codex_cli`；PR Validation 只运行 `topic:select --fixture`。无可用素材时不会创建 Provider 或启动 Codex。
+真实每日选题与研究不在 GitHub Actions 运行，也不需要 `OPENAI_API_KEY`。Mac Local Runtime 分别在 13:00—18:00 和 13:30—21:00 调用 `codex_cli`；PR Validation 只运行离线 Topic / Research Fixture。无 Topic 时 Research 不创建 Provider 或抓取网页。
 
 ## 输出目录
 
@@ -135,6 +139,8 @@ config/platform-queries.yaml        浏览器平台关键词、预算与轮换
 config/product.yaml                 唯一机器可读产品事实与 claim 真相源
 config/content-fit.yaml             学习阶段、内容承接、适配上限与 CTA 策略
 config/topic-intelligence.yaml      72 小时输入、预算、门槛、历史和模型调用上限
+config/research-intelligence.yaml   公共抓取、引用、Codex、实验与调度上限
+config/experiment-task-catalog.yaml 三个项目自带合成 text_to_text 实验任务
 data/materials/YYYY-MM-DD.jsonl     最近 7 天内及隔离区 RSS 素材
 data/browser-materials/YYYY-MM-DD.jsonl  浏览器非 dry-run 素材
 data/browser-runs/                  浏览器平台运行日志
@@ -146,13 +152,16 @@ reports/browser/YYYY-MM-DD.md       X / 公众号 Browser 素材日报
 data/topic-decisions/YYYY-MM-DD.json  当日正式 SELECT_TOPIC / NO_PUBLISH 决定
 data/topic-runs/topic_*.json        每次选题运行的安全审计记录
 reports/topics/YYYY-MM-DD.md        单一最终母题或 NO_PUBLISH 日报
+data/research-packs/YYYY-MM-DD/     Research Pack、短引用来源清单与合成实验结果
+data/research-runs/research_*.json  每次研究运行的安全审计记录
+reports/research/YYYY-MM-DD.md      不含正文的研究与实验报告
 ```
 
 首次运行时，7 天以前的 RSS 只写入指纹状态，不写入当天素材；发布时间未知的素材进入 `quarantined`。缺失互动字段保存为 `null`，不以 0 冒充真实数据。
 
 正式公众号正文以稳定 `material_id` 作为下载目录，重复运行仍命中同一目录，同一天标题相同但身份不同的文章不会互相覆盖。素材中的 `content_path` 只保存仓库相对 POSIX 路径；dry-run 固定为 `null`，命令摘要中的输出位置固定显示为 `[runtime-output]`。
 
-自动 push 前会逐个验证 `origin/main..HEAD` 的所有 pending commit：标题只能是 Browser 采集或 Topic 决定的固定格式，日期必须真实，变更路径必须属于对应白名单，并按 commit 时点内容扫描临时微信参数、认证信息、本机绝对路径和 `.DS_Store`。删除白名单文件允许通过；任何提交不可读或不合规都会以 `invalid_staged_paths` 停止，且不 rebase、不 push、不访问平台。Morning 与 Topic 分别按恢复日期判断是否已完成。
+自动 push 前会逐个验证 `origin/main..HEAD` 的所有 pending commit：标题只能是 Browser、Topic 或 Research 固定格式，日期必须真实，变更路径必须属于对应白名单，并按 commit 时点内容扫描严格 Schema、第三方全文、临时参数、认证信息、本机绝对路径和 `.DS_Store`。任何提交不可读或不合规都会以 `invalid_staged_paths` 停止；Morning、Topic 与 Research 分别按恢复日期判断是否已完成。
 
 ## JSON Schema 数据契约
 
@@ -161,8 +170,9 @@ reports/topics/YYYY-MM-DD.md        单一最终母题或 NO_PUBLISH 日报
 - `schemas/product-profile.schema.json`：产品事实、交付状态、价格和 claim 契约，对应 `productProfileSchema`。
 - `schemas/content-fit-profile.schema.json`：学习阶段、pillar、模块映射、适配上限与 CTA 契约，对应 `contentFitProfileSchema`。
 - `schemas/topic-decision.schema.json`：每日选题成功/失败、单一母题和最多 3 个候选契约，对应 `topicDecisionSchema`。
+- `schemas/research-pack.schema.json`：研究决定、来源短引用、Claim、问题答案、实验和写作门槛契约，对应 `researchPackSchema`。
 
-五份提交文件都从 Zod Schema 生成。修改运行时模型后执行 `npm run schema:generate` 更新文件；`npm run schema:check` 会在临时目录重新生成并比较，发现漂移时返回非零退出码。`npm run product:check` 额外校验模块引用、claim 唯一性、内容比例和状态分数上限。PR CI 使用 Fixture 运行选题检查，不访问真实平台或模型。
+六份提交文件都从 Zod Schema 生成。修改运行时模型后执行 `npm run schema:generate` 更新文件；`npm run schema:check` 会在临时目录重新生成并比较，发现漂移时返回非零退出码。PR CI 使用 Fixture 运行 Topic 与 Research 检查，不访问真实网页、平台或模型。
 
 ## 项目目标
 
@@ -207,6 +217,7 @@ reports/topics/YYYY-MM-DD.md        单一最终母题或 NO_PUBLISH 日报
 19. `docs/19-local-browser-scheduler.md`
 20. `docs/20-product-truth-and-content-fit.md`
 21. `docs/21-daily-topic-intelligence.md`
+22. `docs/22-research-and-experiment-packs.md`
 
 发生冲突时，真实性与合规规则、人物事实库和产品知识库优先。资料不足时必须标记 `UNKNOWN`，不得自行补全。
 

@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- 增加自动研究、证据核验与安全实验包 v0：严格消费正式 Topic Decision，只输出 `READY_FOR_WRITING`、`RESEARCH_INCOMPLETE` 或 `NO_TOPIC`，基础设施故障保持 failed。
+- 增加公共 URL 与 SSRF 防护：HTTP(S)/80/443、每次请求和重定向 DNS 全地址检查、固定已验证 IP、20 秒超时、2 MiB 上限和 Content-Type 白名单。
+- 增加本机 0700/0600 研究缓存、7 天清理命令和第三方版权边界；Git 只保存精确短引用，单条 500 字符、单来源合计 1,500 字符。
+- 抽取 Topic/Research 共用 Codex 结构化 Runner；Research 最多 4 次调用，baseline/structured 各只运行一次，八项验收由代码计算。
+- 增加 13:30—21:00 Research Scheduler、`WAITING_FOR_TOPIC`/`ALREADY_RESEARCHED`、Research Git 白名单、严格 Schema 敏感扫描和 pending commit 恢复；PR 阶段不修改生产 Runtime 或 LaunchAgent。
+- 增加第一方来源获取梯度：canonical 被访问控制阻止时，只降级到同一官方 RSS item；历史 item 缺失时仅使用已保存的官方 RSS 标题/摘要，并把 retrieval method、content scope、canonical 状态与降级原因写入 Manifest。
+- 保留 Cloud Material 的 `source_type`/`source_tier`/`source_id` 血缘，不按域名推断 RSS 资格；单来源失败继续形成 `RESEARCH_INCOMPLETE`，全部来源失败才是 `source_fetch_failed`。
+- 将 partial/unsupported/time-sensitive 证据不足从结构错误分离为 open gaps；新增 `gap_impact`，blocking partial 阻止写作，non-blocking partial 可通过问题门槛；feed excerpt 不得支持摘要外细节或数字。
+- 幂等判断移到当前来源获取和 hash 计算之后；hash 纳入获取方式、内容范围、canonical 状态与当前 Provider/模型/运行时/配置/Prompt/Schema。Analyze、Repair 和每个实验 Variant 均在调用前记录 attempt。
+- 记录 2026-08-14 真实 Research dry-run：两条获准 OpenAI 页面均返回 HTTP 403 JavaScript/Cookie challenge，系统在 Codex 前 fail-closed；未使用浏览器绕过，也未写正式 Research 输出。
+- 最新一次受限 dry-run 在两条 canonical 403 后从 OpenAI 官方 RSS 成功取得 2/2 个 `feed_item`；首次 Analyze 因旧 answered/Claim 附加约束返回 `codex_output_invalid`，准确记录 calls=1，未运行实验或写正式产物。该附加约束已按 `gap_impact` 规则移除并完成离线回归，未重复真实 dry-run。
+- 完成第二次获准的 2026-08-14 Research live dry-run：两条 canonical 各返回一次 403 后安全取得 2/2 个官方 RSS `feed_item`，Analyze 形成 2 条 partial Claim 和 answered / non-blocking partial / blocking unanswered 各 1 个答案，合法输出 `RESEARCH_INCOMPLETE`；未触发 Repair，baseline 与 structured 各成功运行一次、均为 6 pass / 2 fail，总计 3 次 Codex 调用。dry-run 未写正式 Research Pack、运行记录或报告，生产 Runtime 与 LaunchAgent 仍未激活。
+
 - 将每日选题生产 Provider 改为本机已登录的 Codex CLI：非交互 `codex exec`、显式模型、严格 JSON Schema、只读 Sandbox、无人工审批、隔离临时目录、2 MiB 输出上限和最小子进程环境；OpenAI API 仅保留为可选备用。
 - 将真实 Topic Selection 从 GitHub Actions 迁移到 Mac Local Runtime：新增 13:00—18:00 独立任务状态、最多 2 次尝试、Topic 数据 Git 白名单和 pending commit 恢复；PR/CI 不安装或 reload LaunchAgent。
 - 删除 GitHub 真实模型定时 Workflow；PR Validation 继续只运行 Fixture，不访问 Codex 服务、OpenAI API、X、公众号、Chrome 或 Browser Bridge。

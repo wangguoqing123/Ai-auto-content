@@ -1,5 +1,11 @@
 import os from 'node:os';
 import { hasSensitiveWeixinAccessQuery } from '../collectors/opencli/weixin-article-artifact.js';
+import {
+  experimentResultSchema,
+  experimentSpecSchema,
+  researchPackSchema,
+  researchSourceManifestSchema,
+} from '../research/schemas.js';
 
 const SENSITIVE_KEYS = new Set([
   'authorization',
@@ -188,4 +194,34 @@ export function assertSafeTopicDataFile(filePath: string, content: string): void
     ? scanStructuredBrowserData(filePath, content)
     : scanBrowserMarkdown(filePath, content);
   if (issues.length > 0) throw new SensitiveBrowserDataError(filePath, issues);
+}
+
+export function assertSafeResearchDataFile(filePath: string, content: string): void {
+  const normalized = filePath.replaceAll('\\', '/').replace(/^\.\//, '').toLocaleLowerCase();
+  const markdown = /^reports\/research\/[^/]+\.md$/.test(normalized);
+  const pack = /^data\/research-(?:packs\/[^/]+\/research-pack|runs\/research_[^/]+)\.json$/.test(normalized);
+  const manifest = /^data\/research-packs\/[^/]+\/source-manifests\/[^/]+\.json$/.test(normalized);
+  const spec = /^data\/research-packs\/[^/]+\/experiments\/experiment-spec\.json$/.test(normalized);
+  const result = /^data\/research-packs\/[^/]+\/experiments\/(?:baseline_chat_request|structured_task_card)\.json$/.test(normalized);
+  if (!markdown && !pack && !manifest && !spec && !result) {
+    throw new SensitiveBrowserDataError(filePath, ['unsupported Research data file type']);
+  }
+  const issues = markdown ? scanBrowserMarkdown(filePath, content) : scanStructuredBrowserData(filePath, content);
+  if (issues.length > 0) throw new SensitiveBrowserDataError(filePath, issues);
+  if (Buffer.byteLength(content) > 300_000) throw new SensitiveBrowserDataError(filePath, ['Research artifact exceeds size limit']);
+  if (markdown) return;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content) as unknown;
+  } catch {
+    throw new SensitiveBrowserDataError(filePath, ['invalid JSON']);
+  }
+  const validated = pack
+    ? researchPackSchema.safeParse(parsed)
+    : manifest
+      ? researchSourceManifestSchema.safeParse(parsed)
+      : spec
+        ? experimentSpecSchema.safeParse(parsed)
+        : experimentResultSchema.safeParse(parsed);
+  if (!validated.success) throw new SensitiveBrowserDataError(filePath, ['Research artifact violates its strict schema']);
 }

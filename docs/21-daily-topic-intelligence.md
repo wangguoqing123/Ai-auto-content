@@ -176,4 +176,4 @@ Topic Task 先同步 Runtime clone 的 `main`，再运行选题器。无材料�
 
 Browser 缺失时仍可用 Cloud，并记录 `browser_missing`；Cloud 缺失时仍可用 Browser，但 X 不会升级为事实源；两者都没有时不创建 Provider、不要求 Codex 配置，直接 `NO_PUBLISH/no_usable_materials`，模型字段记录 `not_invoked` 和 0 次调用。有素材但缺少 Provider 配置、Codex 安装、登录态、网络或额度时仍为 failed。
 
-研究与写作下一阶段只接受成功 `SELECT_TOPIC` 的一个 selected topic，读取 research questions、事实来源、evidence gaps、experiment plan、产品模块和 CTA 边界。研究层必须先补证或执行实验，写作层才可形成平台正文；本 PR 不实现这些能力。
+研究层现已在 `docs/22-research-and-experiment-packs.md` 实现：只接受成功 `SELECT_TOPIC` 的一个 selected topic，绑定 signature/hash/run ID，安全抓取原 fact_source，精确核验 quote，并在需要时执行合成文本对照实验。只有 `READY_FOR_WRITING` 才能进入未来写作层；`RESEARCH_INCOMPLETE` 和 failed 都禁止写作。正文、标题、配图和发布仍未实现。

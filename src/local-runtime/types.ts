@@ -10,11 +10,12 @@ export const runtimeTaskStatuses = [
   'blocked',
   'unavailable',
   'git_sync_failed',
+  'waiting_for_topic',
 ] as const;
 
 export type RuntimeTaskStatus = typeof runtimeTaskStatuses[number];
 export type CompletedCollectionStatus = 'success' | 'partial_success';
-export type RuntimeTaskName = 'morning' | 'topic_selection';
+export type RuntimeTaskName = 'morning' | 'topic_selection' | 'research_pack';
 
 export interface RuntimeScheduleConfig {
   target_time: string;
@@ -28,6 +29,7 @@ export interface LocalRuntimeConfig {
   timezone: 'Asia/Shanghai';
   morning: RuntimeScheduleConfig;
   topic_selection: RuntimeScheduleConfig;
+  research_pack: RuntimeScheduleConfig;
   scheduler: { check_interval_seconds: number };
   runtime: {
     auto_launch_chrome: boolean;
@@ -56,6 +58,7 @@ export const schedulerTaskStateSchema = z.object({
   last_error: z.string().nullable(),
   last_collection_status: z.enum(['success', 'partial_success']).nullable().default(null),
   last_topic_decision: z.enum(['SELECT_TOPIC', 'NO_PUBLISH']).nullable().optional(),
+  last_research_decision: z.enum(['READY_FOR_WRITING', 'RESEARCH_INCOMPLETE', 'NO_TOPIC']).nullable().optional(),
 });
 
 export const schedulerStateSchema = z.object({
@@ -64,6 +67,7 @@ export const schedulerStateSchema = z.object({
   tasks: z.object({
     morning: schedulerTaskStateSchema,
     topic_selection: schedulerTaskStateSchema.optional(),
+    research_pack: schedulerTaskStateSchema.optional(),
   }),
 }).transform((state) => ({
   ...state,
@@ -78,6 +82,18 @@ export const schedulerStateSchema = z.object({
       last_error: null,
       last_collection_status: null,
       last_topic_decision: null,
+      last_research_decision: null,
+    },
+    research_pack: state.tasks.research_pack ?? {
+      date: state.tasks.morning.date,
+      attempts: 0,
+      last_attempt_at: null,
+      last_status: 'not_due' as const,
+      last_run_id: '',
+      last_error: null,
+      last_collection_status: null,
+      last_topic_decision: null,
+      last_research_decision: null,
     },
   },
 }));
@@ -99,7 +115,7 @@ export interface RuntimePaths {
 }
 
 export interface RuntimeExecutionResult {
-  outcome: 'NOT_DUE' | 'ALREADY_COMPLETED' | 'MAX_ATTEMPTS_REACHED' | 'LOCK_HELD' | 'COMPLETED' | 'FAILED';
+  outcome: 'NOT_DUE' | 'WAITING_FOR_TOPIC' | 'ALREADY_RESEARCHED' | 'ALREADY_COMPLETED' | 'MAX_ATTEMPTS_REACHED' | 'LOCK_HELD' | 'COMPLETED' | 'FAILED';
   status: RuntimeTaskStatus;
   exitCode: number;
   date: string;
@@ -110,4 +126,5 @@ export interface RuntimeExecutionResult {
   task?: RuntimeTaskName;
   topicDecision?: 'SELECT_TOPIC' | 'NO_PUBLISH' | null;
   modelCalls?: number;
+  researchDecision?: 'READY_FOR_WRITING' | 'RESEARCH_INCOMPLETE' | 'NO_TOPIC' | null;
 }
