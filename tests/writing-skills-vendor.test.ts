@@ -5,6 +5,7 @@ import path from 'node:path';
 import YAML from 'yaml';
 import { describe, expect, it } from 'vitest';
 import { writingSkillManifest } from '../src/writing-skills/manifest.js';
+import { writingSkillAdaptationMapSchema } from '../src/writing-skills/adaptation-map.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -26,7 +27,15 @@ describe('vendored writing Skills', () => {
 
   it('passes local file, SHA-256, pin, license, and executable checks', async () => {
     const { stdout } = await execFileAsync(process.execPath, ['--import', 'tsx', 'scripts/writing-skills-check.ts'], { cwd: process.cwd() });
-    expect(stdout).toContain('Writing Skill check passed (2 Skills, 14 files).');
+    expect(stdout).toContain('Writing Skill check passed (2 Skills, 14 files, 23 audited rules).');
+  });
+
+  it('maps every adapted rule to a pinned Skill commit or explicit project override', async () => {
+    const map = writingSkillAdaptationMapSchema.parse(YAML.parse(await readFile(path.join(process.cwd(), 'third_party/writing-skills/adaptation-map.yaml'), 'utf8')));
+    expect(new Set(map.rules.map(({ internal_rule_id }) => internal_rule_id)).size).toBe(map.rules.length);
+    expect(map.rules.find(({ internal_rule_id }) => internal_rule_id === 'binary_contrast')).toMatchObject({ skill_id: 'no-ai-slop', skill_commit: writingSkillManifest.noAiSlop.commit });
+    expect(map.rules.find(({ internal_rule_id }) => internal_rule_id === 'reversal_rhetoric')).toMatchObject({ skill_id: 'human-writing', skill_commit: writingSkillManifest.humanWriting.commit });
+    expect(map.rules.find(({ internal_rule_id }) => internal_rule_id === 'business_jargon')).toMatchObject({ skill_id: 'project', adaptation_mode: 'project_override' });
   });
 
   it('does not download writing Skills in the package script or PR CI', async () => {

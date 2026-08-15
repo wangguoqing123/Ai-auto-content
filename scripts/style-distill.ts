@@ -38,6 +38,6 @@ console.log(JSON.stringify({
   corpus_hash: result.profile.corpus_hash,
   recipe_hash: recipe.recipe_hash,
   model_calls: result.model_calls,
-  provider: provider?.providerName ?? 'none_insufficient_samples',
+  provider: provider?.providerName ?? (result.profile.status === 'processing_not_allowed' ? 'none_processing_not_allowed' : 'none_insufficient_samples'),
   wrote_local_profile: !fixture,
 }, null, 2));

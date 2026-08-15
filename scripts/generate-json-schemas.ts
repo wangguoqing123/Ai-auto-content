@@ -7,11 +7,30 @@ import { productProfileSchema } from '../src/product/product-profile.js';
 import { materialSchema, unifiedMaterialSchema } from '../src/types.js';
 import { topicDecisionSchema } from '../src/topic-intelligence/schemas.js';
 import { researchPackSchema } from '../src/research/schemas.js';
-import { styleProfileSchema, styleRecipeSchema } from '../src/style-intelligence/schemas.js';
+import { corpusDocumentSchema, styleProfileSchema, styleRecipeSchema } from '../src/style-intelligence/schemas.js';
+import { protectedTransferIndexSchema } from '../src/style-intelligence/protected-transfer.js';
+import { writingSkillAdaptationMapSchema } from '../src/writing-skills/adaptation-map.js';
+import { styleFeedbackEntrySchema } from '../src/style-intelligence/feedback.js';
+import { entityNamingAuditSchema } from '../src/writing-lint/entity-naming-audit.js';
 
 const JSON_SCHEMA_DRAFT = 'https://json-schema.org/draft/2020-12/schema';
 
 const schemas = [
+  {
+    filename: 'corpus-document.schema.json', id: 'https://example.local/schemas/corpus-document.schema.json', title: 'Style Corpus Document', schema: corpusDocumentSchema,
+  },
+  {
+    filename: 'protected-transfer-index.schema.json', id: 'https://example.local/schemas/protected-transfer-index.schema.json', title: 'Protected Transfer Index', schema: protectedTransferIndexSchema,
+  },
+  {
+    filename: 'writing-skill-adaptation-map.schema.json', id: 'https://example.local/schemas/writing-skill-adaptation-map.schema.json', title: 'Writing Skill Adaptation Map', schema: writingSkillAdaptationMapSchema,
+  },
+  {
+    filename: 'style-feedback.schema.json', id: 'https://example.local/schemas/style-feedback.schema.json', title: 'Style Feedback Entry', schema: styleFeedbackEntrySchema,
+  },
+  {
+    filename: 'entity-naming-audit.schema.json', id: 'https://example.local/schemas/entity-naming-audit.schema.json', title: 'Entity Naming Audit', schema: entityNamingAuditSchema,
+  },
   {
     filename: 'style-profile.schema.json',
     id: 'https://example.local/schemas/style-profile.schema.json',
@@ -104,6 +123,30 @@ function serializeSchema(schema: ZodType, id: string, title: string): string {
       },
     ];
   }
+  if (title === 'Style Corpus Document') {
+    document.allOf = [
+      { if: { properties: { rights_status: { const: 'owned_by_user' } }, required: ['rights_status'] }, then: { properties: { rights: { properties: { basis: { const: 'user_owned' } }, required: ['basis'] } } } },
+      { if: { properties: { rights_status: { const: 'licensed' } }, required: ['rights_status'] }, then: { properties: { rights: { properties: { basis: { const: 'explicit_license' } }, required: ['basis'] } } } },
+      {
+        if: { properties: { rights_status: { const: 'public_reference' } }, required: ['rights_status'] },
+        then: {
+          properties: {
+            profile_type: { const: 'reference_technique' },
+            rights: { properties: { basis: { const: 'public_reference_analysis' } }, required: ['basis'] },
+            source: { properties: { canonical_url: { type: 'string', format: 'uri' } }, required: ['canonical_url'] },
+          },
+        },
+      },
+      {
+        if: { properties: { model_processing: { properties: { allowed: { const: true } }, required: ['allowed'] } }, required: ['model_processing'] },
+        then: { properties: { model_processing: { properties: { provider_scope: { const: 'codex_cli' } }, required: ['provider_scope'] } } },
+      },
+      {
+        if: { properties: { model_processing: { properties: { allowed: { const: false } }, required: ['allowed'] } }, required: ['model_processing'] },
+        then: { properties: { model_processing: { properties: { provider_scope: { const: 'none' } }, required: ['provider_scope'] } } },
+      },
+    ];
+  }
   if (title === 'Style Profile') {
     const forbiddenTransfers = [
       'personal_experience', 'personal_identity', 'signature_phrase', 'unique_metaphor',
@@ -112,11 +155,11 @@ function serializeSchema(schema: ZodType, id: string, title: string): string {
     document.allOf = [
       {
         if: { properties: { sample_count: { type: 'integer', maximum: 7 } }, required: ['sample_count'] },
-        then: { properties: { status: { const: 'insufficient_samples' } }, required: ['status'] },
+        then: { properties: { status: { enum: ['insufficient_samples', 'processing_not_allowed'] } }, required: ['status'] },
       },
       {
         if: { properties: { sample_count: { type: 'integer', minimum: 8 } }, required: ['sample_count'] },
-        then: { properties: { status: { const: 'ready' } }, required: ['status'] },
+        then: { properties: { status: { enum: ['ready', 'processing_not_allowed'] } }, required: ['status'] },
       },
       {
         if: { properties: { rights_status: { const: 'public_reference' } }, required: ['rights_status'] },
@@ -124,13 +167,19 @@ function serializeSchema(schema: ZodType, id: string, title: string): string {
           properties: {
             profile_type: { const: 'reference_technique' },
             preferred_terms: { type: 'array', maxItems: 0 },
+            voice_signals: { type: 'array', maxItems: 0 },
+            protected_index_status: { enum: ['ready', 'missing'] },
             forbidden_transfer: {
               type: 'array',
               allOf: forbiddenTransfers.map((value) => ({ contains: { const: value }, minContains: 1 })),
             },
           },
-          required: ['profile_type', 'preferred_terms', 'forbidden_transfer'],
+          required: ['profile_type', 'preferred_terms', 'voice_signals', 'protected_index_status', 'forbidden_transfer'],
         },
+      },
+      {
+        if: { properties: { rights_status: { enum: ['owned_by_user', 'licensed'] } }, required: ['rights_status'] },
+        then: { properties: { protected_index_status: { const: 'not_required' } }, required: ['protected_index_status'] },
       },
     ];
   }
@@ -155,8 +204,8 @@ function serializeSchema(schema: ZodType, id: string, title: string): string {
             reference_profiles: { type: 'array', maxItems: 0 },
             source_weights: {
               type: 'object',
-              properties: { owner: { type: 'number', const: 0 }, references: { type: 'array', maxItems: 0 } },
-              required: ['owner', 'references'],
+              properties: { owner: { type: 'number', const: 0 }, references: { type: 'array', maxItems: 0 }, baseline: { type: 'number', exclusiveMinimum: 0 } },
+              required: ['owner', 'references', 'baseline'],
             },
           },
         },

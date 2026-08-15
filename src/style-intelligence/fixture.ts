@@ -1,4 +1,6 @@
 import type { CorpusDocument } from './types.js';
+import { sha256 } from './hash.js';
+import type { RightsStatus } from './schemas.js';
 import type { StyleDistillInput, StyleDistillProvider } from './provider.js';
 import type { StyleQualitative } from './schemas.js';
 
@@ -16,25 +18,42 @@ const fixtureBodies = [
 export function buildStyleFixtureDocuments(options: {
   profileId?: string;
   profileType?: CorpusDocument['profile_type'];
-  rightsStatus?: CorpusDocument['rights_status'];
+  rightsStatus?: RightsStatus;
   count?: number;
 } = {}): CorpusDocument[] {
   const profileId = options.profileId ?? 'fixture-owner';
   const profileType = options.profileType ?? 'owner_voice';
   const rightsStatus = options.rightsStatus ?? 'owned_by_user';
   const count = options.count ?? 8;
-  return Array.from({ length: count }, (_, index) => ({
-    document_id: `fixture_${String(index + 1).padStart(2, '0')}`,
+  return Array.from({ length: count }, (_, index) => {
+    const text = fixtureBodies[index % fixtureBodies.length]!;
+    return {
+    document_id: `doc_${sha256(`${profileId}:${index}:${text}`).slice(0, 16)}`,
     profile_id: profileId,
     profile_type: profileType,
     rights_status: rightsStatus,
     platform: 'wechat',
     content_type: index % 2 === 0 ? 'tutorial' : 'analysis',
     title: `离线风格样本 ${index + 1}`,
-    source_filename: 'generated-fixture',
+    content_sha256: sha256(text),
+    source: {
+      creator_id: rightsStatus === 'public_reference' ? 'fixture-reference-creator' : 'fixture-owner-creator',
+      creator_display_name: rightsStatus === 'public_reference' ? 'Fixture Reference' : 'Fixture Owner',
+      canonical_url: `https://example.test/fixture/${profileId}/${index + 1}`,
+      platform_item_id: `fixture-${profileId}-${index + 1}`,
+      published_at: '2026-08-14T00:00:00.000Z',
+      source_filename: 'generated-fixture',
+    },
+    rights: {
+      basis: rightsStatus === 'public_reference' ? 'public_reference_analysis' as const : rightsStatus === 'licensed' ? 'explicit_license' as const : 'user_owned' as const,
+      permission_reference: rightsStatus === 'public_reference' ? 'public-page-technique-analysis-only' : 'fixture-user-confirmation',
+      confirmed_at: '2026-08-15T00:00:00.000Z',
+    },
+    model_processing: { allowed: true, provider_scope: 'codex_cli' as const, consent_recorded_at: '2026-08-15T00:00:00.000Z' },
     imported_at: '2026-08-15T00:00:00.000Z',
-    text: fixtureBodies[index % fixtureBodies.length]!,
-  }));
+    text,
+  };
+  });
 }
 
 function qualitative(input: StyleDistillInput): StyleQualitative {

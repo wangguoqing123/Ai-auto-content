@@ -73,12 +73,12 @@ function ctaPosition(text: string): string {
   return 'late';
 }
 
-function evidenceDistance(text: string): number {
+function evidenceDistance(text: string): { distance: number; judgmentCount: number } {
   const evidence = [...text.matchAll(/(?:\d+(?:\.\d+)?%?|根据|数据显示|实测|来源|截图)/gu)].map((match) => match.index ?? 0);
   const judgments = [...text.matchAll(/(?:我认为|我的判断|因此|所以|说明|意味着)/gu)].map((match) => match.index ?? 0);
-  if (evidence.length === 0 || judgments.length === 0) return 0;
+  if (evidence.length === 0 || judgments.length === 0) return { distance: 0, judgmentCount: 0 };
   const distances = judgments.map((position) => Math.min(...evidence.map((other) => Math.abs(position - other))));
-  return Number((distances.reduce((sum, value) => sum + value, 0) / distances.length).toFixed(3));
+  return { distance: distances.reduce((sum, value) => sum + value, 0) / distances.length, judgmentCount: judgments.length };
 }
 
 export function computeRhythmMetrics(documents: readonly CorpusDocument[]): QuantitativeFeatures {
@@ -96,6 +96,12 @@ export function computeRhythmMetrics(documents: readonly CorpusDocument[]): Quan
   const listCount = texts.reduce((sum, text) => sum + text.split(/\r?\n/u).filter((line) => /^\s*(?:[-*+] |\d+[.)、]\s*)/u.test(line)).length, 0);
   const lineCount = Math.max(1, texts.reduce((sum, text) => sum + text.split(/\r?\n/u).length, 0));
   const titleLengths = documents.map(({ title }) => visibleLength(title));
+  const perDocumentEvidenceDistance = texts.map(evidenceDistance);
+  const evidenceJudgments = perDocumentEvidenceDistance.reduce((sum, item) => sum + item.judgmentCount, 0);
+  const weightedEvidenceDistance = evidenceJudgments === 0 ? 0 : perDocumentEvidenceDistance.reduce(
+    (sum, item) => sum + item.distance * item.judgmentCount,
+    0,
+  ) / evidenceJudgments;
   return {
     sample_count: documents.length,
     chinese_char_count: chineseCharacters,
@@ -115,7 +121,7 @@ export function computeRhythmMetrics(documents: readonly CorpusDocument[]): Quan
     action_verb_density: density(matchCount(joined, /(?:打开|点击|输入|运行|检查|保存|删除|创建|修改|测试|选择|完成|发布)/gu), chineseCharacters),
     numerical_detail_density: density(matchCount(joined, /\d+(?:\.\d+)?(?:%|个|次|分钟|小时|天|元)?/gu), chineseCharacters),
     example_density: density(matchCount(joined, /(?:例如|比如|举个例子|实测|案例)/gu), chineseCharacters),
-    evidence_distance: evidenceDistance(joined),
+    evidence_distance: Number(weightedEvidenceDistance.toFixed(3)),
     heading_density: Number((headingCount / lineCount).toFixed(6)),
     list_density: Number((listCount / lineCount).toFixed(6)),
     opening_type_distribution: distribution(texts.map(openingType), ['question', 'anecdote', 'direct_judgment', 'task_entry', 'other']),

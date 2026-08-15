@@ -1,5 +1,6 @@
 import { structureForArticleType } from '../style-intelligence/dynamic-structure.js';
 import type { WritingContext } from './types.js';
+import { auditedRuleIds } from './adaptation-map.js';
 
 const sharedPositiveRules = [
   'Check that nonfiction material is sufficient before drafting.',
@@ -31,6 +32,7 @@ export function adaptHumanWriting(context: WritingContext, phase: HumanWritingPh
     positive_rules: phase === 'pre_draft' ? [...sharedPositiveRules] : [],
     article_structure: phase === 'pre_draft' ? structure : null,
     revision_rules: phase === 'post_draft' ? [...revisionRules] : [],
+    audited_rule_ids: auditedRuleIds('human-writing'),
     creates_author_profile: false,
     permits_full_text_serial_rewrite: false,
   };

@@ -2,6 +2,9 @@ import { createHash } from 'node:crypto';
 import { lstat, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import YAML from 'yaml';
+import { writingSkillAdaptationMapSchema } from '../src/writing-skills/adaptation-map.js';
+import { humanWritingLintRuleIds, projectWritingLintRuleIds } from '../src/writing-lint/human-writing-lint.js';
+import { noAiSlopLintRuleIds } from '../src/writing-lint/no-ai-slop-lint.js';
 
 interface ManifestFile {
   path: string;
@@ -95,7 +98,27 @@ async function check(): Promise<void> {
       if (!declaredFiles.includes(executable)) throw new Error(`Executable allowlist entry is not pinned: ${skill.id}/${executable}`);
     }
   }
-  console.log(`Writing Skill check passed (${manifest.skills.length} Skills, ${manifest.skills.reduce((sum, skill) => sum + skill.files.length, 0)} files).`);
+  const adaptationMap = writingSkillAdaptationMapSchema.parse(YAML.parse(await readFile(path.join(root, 'adaptation-map.yaml'), 'utf8')));
+  const manifestById = new Map(manifest.skills.map((skill) => [skill.id, skill]));
+  for (const rule of adaptationMap.rules) {
+    if (rule.skill_id === 'project') {
+      if (rule.skill_commit !== 'project-v0' || rule.adaptation_mode !== 'project_override') throw new Error(`Project rule masquerades as third-party: ${rule.internal_rule_id}`);
+      await lstat(path.join(process.cwd(), rule.source_file));
+      continue;
+    }
+    const skill = manifestById.get(rule.skill_id);
+    if (skill === undefined || rule.skill_commit !== skill.commit) throw new Error(`Adaptation pin mismatch: ${rule.internal_rule_id}`);
+    if (!skill.files.some(({ path: filename }) => filename === rule.source_file)) throw new Error(`Adaptation source is not hash-pinned: ${rule.internal_rule_id}`);
+    await lstat(path.join(root, rule.skill_id, rule.source_file));
+  }
+  const byId = new Map(adaptationMap.rules.map((rule) => [rule.internal_rule_id, rule]));
+  for (const ruleId of humanWritingLintRuleIds) if (byId.get(ruleId)?.skill_id !== 'human-writing') throw new Error(`Missing human-writing adaptation: ${ruleId}`);
+  for (const ruleId of noAiSlopLintRuleIds) if (byId.get(ruleId)?.skill_id !== 'no-ai-slop') throw new Error(`Missing no-ai-slop adaptation: ${ruleId}`);
+  for (const ruleId of projectWritingLintRuleIds) if (byId.get(ruleId)?.skill_id !== 'project') throw new Error(`Project rule origin mismatch: ${ruleId}`);
+  const adapterSources = await Promise.all(['human-writing-adapter.ts', 'no-ai-slop-adapter.ts'].map((filename) => readFile(path.join(process.cwd(), 'src', 'writing-skills', filename), 'utf8')));
+  if (adapterSources.some((source) => /third_party|SKILL\.md|eval\.md/u.test(source))) throw new Error('Upstream Skill files must not be loaded as runtime prompts');
+  if (adapterSources.some((source) => !source.includes('auditedRuleIds'))) throw new Error('Adapters must expose audited rule mappings');
+  console.log(`Writing Skill check passed (${manifest.skills.length} Skills, ${manifest.skills.reduce((sum, skill) => sum + skill.files.length, 0)} files, ${adaptationMap.rules.length} audited rules).`);
 }
 
 await check();

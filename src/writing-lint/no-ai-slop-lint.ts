@@ -1,5 +1,12 @@
 import type { WritingIssue } from '../writing-skills/types.js';
 
+const NO_AI_SLOP_COMMIT = 'd30eddb9e04562234f2070b5ee63ca4649d9a05e';
+const auditFields = { rule_origin: 'no-ai-slop' as const, source_commit: NO_AI_SLOP_COMMIT };
+export const noAiSlopLintRuleIds = [
+  'binary_contrast', 'throat_clearing', 'faux_insight_setup', 'superficial_analysis', 'importance_puffery',
+  'interpretive_metadiscourse', 'weasel_attribution', 'rhetorical_setup', 'colon_reveal', 'summary_recap_ending',
+] as const;
+
 function lineNumber(text: string, index: number): number {
   return text.slice(0, index).split(/\r?\n/u).length;
 }
@@ -40,6 +47,7 @@ export function lintNoAiSlop(markdown: string): WritingIssue[] {
       location: `line ${lineNumber(text, match.index)}`,
       severity: 'blocking_style_issue',
       repair_constraint: repair,
+      ...auditFields,
     });
   }
   for (const [index, line] of text.split(/\r?\n/u).entries()) {
@@ -49,12 +57,14 @@ export function lintNoAiSlop(markdown: string): WritingIssue[] {
     if (match !== null) issues.push({
       issue_code: 'colon_reveal', pattern: 'Colon reveal', quoted_text: match[0], location: `line ${index + 1}`,
       severity: 'warning', repair_constraint: 'Use a plain sentence; keep colons in code, URLs, metadata, labels, sources, and real lists.',
+      ...auditFields,
     });
   }
   const final = text.split(/\r?\n/u).map((line) => line.trim()).filter(Boolean).at(-1);
   if (final !== undefined && /^(?:In conclusion|Ultimately|Overall|总之|综上)/iu.test(final)) issues.push({
     issue_code: 'summary_recap_ending', pattern: 'Summary-recap ending', quoted_text: final, location: `line ${text.split(/\r?\n/u).length}`,
     severity: 'blocking_style_issue', repair_constraint: 'End on the last concrete point, boundary, or next action.',
+    ...auditFields,
   });
   return issues;
 }

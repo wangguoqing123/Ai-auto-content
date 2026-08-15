@@ -1,7 +1,9 @@
 import { computeRhythmMetrics } from './rhythm-metrics.js';
+import { buildStyleInputBudget } from './input-budget.js';
 import { requiredPublicReferenceForbiddenTransfers, styleProfileSchema, styleQualitativeSchema, type StyleProfile, type StyleQualitative } from './schemas.js';
 import { sha256, stableJson } from './hash.js';
 import { StyleProviderOutputError, type StyleDistillInput, type StyleDistillProvider } from './provider.js';
+import type { ProtectedTransferIndex } from './protected-transfer.js';
 import type { CorpusDocument } from './types.js';
 
 const emptyQualitative: StyleQualitative = {
@@ -19,19 +21,18 @@ function sourceFragment(value: string, documents: readonly CorpusDocument[]): bo
   return documents.some(({ text }) => text.replace(/\s+/gu, '').includes(normalizedValue));
 }
 
-function unsafeReferenceDetail(value: string, documents: readonly CorpusDocument[]): boolean {
-  return sourceFragment(value, documents) || /(?:我|我的|我们|当年|曾经|客户|学员|学生|20\d{2}年)/u.test(value);
+function unsafeReferenceDetail(value: string, documents: readonly CorpusDocument[], protectedTexts: readonly string[]): boolean {
+  const normalized = value.normalize('NFKC').replace(/\s+/gu, '');
+  return sourceFragment(value, documents)
+    || protectedTexts.some((text) => normalized.includes(text.normalize('NFKC').replace(/\s+/gu, '')))
+    || /(?:https?:\/\/|我|我的|我们|当年|曾经|客户|学员|学生|20\d{2}年|收入|项目金额)/u.test(value);
 }
 
-function sanitizeList(values: string[], documents: readonly CorpusDocument[]): string[] {
-  return values.filter((value) => !unsafeReferenceDetail(value, documents));
-}
-
-function sanitizePublicReference(qualitative: StyleQualitative, documents: readonly CorpusDocument[]): StyleQualitative {
-  const clean = (values: string[]) => sanitizeList(values, documents);
+function sanitizePublicReference(qualitative: StyleQualitative, documents: readonly CorpusDocument[], protectedTexts: readonly string[]): StyleQualitative {
+  const clean = (values: string[]) => values.filter((value) => !unsafeReferenceDetail(value, documents, protectedTexts));
   return {
     ...qualitative,
-    voice_signals: clean(qualitative.voice_signals),
+    voice_signals: [],
     structural_patterns: clean(qualitative.structural_patterns),
     explanation_patterns: clean(qualitative.explanation_patterns),
     evidence_patterns: clean(qualitative.evidence_patterns),
@@ -45,6 +46,28 @@ function sanitizePublicReference(qualitative: StyleQualitative, documents: reado
   };
 }
 
+function qualitativeStrings(qualitative: StyleQualitative): string[] {
+  return Object.entries(qualitative).flatMap(([, value]) => {
+    if (Array.isArray(value)) return value as string[];
+    if (value !== null && typeof value === 'object') return Object.values(value).flatMap((nested) => Array.isArray(nested) ? nested as string[] : []);
+    return [];
+  });
+}
+
+function ownerAuditFailures(qualitative: StyleQualitative, documents: readonly CorpusDocument[]): string[] {
+  const failures = new Set<string>();
+  for (const value of qualitativeStrings(qualitative)) {
+    if (/https?:\/\//iu.test(value)) failures.add('owner_profile_contains_url');
+    if (/\b(?:19|20)\d{2}年?/u.test(value)) failures.add('owner_profile_contains_year_event');
+    if (/(?:¥|￥|\d+(?:\.\d+)?\s*(?:元|万元|万块|收入|营收))/u.test(value)) failures.add('owner_profile_contains_money_or_income');
+    if (/(?:我.{0,30}(?:客户|学员|学生)|(?:客户|学员|学生).{0,30}(?:我|他|她|给|买|付|说|做|赚|项目|故事|案例|收入|带过))/u.test(value)) failures.add('owner_profile_contains_client_or_student_story');
+    if (/(?:去年|上周|昨天|当年|曾经|那次|我在|我曾|我们曾).{0,40}(?:做|带|赚|接|卖|买|遇到|经历|发生|完成|改了)/u.test(value)) failures.add('owner_profile_contains_personal_event');
+    if (/\d+(?:\.\d+)?(?:%|次|分钟|小时|天|个|人|项目)/u.test(value)) failures.add('owner_profile_contains_concrete_fact');
+    if (sourceFragment(value, documents)) failures.add('owner_profile_contains_source_sentence');
+  }
+  return [...failures];
+}
+
 function assertConsistentCorpus(documents: readonly CorpusDocument[]): CorpusDocument {
   const first = documents[0];
   if (first === undefined) throw new Error('style_corpus_empty');
@@ -53,15 +76,14 @@ function assertConsistentCorpus(documents: readonly CorpusDocument[]): CorpusDoc
       throw new Error('style_corpus_profile_mismatch');
     }
   }
-  if (first.rights_status === 'public_reference' && first.profile_type !== 'reference_technique') {
-    throw new Error('public_reference_requires_reference_technique');
-  }
+  if (first.rights_status === 'public_reference' && first.profile_type !== 'reference_technique') throw new Error('public_reference_requires_reference_technique');
   return first;
 }
 
 export interface DistillProfileOptions {
   documents: CorpusDocument[];
   provider?: StyleDistillProvider;
+  protectedIndex?: ProtectedTransferIndex;
   createdAt?: string;
   version?: number;
 }
@@ -70,17 +92,19 @@ export async function distillStyleProfile(options: DistillProfileOptions): Promi
   const first = assertConsistentCorpus(options.documents);
   const documents = [...options.documents].sort((left, right) => left.document_id.localeCompare(right.document_id));
   const metrics = computeRhythmMetrics(documents);
-  const corpusHash = sha256(stableJson(documents.map(({ document_id, text }) => ({ document_id, text }))));
+  const corpusHash = sha256(stableJson(documents.map(({ document_id, title, text }) => ({ document_id, title, text }))));
+  const processingAllowed = documents.every(({ model_processing }) => model_processing.allowed && model_processing.provider_scope === 'codex_cli');
+  const budget = buildStyleInputBudget(documents, processingAllowed);
   let qualitative = emptyQualitative;
   let modelCalls = 0;
-  if (documents.length >= 8) {
+  if (documents.length >= 8 && processingAllowed) {
     if (options.provider === undefined) throw new Error('style_provider_required_for_ready_profile');
     const input: StyleDistillInput = {
       profile_id: first.profile_id,
       profile_type: first.profile_type,
       rights_status: first.rights_status,
       quantitative_features: metrics,
-      documents,
+      documents: budget.documents,
     };
     try {
       modelCalls += 1;
@@ -90,21 +114,38 @@ export async function distillStyleProfile(options: DistillProfileOptions): Promi
       modelCalls += 1;
       qualitative = styleQualitativeSchema.parse(await options.provider.repair(input, ['style_provider_output_invalid']));
     }
+    if (first.rights_status === 'owned_by_user' || first.rights_status === 'licensed') {
+      let failures = ownerAuditFailures(qualitative, documents);
+      if (failures.length > 0 && modelCalls < 2) {
+        modelCalls += 1;
+        qualitative = styleQualitativeSchema.parse(await options.provider.repair(input, failures));
+        failures = ownerAuditFailures(qualitative, documents);
+      }
+      if (failures.length > 0) throw new Error(`style_profile_content_audit_failed:${failures.join(',')}`);
+    }
   }
-  if (first.rights_status === 'public_reference') qualitative = sanitizePublicReference(qualitative, documents);
+  if (first.rights_status === 'public_reference') {
+    qualitative = sanitizePublicReference(qualitative, documents, options.protectedIndex?.entries.map(({ text }) => text) ?? []);
+  }
   if (modelCalls > 2) throw new Error('style_codex_call_limit_exceeded');
-  const forbidden = first.rights_status === 'public_reference'
-    ? [...requiredPublicReferenceForbiddenTransfers]
-    : ['factual_claim'] as const;
+  qualitative = { ...qualitative, confidence: Math.min(qualitative.confidence, Math.max(0.25, budget.coverage.coverage_ratio)) };
+  const forbidden = first.rights_status === 'public_reference' ? [...requiredPublicReferenceForbiddenTransfers] : ['factual_claim'] as const;
+  const protectedIndexReady = first.rights_status === 'public_reference'
+    && options.protectedIndex?.profile_id === first.profile_id
+    && options.protectedIndex.corpus_hash === corpusHash;
+  const status = !processingAllowed ? 'processing_not_allowed' : documents.length < 8 ? 'insufficient_samples' : 'ready';
   const profile = styleProfileSchema.parse({
     profile_id: first.profile_id,
     profile_type: first.profile_type,
     rights_status: first.rights_status,
-    status: documents.length < 8 ? 'insufficient_samples' : 'ready',
+    status,
     platforms: [...new Set(documents.map(({ platform }) => platform))].sort(),
     content_types: [...new Set(documents.map(({ content_type }) => content_type))].sort(),
     sample_count: documents.length,
     corpus_hash: corpusHash,
+    model_input_hash: budget.modelInputHash,
+    input_coverage: budget.coverage,
+    protected_index_status: first.rights_status === 'public_reference' ? protectedIndexReady ? 'ready' : 'missing' : 'not_required',
     quantitative_features: metrics,
     ...qualitative,
     forbidden_transfer: forbidden,

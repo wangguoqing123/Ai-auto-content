@@ -6,6 +6,8 @@ import { distillStyleProfile } from '../src/style-intelligence/distill.js';
 import { buildStyleFixtureDocuments, FixtureStyleProvider } from '../src/style-intelligence/fixture.js';
 import { StyleProviderOutputError, type StyleDistillInput, type StyleDistillProvider } from '../src/style-intelligence/provider.js';
 import { requiredPublicReferenceForbiddenTransfers, styleProfileSchema, type StyleQualitative } from '../src/style-intelligence/schemas.js';
+import { buildProtectedTransferIndex } from '../src/style-intelligence/protected-transfer.js';
+import { computeRhythmMetrics } from '../src/style-intelligence/rhythm-metrics.js';
 
 async function fixtureQualitative(input: StyleDistillInput): Promise<StyleQualitative> {
   return new FixtureStyleProvider().distill(input);
@@ -45,6 +47,37 @@ describe('Style Profile distillation', () => {
     expect(result.profile.preferred_terms).toEqual([]);
   });
 
+  it('removes Protected Index entries from a public-reference Profile', async () => {
+    const documents = buildStyleFixtureDocuments({ profileId: 'protected-reference', profileType: 'reference_technique', rightsStatus: 'public_reference' });
+    const phrase = '页面会保留原输入';
+    const protectedIndex = buildProtectedTransferIndex(documents, [{ kind: 'signature_phrase', text: phrase, source_document_ids: [documents[0]!.document_id], extraction_method: 'test' }]);
+    const provider: StyleDistillProvider = {
+      providerName: 'fixture',
+      async distill(input) { const base = await fixtureQualitative(input); return { ...base, structural_patterns: [phrase, ...base.structural_patterns] }; },
+      async repair(input) { return fixtureQualitative(input); },
+    };
+    const result = await distillStyleProfile({ documents, provider, protectedIndex });
+    expect(result.profile.protected_index_status).toBe('ready');
+    expect(result.profile.structural_patterns).not.toContain(phrase);
+  });
+
+  it('repairs Owner Profile facts once and fails if facts remain', async () => {
+    const documents = buildStyleFixtureDocuments();
+    const fixture = new FixtureStyleProvider();
+    const repairable: StyleDistillProvider = {
+      providerName: 'fixture',
+      async distill(input) { const base = await fixture.distill(input); return { ...base, structural_patterns: ['我在 2025 年带过 12 个学员项目'] }; },
+      async repair(input) { return fixture.repair(input, []); },
+    };
+    expect(await distillStyleProfile({ documents, provider: repairable })).toMatchObject({ model_calls: 2, profile: { status: 'ready' } });
+    const persistent: StyleDistillProvider = {
+      providerName: 'fixture',
+      async distill(input) { const base = await fixture.distill(input); return { ...base, explanation_patterns: ['去年我从客户项目赚了 8 万元'] }; },
+      async repair(input) { const base = await fixture.repair(input, []); return { ...base, explanation_patterns: ['去年我从客户项目赚了 8 万元'] }; },
+    };
+    await expect(distillStyleProfile({ documents, provider: persistent })).rejects.toThrow('style_profile_content_audit_failed');
+  });
+
   it('keeps factual claims out of the strict Profile schema', async () => {
     const { profile } = await distillStyleProfile({ documents: buildStyleFixtureDocuments(), provider: new FixtureStyleProvider() });
     expect(styleProfileSchema.safeParse({ ...profile, factual_claims: ['invented'] }).success).toBe(false);
@@ -61,6 +94,38 @@ describe('Style Profile distillation', () => {
       'ending_type_distribution', 'cta_position_distribution', 'title_length_distribution',
     ]));
     expect(profile).not.toHaveProperty('human_score');
+  });
+
+  it('computes evidence distance within each document instead of across boundaries', () => {
+    const documents = buildStyleFixtureDocuments({ count: 2 });
+    documents[0] = { ...documents[0]!, text: '数据显示 100。这里只记录证据。' };
+    documents[1] = { ...documents[1]!, text: '所以这个判断需要支持。' };
+    expect(computeRhythmMetrics(documents).evidence_distance).toBe(0);
+  });
+
+  it('enforces deterministic model input limits and records coverage', async () => {
+    const documents = buildStyleFixtureDocuments({ count: 40 }).map((document, index) => ({
+      ...document,
+      title: `Budget title ${index + 1}`,
+      text: `${String(index).padStart(2, '0')}开头${'甲'.repeat(9_000)}正文中段${'乙'.repeat(9_000)}结尾CTA`,
+    }));
+    let supplied: StyleDistillInput | undefined;
+    const fixture = new FixtureStyleProvider();
+    const provider: StyleDistillProvider = {
+      providerName: 'fixture',
+      async distill(input) { supplied = input; return fixture.distill(input); },
+      async repair(input) { return fixture.repair(input, []); },
+    };
+    const { profile } = await distillStyleProfile({ documents, provider });
+    expect(supplied!.documents).toHaveLength(30);
+    expect(supplied!.documents.every(({ text }) => [...text].length <= 12_000)).toBe(true);
+    expect(supplied!.documents.reduce((sum, { text }) => sum + [...text].length, 0)).toBeLessThanOrEqual(240_000);
+    expect(supplied!.documents.every(({ title }) => title.startsWith('Budget title'))).toBe(true);
+    expect(profile.input_coverage).toMatchObject({ maximum_documents: 30, selected_documents: 30, truncation_applied: true });
+    expect(profile.input_coverage.per_document).toHaveLength(40);
+    expect(profile.input_coverage.coverage_ratio).toBeLessThan(0.5);
+    expect(profile.confidence).toBeLessThan(0.5);
+    expect(profile.model_input_hash).not.toBe(profile.corpus_hash);
   });
 
   it('uses at most Distill and one Repair call for invalid structured output', async () => {

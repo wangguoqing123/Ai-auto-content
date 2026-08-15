@@ -28,7 +28,8 @@
       "type": "string",
       "enum": [
         "ready",
-        "insufficient_samples"
+        "insufficient_samples",
+        "processing_not_allowed"
       ]
     },
     "platforms": {
@@ -57,6 +58,115 @@
     "corpus_hash": {
       "type": "string",
       "pattern": "^[a-f0-9]{64}$"
+    },
+    "model_input_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "input_coverage": {
+      "type": "object",
+      "properties": {
+        "maximum_documents": {
+          "type": "number",
+          "const": 30
+        },
+        "maximum_chars_per_document": {
+          "type": "number",
+          "const": 12000
+        },
+        "maximum_total_chars": {
+          "type": "number",
+          "const": 240000
+        },
+        "original_documents": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "selected_documents": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 30
+        },
+        "original_chars": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "supplied_chars": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 240000
+        },
+        "coverage_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "truncation_applied": {
+          "type": "boolean"
+        },
+        "per_document": {
+          "maxItems": 10000,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "document_id": {
+                "type": "string",
+                "pattern": "^doc_[a-f0-9]{16}$"
+              },
+              "original_chars": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "supplied_chars": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "coverage_ratio": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "truncation_applied": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "document_id",
+              "original_chars",
+              "supplied_chars",
+              "coverage_ratio",
+              "truncation_applied"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "maximum_documents",
+        "maximum_chars_per_document",
+        "maximum_total_chars",
+        "original_documents",
+        "selected_documents",
+        "original_chars",
+        "supplied_chars",
+        "coverage_ratio",
+        "truncation_applied",
+        "per_document"
+      ],
+      "additionalProperties": false
+    },
+    "protected_index_status": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "ready",
+        "missing"
+      ]
     },
     "quantitative_features": {
       "type": "object",
@@ -536,6 +646,9 @@
     "content_types",
     "sample_count",
     "corpus_hash",
+    "model_input_hash",
+    "input_coverage",
+    "protected_index_status",
     "quantitative_features",
     "voice_signals",
     "structural_patterns",
@@ -570,7 +683,10 @@
       "then": {
         "properties": {
           "status": {
-            "const": "insufficient_samples"
+            "enum": [
+              "insufficient_samples",
+              "processing_not_allowed"
+            ]
           }
         },
         "required": [
@@ -593,7 +709,10 @@
       "then": {
         "properties": {
           "status": {
-            "const": "ready"
+            "enum": [
+              "ready",
+              "processing_not_allowed"
+            ]
           }
         },
         "required": [
@@ -620,6 +739,16 @@
           "preferred_terms": {
             "type": "array",
             "maxItems": 0
+          },
+          "voice_signals": {
+            "type": "array",
+            "maxItems": 0
+          },
+          "protected_index_status": {
+            "enum": [
+              "ready",
+              "missing"
+            ]
           },
           "forbidden_transfer": {
             "type": "array",
@@ -666,7 +795,34 @@
         "required": [
           "profile_type",
           "preferred_terms",
+          "voice_signals",
+          "protected_index_status",
           "forbidden_transfer"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "rights_status": {
+            "enum": [
+              "owned_by_user",
+              "licensed"
+            ]
+          }
+        },
+        "required": [
+          "rights_status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "protected_index_status": {
+            "const": "not_required"
+          }
+        },
+        "required": [
+          "protected_index_status"
         ]
       }
     }
