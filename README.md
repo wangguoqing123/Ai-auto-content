@@ -6,9 +6,9 @@
 
 > 系统每天运行，但不要求每天发布。没有足够高质量的题目时，后续选题阶段必须允许输出 `NO_PUBLISH`。
 
-## 当前阶段：风格智能已实现，等待真实私有语料
+## 当前阶段：真实 Provider 已用合成语料验证，等待真实私有语料
 
-产品真相层、素材采集、每日选题和研究已经进入 production。风格智能 v0 固定 human-writing 与 no-ai-slop，并用可审计 Adaptation Map 连接内部规则；本机私有语料具备逐篇来源、权利依据和显式模型处理授权，Style Recipe 的权重会真实改变带来源的 `selected_rules`，Research Quote 只能从 READY_FOR_WRITING Pack 严格解析，公共参考在获准 Distill 时自动生成本机 Protected Transfer Index。当前只使用合成 Fixture，尚未导入七天假与参考作者的真实语料，也没有声称已经学会七天假的风格。本阶段不生成正文、X 内容、图片或发布包。
+产品真相层、素材采集、每日选题和研究已经进入 production。风格智能 v0 固定 human-writing 与 no-ai-slop，并用可审计 Adaptation Map 连接内部规则；本机私有语料具备逐篇来源、权利依据和显式模型处理授权，Style Recipe 的权重会真实改变带来源的 `selected_rules`，Research Quote 只能从 READY_FOR_WRITING Pack 严格解析，公共参考在获准 Distill 时自动生成本机 Protected Transfer Index。2026-08-15 已使用项目自有合成 Owner/Reference 语料完成一次真实本机 Codex Provider 验证；尚未导入七天假与参考作者的真实语料，也没有声称已经学会七天假的风格。本阶段不生成正文、X 内容、图片或发布包。
 
 > 本机 Codex CLI 不是离线模型。只有同一 Profile 的全部语料在 CLI 或可信本地 Manifest 中明确 `model_processing=allowed` 才可发送给 Codex 服务；任一文档 denied 时连 Codex CLI 版本、帮助或登录探测都不会触发，也不要求 `STYLE_CODEX_MODEL`。JSONL 正文不能决定或覆盖 rights/consent。Protected Index 只供 Reviewer 使用，绝不进入 Writer。
 
@@ -20,10 +20,16 @@ Corpus Root、Corpus 内文件和 Source File 都拒绝 symlink，并用 `realpa
 | 产品真相层 | `production` |
 | 每日选题 | `production` |
 | 研究与实验 | `production` |
-| 风格智能 | `implemented_pending_real_corpus` |
+| 风格智能 | `implemented_live_provider_verified_pending_real_corpus` |
 | 写作 | `not_started` |
 | 配图 | `not_started` |
 | 发布 | `not_started` |
+
+## Synthetic live Codex integration validation
+
+在执行前 PR Head `b9c4df754075fc1ebc2a02dc94be1069a291ccd0` 上，`codex-cli 0.147.0` 使用 `gpt-5.6-sol` 完成项目自有合成 Owner/Reference 各 8 篇的真实集成验证。Owner 与 Reference 外层 Distill 各执行 1 次，内部 Codex 均为 1 次调用并返回 `ready`；Reference Index 为 `ready`，分类计数为 2/1/1/1。非 Fixture Recipe 使用 owner 0.80 / reference 0.20，Selected Rules 为 10/2；正常 Lint 通过，Protected Transfer 成功 hard block，stale Index 返回 `protected_index_stale`。
+
+验证显式清除 API/GitHub Token 环境，没有访问平台或网页；合成 Corpus、Profile、Index、Codex 结果和临时脚本都没有进入 Git。该结果只把风格智能推进到 `implemented_live_provider_verified_pending_real_corpus`，不是 production，仍等待真实语料及其逐篇来源、权利和模型处理授权。
 
 Cloud Collector 与 Mac Local Runtime 是两个独立运行通道。Cloud 在 GitHub Actions 每天北京时间 09:00 运行；本机 LaunchAgent 每 15 分钟做一次轻量到期检查：07:30—12:00 执行 X/微信公众号 Morning，13:00—18:00 执行 Topic Selection，13:30—21:00 执行 Research Pack。三个任务分别保存状态且每天最多尝试 2 次。
 

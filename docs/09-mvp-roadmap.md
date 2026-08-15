@@ -1,6 +1,6 @@
 ---
 title: MVP 实施路线
-version: 0.4.1
+version: 0.4.2
 updated_at: 2026-08-15
 status: approved
 ---
@@ -90,7 +90,7 @@ status: approved
 | 产品真相层 | `production` |
 | 每日选题 | `production` |
 | 研究与实验 | `production` |
-| 风格智能 | `implemented_pending_real_corpus` |
+| 风格智能 | `implemented_live_provider_verified_pending_real_corpus` |
 | 写作 | `not_started` |
 | 配图 | `not_started` |
 | 发布 | `not_started` |
@@ -109,7 +109,7 @@ status: approved
 - 建立 0700/0600 本机私有语料、Style Profile、Style Recipe、动态文章结构和最多两次的只读 Codex 蒸馏边界。
 - human-writing 负责正向中文写法与初稿后修订；no-ai-slop 只做 detect-only Reviewer，禁止串行全文重写。
 - 增加确定性 Lint、本机防抄袭和至少三次一致人工改稿后的 `proposed_profile_delta`。
-- 状态：`implemented_pending_real_corpus`。CI 只运行 Fixture，真实七天假与参考作者语料尚未导入。
+- 状态：`implemented_live_provider_verified_pending_real_corpus`。CI 只运行 Fixture；2026-08-15 已用项目自有合成 Owner/Reference 各 8 篇，在 `gpt-5.6-sol` 上各执行一次真实外层 Distill，两个 Provider 均只调用 1 次并返回 `ready`。Reference 自动生成 5 条 Protected Entry，非 Fixture Recipe、正常 Lint、Protected hard block 与 stale fail-closed 均通过。真实七天假与参考作者语料尚未导入，因此不是 production。
 
 研究之后的正式写作仍为 `not_started`。PR #8 才生成平台无关母稿、公众号/X 正文或标题；本阶段不生成正文、配图或发布包。
 

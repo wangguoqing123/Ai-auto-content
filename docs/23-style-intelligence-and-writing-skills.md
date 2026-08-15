@@ -1,13 +1,13 @@
 ---
 title: 写作 Skill 编排与风格智能 v0
-version: 1.1.0
+version: 1.2.0
 updated_at: 2026-08-15
-status: implemented_pending_real_corpus
+status: implemented_live_provider_verified_pending_real_corpus
 ---
 
 # 写作 Skill 编排与风格智能 v0
 
-本阶段只建立写作前的规则、风格和审查底盘。当前验收全部使用合成 Fixture：没有导入七天假或参考作者的真实语料，没有调用真实 Codex，没有生成公众号正文、X 内容或图片，也没有发布。
+本阶段只建立写作前的规则、风格和审查底盘。离线 CI 继续只使用合成 Fixture；另在用户明确授权下，以项目自有合成语料完成了一次本机真实 Codex Provider 集成验证。仍未导入七天假或参考作者的真实语料，没有生成公众号正文、X 内容或图片，也没有发布。
 
 ## 1. 固定 Skill 与可审计适配
 
@@ -130,5 +130,22 @@ npm run style:protected:inspect -- --profile-id <id>
 npm run style:lint -- --fixture
 npm run style:lint -- --draft <file> --research-pack <ready-pack.json>
 ```
+
+## Synthetic live Codex integration validation
+
+2026-08-15 在 PR 执行前 Head `b9c4df754075fc1ebc2a02dc94be1069a291ccd0` 上完成一次获准的合成 live 集成验证：使用 `/Users/wangguoqing/.local/bin/codex`（`codex-cli 0.147.0`）、模型 `gpt-5.6-sol` 和独立 `/tmp` Corpus。环境显式清除 `OPENAI_API_KEY`、`GH_TOKEN` 与 `GITHUB_TOKEN`，没有访问 X、公众号、Browser Bridge 或网页。
+
+| 验证项 | 安全摘要 |
+|---|---|
+| 合成 Corpus | Owner 8 篇；Public Reference 8 篇；每篇 500～900 个汉字；Owner 重复导入为 0 |
+| Owner Distill | 外层命令 1 次；内部 Codex 1 次；Profile `ready`；Index `not_required` |
+| Reference Distill | 外层命令 1 次；内部 Codex 1 次；Profile `ready`；Index `ready` |
+| Protected Index | `signature_phrase=2`、`unique_metaphor=1`、`personal_experience_entity=1`、`distinctive_short_fragment=1`；Profile/Index corpus hash 一致 |
+| Style Recipe | baseline 0、owner 0.80、reference 0.20、platform 0；Owner rules 10、Reference rules 2；Reference voice rules 0 |
+| 正常 Lint | `pass`；0 blocker；“学习闭环”保留为 1 条 warning |
+| Protected Guard | `distinctive_short_fragment` 成功触发 `signature_phrase_transfer` hard blocker；摘要未输出 Entry text |
+| stale Resolver | 返回 `protected_index_stale`，未继续 Guard |
+
+Profile、Protected Index、合成文章、Codex 结果和一次性脚本均只存在于临时目录，没有进入 Git；临时结果未检出 Secret 或认证值。此次验证只证明真实 `codex_cli` 链路已接通，不代表已经学习七天假风格，也不把风格智能标为 production。系统状态为 `implemented_live_provider_verified_pending_real_corpus`。
 
 真实语料导入前仍需要用户通过 CLI 或可信本地 Manifest 提供每篇来源、权利依据和明确的模型处理授权；Public Reference Index 会在获准 Distill 时自动生成，不再要求手写 JSON。当前仍未导入任何七天假或参考作者真实语料。满足这些输入条件不等于自动生成或发布内容；PR #8 仍需单独接入写作和人工确认。
