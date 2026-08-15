@@ -1,0 +1,583 @@
+{
+  "version": 1,
+  "research_date": "2026-08-14",
+  "run_id": "research_2026-08-15T03-20-45-995Z",
+  "status": "success",
+  "decision": "RESEARCH_INCOMPLETE",
+  "topic": {
+    "topic_signature": "2c78c0cdf2681d1016cf04646cd52a5063d765b0f492e475e9900ce04d032c1c",
+    "topic_run_id": "topic_2026-08-14T06-28-16-260Z",
+    "working_title": "别再只让 AI 给建议：把一个日常任务改造成可验收的执行流程",
+    "learner_stage": "task_breakdown",
+    "content_pillar": "agents_and_workflows",
+    "primary_product_module_id": "beginner_ai_course",
+    "cta_mode": "club"
+  },
+  "input_hash": "2193d5ecb911383fbcb6fe6d3068216aed104a551498c8a8b6fb26855d1678c8",
+  "source_summary": {
+    "requested": 2,
+    "fetched": 2,
+    "failed": 0,
+    "unsupported_content_type": 0,
+    "canonical_success": 0,
+    "canonical_blocked": 2,
+    "rss_replay_success": 2,
+    "persisted_excerpt_used": 0,
+    "unavailable": 0
+  },
+  "sources": [
+    {
+      "source_id": "source_e063daae6225",
+      "material_id": "mat_e063daae6225",
+      "canonical_url": "https://openai.com/index/how-enterprises-put-ai-to-work",
+      "final_url": "https://openai.com/index/how-enterprises-put-ai-to-work",
+      "title": "From assistance to execution: How enterprises put AI to work",
+      "author": "",
+      "retrieved_at": "2026-08-15T03:17:41.701Z",
+      "content_type": "text/plain",
+      "content_sha256": "02df4fd4b1f63ec7f28b6d646d5fe942817aea673c79578b219de8cb95b3305e",
+      "fetch_status": "success",
+      "retrieval_method": "official_rss_replay",
+      "content_scope": "feed_item",
+      "retrieval_url": "https://openai.com/news/rss.xml",
+      "canonical_fetch_status": "blocked",
+      "canonical_http_status": 403,
+      "fallback_reason": "canonical_access_blocked",
+      "snapshot_collected_at": null,
+      "selected_quotes": [
+        {
+          "claim_id": "claim_supported_1",
+          "segment_id": "p0001",
+          "quote": "OpenAI research reveals how enterprises are adopting agentic AI, using ChatGPT and Codex, and how frontier firms are pulling ahead in AI adoption."
+        }
+      ],
+      "error_code": null
+    },
+    {
+      "source_id": "source_9bafa93fe08b",
+      "material_id": "mat_9bafa93fe08b",
+      "canonical_url": "https://openai.com/index/ringcentral",
+      "final_url": "https://openai.com/index/ringcentral",
+      "title": "How RingCentral builds AI-native work from engineering to ops",
+      "author": "",
+      "retrieved_at": "2026-08-15T03:17:44.416Z",
+      "content_type": "text/plain",
+      "content_sha256": "5b9f341c5ba15a3a33168debadb1d7adc8ec54f629313252d96604d1bbbc3e30",
+      "fetch_status": "success",
+      "retrieval_method": "official_rss_replay",
+      "content_scope": "feed_item",
+      "retrieval_url": "https://openai.com/news/rss.xml",
+      "canonical_fetch_status": "blocked",
+      "canonical_http_status": 403,
+      "fallback_reason": "canonical_access_blocked",
+      "snapshot_collected_at": null,
+      "selected_quotes": [
+        {
+          "claim_id": "claim_supported_2",
+          "segment_id": "p0001",
+          "quote": "See how RingCentral uses ChatGPT Work and Codex to accelerate AI product development and centralize operational intelligence across engineering and operations."
+        }
+      ],
+      "error_code": null
+    }
+  ],
+  "verified_claims": [
+    {
+      "claim_id": "claim_supported_1",
+      "claim": "OpenAI 的近期研究关注企业如何采用智能体 AI，并使用 ChatGPT 与 Codex 推进实际工作。",
+      "support_status": "direct",
+      "source_id": "source_e063daae6225",
+      "segment_id": "p0001",
+      "quote": "OpenAI research reveals how enterprises are adopting agentic AI, using ChatGPT and Codex, and how frontier firms are pulling ahead in AI adoption.",
+      "scope_limit": "证据仅来自 OpenAI 官方 RSS 条目摘要；原文访问返回 403，尚未完成全文核验，因此不能据此补充具体工作模式、案例细节或数据。",
+      "notes": "摘要直接支持该研究涉及企业采用智能体 AI及使用 ChatGPT 和 Codex；“推进实际工作”只能按条目主题作概括，不应扩展为具体成效。"
+    },
+    {
+      "claim_id": "claim_supported_2",
+      "claim": "RingCentral 的官方案例涉及使用 ChatGPT 与 Codex 支持 AI 产品开发，并集中工程和运营信息。",
+      "support_status": "direct",
+      "source_id": "source_9bafa93fe08b",
+      "segment_id": "p0001",
+      "quote": "See how RingCentral uses ChatGPT Work and Codex to accelerate AI product development and centralize operational intelligence across engineering and operations.",
+      "scope_limit": "证据仅来自 OpenAI 官方 RSS 条目摘要；原文访问返回 403，尚未完成全文核验，无法确认实施步骤、量化结果、信息集中方式或更多案例背景。",
+      "notes": "摘要直接支持使用 ChatGPT Work 和 Codex 加速 AI 产品开发，以及在工程和运营之间集中运营情报。原声明中的“支持”弱于原文的“accelerate”，因此未夸大摘要表述。"
+    }
+  ],
+  "research_answers": [
+    {
+      "question": "官方研究中有哪些从辅助转向执行的具体工作模式？",
+      "answer_status": "partial",
+      "gap_impact": "blocking",
+      "answer": "现有官方 RSS 摘要只能确认两个宽泛方向：企业正在采用智能体 AI，并在工作中使用 ChatGPT 与 Codex。摘要没有列出可复现的具体执行模式、步骤、角色分工、交付物或验收方式。",
+      "supporting_claim_ids": [
+        "claim_supported_1"
+      ],
+      "remaining_gap": "需要官方全文或等效的一手材料，核验从辅助到执行的具体工作模式及其上下文；当前摘要不足以回答“具体有哪些”。"
+    },
+    {
+      "question": "RingCentral 案例里哪些做法适合抽象为个人任务模板？",
+      "answer_status": "partial",
+      "gap_impact": "non_blocking",
+      "answer": "可谨慎抽象出两类模板方向：一是围绕 AI 产品开发组织任务输入与交付物，二是把分散的工程和运营信息集中到统一任务上下文。作为个人演示，可进一步把合成产品请求整理为明确交付物和验收清单；这是基于案例摘要与实验目录所做的任务设计，不代表 RingCentral 原文披露了这套个人模板。",
+      "supporting_claim_ids": [
+        "claim_supported_2"
+      ],
+      "remaining_gap": "RSS 摘要未提供 RingCentral 的具体流程、工具配置、输入资料、责任分工和验收方法，因此只能做有限抽象，不能归因于其完整实践。"
+    },
+    {
+      "question": "选择什么非敏感日常任务最适合演示完整执行与验收？",
+      "answer_status": "answered",
+      "gap_impact": "none",
+      "answer": "选择“把一条合成的产品需求转换为交付物与验收清单”。任务使用虚构材料，不涉及个人或企业敏感信息；输入、执行步骤、交付物和逐项验收条件都容易展示，适合完成一张可复用任务执行卡和一个可检查的小成品。",
+      "supporting_claim_ids": [],
+      "remaining_gap": ""
+    }
+  ],
+  "experiment": {
+    "spec": {
+      "task_id": "product_request_to_acceptance_checklist",
+      "type": "text_to_text",
+      "input_sha256": "71b73c45463d994b7c156c41b2b7909da284891acf09c58318ad6a4006222129",
+      "model": "gpt-5.6-sol",
+      "timeout_ms": 300000,
+      "variants": [
+        {
+          "variant_id": "baseline_chat_request",
+          "prompt_sha256": "a507f128298b464d7c2575081f6e5e37725aaa6756e9cb7ba7cd295fbdbd6616"
+        },
+        {
+          "variant_id": "structured_task_card",
+          "prompt_sha256": "08ff7af5fd8800dd9cce57c473a76a8ed9b8c625b0e8f4d9520edc9279e3dc89"
+        }
+      ]
+    },
+    "results": [
+      {
+        "variant_id": "baseline_chat_request",
+        "status": "success",
+        "output_parse_status": "valid",
+        "duration_ms": 46738,
+        "token_usage": {
+          "input_tokens": 39101,
+          "output_tokens": 1353,
+          "total_tokens": null
+        },
+        "codex_exit_status": "success",
+        "criterion_results": [
+          {
+            "criterion_id": "deliverable_present",
+            "status": "pass",
+            "evidence": "Checked title and objective fields."
+          },
+          {
+            "criterion_id": "required_fields_complete",
+            "status": "pass",
+            "evidence": "All required fields are populated."
+          },
+          {
+            "criterion_id": "missing_inputs_explicit",
+            "status": "pass",
+            "evidence": "missing_inputs is explicit with 4 item(s)."
+          },
+          {
+            "criterion_id": "executable_next_steps",
+            "status": "pass",
+            "evidence": "Checked action owner, next step, and acceptance condition."
+          },
+          {
+            "criterion_id": "acceptance_mapped",
+            "status": "pass",
+            "evidence": "Found 8 acceptance item(s)."
+          },
+          {
+            "criterion_id": "assumptions_bounded",
+            "status": "fail",
+            "evidence": "Found 4 declared assumption(s)."
+          },
+          {
+            "criterion_id": "strict_output_format",
+            "status": "pass",
+            "evidence": "Output passed the shared strict schema."
+          },
+          {
+            "criterion_id": "no_major_supplementation",
+            "status": "fail",
+            "evidence": "The user would need to supply missing fields or inputs."
+          }
+        ],
+        "criterion_pass_count": 6,
+        "criterion_fail_count": 2,
+        "missing_required_fields": [],
+        "output": {
+          "deliverable": {
+            "title": "Current Note Markdown Export — Action Brief",
+            "objective": "Add an export button to the fictional notes app that downloads the currently selected note as a Markdown file while correctly handling ready, no-note-selected, and export-failure states.",
+            "decisions": [
+              "Export only the currently selected note.",
+              "Use Markdown as the sole export format.",
+              "Exclude cloud synchronization and PDF export from scope.",
+              "Provide explicit UI behavior for ready, no note selected, and export failure states.",
+              "Use the note title as the basis for the downloaded filename.",
+              "Preserve headings and lists in the exported Markdown content."
+            ],
+            "actions": [
+              {
+                "task": "Define the export button behavior for all required states.",
+                "owner": "Product/design owner",
+                "next_step": "Specify the button's enabled state, disabled or explanatory no-selection state, and visible failure feedback.",
+                "acceptance_condition": "The interface has defined behavior for ready, no note selected, and export failure states."
+              },
+              {
+                "task": "Implement current-note Markdown serialization and download.",
+                "owner": "Application developer",
+                "next_step": "Connect the export button to serialize the selected note as Markdown and trigger a local file download named from the note title.",
+                "acceptance_condition": "Selecting a note and activating export downloads a Markdown file whose filename uses the note title and whose content preserves headings and lists."
+              },
+              {
+                "task": "Test the export flow and scope boundaries.",
+                "owner": "QA owner",
+                "next_step": "Test successful export, no-selection behavior, simulated export failure, filename generation, Markdown structure, and absence of PDF or cloud-sync features.",
+                "acceptance_condition": "All acceptance checklist items pass without adding PDF export or cloud synchronization."
+              }
+            ],
+            "acceptance_checklist": [
+              "In the ready state, activating the export button downloads the currently selected note as a Markdown file.",
+              "The downloaded filename uses the selected note's title.",
+              "Exported headings retain valid Markdown heading structure.",
+              "Exported lists retain valid Markdown list structure.",
+              "When no note is selected, the app does not attempt an export and presents the defined no-selection state.",
+              "When export fails, the app presents the defined failure state and does not indicate success.",
+              "No cloud synchronization functionality is added.",
+              "No PDF export functionality is added."
+            ],
+            "risks": [
+              "Note titles may contain characters that are invalid or unsafe in filenames and require sanitization.",
+              "The notes app's internal content representation is unspecified, which may affect how headings and lists are converted to Markdown.",
+              "The expected UI presentation and recovery behavior for export failures are not specified.",
+              "Duplicate or empty note titles may require a filename fallback or collision policy."
+            ]
+          },
+          "assumptions": [
+            "The app already exposes the currently selected note's title and content to the export feature.",
+            "Export is a client-side file download rather than a server-side operation.",
+            "Filename sanitization may be applied while still basing the filename on the note title.",
+            "Preserving headings and lists means retaining their semantic structure as valid Markdown, not necessarily preserving visual styling."
+          ],
+          "missing_inputs": [
+            "The notes app's technology stack and internal note-content format are not provided.",
+            "The desired button placement, label, and visual design are not provided.",
+            "The exact error message and retry behavior for export failure are not provided.",
+            "Filename rules for empty, duplicate, or invalid note titles are not provided."
+          ],
+          "steps_taken": [
+            "Extracted the requested feature, explicit scope boundaries, required states, and acceptance criteria from the supplied synthetic input.",
+            "Converted the requirements into decisions, owned actions, acceptance checks, risks, assumptions, and missing inputs.",
+            "Checked the result against every required output field and self-check criterion."
+          ],
+          "self_check": [
+            {
+              "criterion_id": "deliverable_present",
+              "status": "pass",
+              "evidence": "A complete action brief for the Markdown export button is provided."
+            },
+            {
+              "criterion_id": "required_fields_complete",
+              "status": "pass",
+              "evidence": "The deliverable contains populated title, objective, decisions, actions, acceptance_checklist, and risks fields."
+            },
+            {
+              "criterion_id": "missing_inputs_explicit",
+              "status": "pass",
+              "evidence": "Unspecified technical, design, error-handling, and filename details are listed under missing_inputs."
+            },
+            {
+              "criterion_id": "executable_next_steps",
+              "status": "pass",
+              "evidence": "Each action identifies an owner, concrete next step, and acceptance condition."
+            },
+            {
+              "criterion_id": "acceptance_mapped",
+              "status": "pass",
+              "evidence": "The checklist covers successful export, filename, headings, lists, no-selection behavior, failure behavior, and scope exclusions."
+            },
+            {
+              "criterion_id": "assumptions_bounded",
+              "status": "pass",
+              "evidence": "Implementation assumptions are separated from supplied facts and recorded explicitly."
+            },
+            {
+              "criterion_id": "strict_output_format",
+              "status": "pass",
+              "evidence": "The response is one JSON object containing only schema-defined fields and valid enum values."
+            },
+            {
+              "criterion_id": "no_major_supplementation",
+              "status": "pass",
+              "evidence": "The brief is actionable as written; remaining choices are isolated as bounded missing inputs."
+            }
+          ]
+        }
+      },
+      {
+        "variant_id": "structured_task_card",
+        "status": "success",
+        "output_parse_status": "valid",
+        "duration_ms": 52131,
+        "token_usage": {
+          "input_tokens": 39329,
+          "output_tokens": 1445,
+          "total_tokens": null
+        },
+        "codex_exit_status": "success",
+        "criterion_results": [
+          {
+            "criterion_id": "deliverable_present",
+            "status": "pass",
+            "evidence": "Checked title and objective fields."
+          },
+          {
+            "criterion_id": "required_fields_complete",
+            "status": "pass",
+            "evidence": "All required fields are populated."
+          },
+          {
+            "criterion_id": "missing_inputs_explicit",
+            "status": "pass",
+            "evidence": "missing_inputs is explicit with 5 item(s)."
+          },
+          {
+            "criterion_id": "executable_next_steps",
+            "status": "pass",
+            "evidence": "Checked action owner, next step, and acceptance condition."
+          },
+          {
+            "criterion_id": "acceptance_mapped",
+            "status": "pass",
+            "evidence": "Found 9 acceptance item(s)."
+          },
+          {
+            "criterion_id": "assumptions_bounded",
+            "status": "fail",
+            "evidence": "Found 3 declared assumption(s)."
+          },
+          {
+            "criterion_id": "strict_output_format",
+            "status": "pass",
+            "evidence": "Output passed the shared strict schema."
+          },
+          {
+            "criterion_id": "no_major_supplementation",
+            "status": "fail",
+            "evidence": "The user would need to supply missing fields or inputs."
+          }
+        ],
+        "criterion_pass_count": 6,
+        "criterion_fail_count": 2,
+        "missing_required_fields": [],
+        "output": {
+          "deliverable": {
+            "title": "Current Note Markdown Export Action Brief",
+            "objective": "Add an export button to the fictional notes app that downloads the currently selected note as Markdown, with explicit handling for ready, no-note-selected, and export-failure states. Exclude cloud sync and PDF export.",
+            "decisions": [
+              "Export only the current note as Markdown.",
+              "Do not add cloud sync.",
+              "Do not add PDF export.",
+              "Support three required states: ready, no note selected, and export failure.",
+              "Use the note title for the downloaded filename.",
+              "Preserve headings and lists in the exported Markdown."
+            ],
+            "actions": [
+              {
+                "task": "Implement the Markdown export control and download behavior.",
+                "owner": "Unassigned implementation owner",
+                "next_step": "Add an export button that serializes the selected note to Markdown and initiates a local file download named from the note title.",
+                "acceptance_condition": "With a note selected, activating export downloads a Markdown file whose filename uses the note title and whose content preserves headings and lists."
+              },
+              {
+                "task": "Implement the no-note-selected state.",
+                "owner": "Unassigned implementation owner",
+                "next_step": "Define and implement the export button behavior when no note is selected.",
+                "acceptance_condition": "When no note is selected, the interface presents a clear non-exportable state and does not download a file."
+              },
+              {
+                "task": "Implement export-failure handling.",
+                "owner": "Unassigned implementation owner",
+                "next_step": "Catch export or download failures and expose a visible failure state.",
+                "acceptance_condition": "When export fails, no false success is shown and the user receives a clear failure indication."
+              },
+              {
+                "task": "Verify scope and required states.",
+                "owner": "Unassigned test owner",
+                "next_step": "Test successful export, no-note-selected behavior, export failure, filename generation, Markdown preservation, and excluded features.",
+                "acceptance_condition": "All checklist items pass, and neither cloud sync nor PDF export is introduced."
+              }
+            ],
+            "acceptance_checklist": [
+              "A selected note can be exported as a downloaded Markdown file.",
+              "The downloaded filename uses the note title.",
+              "Exported content preserves headings.",
+              "Exported content preserves lists.",
+              "The ready state permits export of the current note.",
+              "The no-note-selected state prevents download and is clearly represented.",
+              "An export failure produces a clear failure indication without reporting success.",
+              "Cloud sync is not added.",
+              "PDF export is not added."
+            ],
+            "risks": [
+              "Filename behavior is underspecified for empty titles or characters invalid in filenames.",
+              "The expected UI treatment for the no-note-selected and export-failure states is unspecified.",
+              "The source note data model and its Markdown serialization rules are unspecified.",
+              "Browser or runtime download constraints may affect implementation behavior."
+            ]
+          },
+          "assumptions": [
+            "“Uses the note title” means the title forms the downloaded filename with a Markdown file extension.",
+            "“Preserves headings and lists” means those structures remain valid Markdown structures after export.",
+            "Implementation and test owners remain unassigned because no people or roles were supplied."
+          ],
+          "missing_inputs": [
+            "Implementation owner and test owner assignments.",
+            "Expected behavior for untitled notes and filename-invalid characters.",
+            "Required UI copy and visual treatment for no-note-selected and export-failure states.",
+            "The fictional app’s technology stack, note data model, and existing export interfaces.",
+            "A defined way to trigger or simulate export failure during testing."
+          ],
+          "steps_taken": [
+            "Extracted the explicit scope, exclusions, required states, and acceptance requirements from the synthetic input.",
+            "Converted the requested work into owned action items without inventing named owners.",
+            "Mapped every action to a checkable acceptance condition.",
+            "Recorded risks, assumptions, and missing inputs.",
+            "Checked the output against all catalog acceptance criteria and the strict schema."
+          ],
+          "self_check": [
+            {
+              "criterion_id": "deliverable_present",
+              "status": "pass",
+              "evidence": "The deliverable contains a titled, checkable action brief for Markdown export."
+            },
+            {
+              "criterion_id": "required_fields_complete",
+              "status": "pass",
+              "evidence": "Title, objective, decisions, actions, acceptance checklist, and risks are all populated."
+            },
+            {
+              "criterion_id": "missing_inputs_explicit",
+              "status": "pass",
+              "evidence": "Unknown ownership, UI details, edge cases, technical context, and failure simulation are explicitly listed."
+            },
+            {
+              "criterion_id": "executable_next_steps",
+              "status": "pass",
+              "evidence": "Each action includes a task, an explicit unassigned owner label, a next step, and an acceptance condition."
+            },
+            {
+              "criterion_id": "acceptance_mapped",
+              "status": "pass",
+              "evidence": "The checklist covers successful export, filename, structural preservation, required states, and scope exclusions."
+            },
+            {
+              "criterion_id": "assumptions_bounded",
+              "status": "pass",
+              "evidence": "Interpretations of filename usage and Markdown preservation are labeled as assumptions rather than facts."
+            },
+            {
+              "criterion_id": "strict_output_format",
+              "status": "pass",
+              "evidence": "The response is one JSON object containing only schema-defined fields and valid criterion identifiers."
+            },
+            {
+              "criterion_id": "no_major_supplementation",
+              "status": "pass",
+              "evidence": "The brief is independently checkable; unresolved implementation details are isolated as missing inputs rather than silently invented."
+            }
+          ]
+        }
+      }
+    ],
+    "observable_differences": [
+      "Baseline passed 6 of 8 criteria; structured passed 6.",
+      "Baseline missing fields: none; structured missing fields: none.",
+      "The comparison records this sample only and does not estimate a universal efficiency or accuracy change."
+    ],
+    "limitations": [
+      "Only one synthetic text-to-text sample was run.",
+      "Each variant ran once, so normal model variability was not measured.",
+      "The result cannot be generalized to every task, model, user, or agent workflow."
+    ]
+  },
+  "writing_requirements": {
+    "main_promise": "读者将把一个停留在聊天层面的任务，改写成包含输入、步骤、产物和验收标准的 AI 执行流程。",
+    "minimum_result": "产出一张可复用的任务执行卡，并用它完成一个能够逐项验收的小成品。",
+    "required_claim_ids": [
+      "claim_supported_1",
+      "claim_supported_2"
+    ],
+    "required_disclosures": [
+      "官方材料摘要信息有限，具体企业数据和案例细节需进一步核验。",
+      "实验只能说明样例任务中的观察结果，不能外推普遍效率提升。",
+      "两项外部证据均仅来自 OpenAI 官方 RSS 条目摘要，原文访问返回 403，未完成全文核验。",
+      "不得依据摘要补写企业实施步骤、量化数据、角色分工或原文未出现的案例细节。",
+      "将 RingCentral 案例抽象为个人任务模板属于有限设计推演，不等同于案例原文披露的方法。",
+      "实验使用合成产品需求，不包含真实个人或企业敏感信息。",
+      "实验结果仅说明该样例任务中的观察，不得外推为普遍效率提升、质量提升或业务结果。",
+      "涉及产品时，只能使用已提供的定位、学习路径、共同基础和 Codex 实操相关事实；不得补全正式课程标题或未提供的权益。",
+      "Only one synthetic text-to-text sample was run.",
+      "Each variant ran once, so normal model variability was not measured.",
+      "The result cannot be generalized to every task, model, user, or agent workflow."
+    ],
+    "forbidden_claims": [
+      "宣称或暗示固定会员人数。",
+      "宣称或暗示固定教程数量或模板数量。",
+      "承诺固定更新频率、固定答疑频率或即时响应。",
+      "承诺一对一支持、作业批改或直播课程。",
+      "承诺学习效果、收入、就业或业务结果。",
+      "陈述未经提供的退款政策、续费政策或会员有效期规则。",
+      "宣称用户成功率。",
+      "制造剩余名额、涨价截止日期或发布日期等稀缺性信息。",
+      "扩展或虚构 AI 视频交付范围。",
+      "把 visible_topics 补写成正式课程标题。",
+      "声称 OpenAI 摘要披露了具体的从辅助到执行工作流程。",
+      "声称 RingCentral 摘要披露了具体实施步骤、配置、角色分工或验收方法。",
+      "引用摘要中不存在的企业数据、效率数字或效果数字。",
+      "把样例实验结果外推为普遍效率提升或业务成效。",
+      "Do not claim a universal efficiency percentage or best workflow.",
+      "Do not invent first-person or long-term testing.",
+      "Do not add unconfirmed product rights."
+    ],
+    "required_visual_evidence": [
+      "两种任务输入的完整文本",
+      "两次执行产物",
+      "统一验收清单及逐项结果",
+      "官方材料中与执行工作流直接相关的原文依据",
+      "展示去敏后的合成产品需求原始输入。",
+      "展示完整任务执行卡，清楚呈现目标、必要资料、执行步骤、交付物和验收清单。",
+      "展示 AI 生成的实际交付清单，不只展示提示词或过程描述。",
+      "展示逐项验收记录，明确标注每项通过、未通过或待修改。",
+      "如呈现实验结论，必须同时标明结论仅适用于本次样例。"
+    ]
+  },
+  "readiness": {
+    "fact_claims_verified": true,
+    "research_questions_sufficient": false,
+    "experiment_completed": true,
+    "open_gaps": [
+      "Blocking research gap: 官方研究中有哪些从辅助转向执行的具体工作模式？",
+      "One or more core research questions have a blocking evidence gap."
+    ]
+  },
+  "model": {
+    "provider": "codex_cli",
+    "model": "gpt-5.6-sol",
+    "runtime_version": "codex-cli 0.147.0",
+    "calls": 3,
+    "duration_ms": 181381,
+    "usage": {
+      "input_tokens": 119251,
+      "output_tokens": 4967,
+      "total_tokens": null
+    }
+  },
+  "error_code": null,
+  "error_message_safe": null,
+  "created_at": "2026-08-15T03:20:45.998Z"
+}

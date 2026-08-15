@@ -1,0 +1,17 @@
+{
+  "task_id": "product_request_to_acceptance_checklist",
+  "type": "text_to_text",
+  "input_sha256": "71b73c45463d994b7c156c41b2b7909da284891acf09c58318ad6a4006222129",
+  "model": "gpt-5.6-sol",
+  "timeout_ms": 300000,
+  "variants": [
+    {
+      "variant_id": "baseline_chat_request",
+      "prompt_sha256": "a507f128298b464d7c2575081f6e5e37725aaa6756e9cb7ba7cd295fbdbd6616"
+    },
+    {
+      "variant_id": "structured_task_card",
+      "prompt_sha256": "08ff7af5fd8800dd9cce57c473a76a8ed9b8c625b0e8f4d9520edc9279e3dc89"
+    }
+  ]
+}

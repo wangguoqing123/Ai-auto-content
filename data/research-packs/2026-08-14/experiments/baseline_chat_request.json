@@ -1,0 +1,166 @@
+{
+  "variant_id": "baseline_chat_request",
+  "status": "success",
+  "output_parse_status": "valid",
+  "duration_ms": 46738,
+  "token_usage": {
+    "input_tokens": 39101,
+    "output_tokens": 1353,
+    "total_tokens": null
+  },
+  "codex_exit_status": "success",
+  "criterion_results": [
+    {
+      "criterion_id": "deliverable_present",
+      "status": "pass",
+      "evidence": "Checked title and objective fields."
+    },
+    {
+      "criterion_id": "required_fields_complete",
+      "status": "pass",
+      "evidence": "All required fields are populated."
+    },
+    {
+      "criterion_id": "missing_inputs_explicit",
+      "status": "pass",
+      "evidence": "missing_inputs is explicit with 4 item(s)."
+    },
+    {
+      "criterion_id": "executable_next_steps",
+      "status": "pass",
+      "evidence": "Checked action owner, next step, and acceptance condition."
+    },
+    {
+      "criterion_id": "acceptance_mapped",
+      "status": "pass",
+      "evidence": "Found 8 acceptance item(s)."
+    },
+    {
+      "criterion_id": "assumptions_bounded",
+      "status": "fail",
+      "evidence": "Found 4 declared assumption(s)."
+    },
+    {
+      "criterion_id": "strict_output_format",
+      "status": "pass",
+      "evidence": "Output passed the shared strict schema."
+    },
+    {
+      "criterion_id": "no_major_supplementation",
+      "status": "fail",
+      "evidence": "The user would need to supply missing fields or inputs."
+    }
+  ],
+  "criterion_pass_count": 6,
+  "criterion_fail_count": 2,
+  "missing_required_fields": [],
+  "output": {
+    "deliverable": {
+      "title": "Current Note Markdown Export — Action Brief",
+      "objective": "Add an export button to the fictional notes app that downloads the currently selected note as a Markdown file while correctly handling ready, no-note-selected, and export-failure states.",
+      "decisions": [
+        "Export only the currently selected note.",
+        "Use Markdown as the sole export format.",
+        "Exclude cloud synchronization and PDF export from scope.",
+        "Provide explicit UI behavior for ready, no note selected, and export failure states.",
+        "Use the note title as the basis for the downloaded filename.",
+        "Preserve headings and lists in the exported Markdown content."
+      ],
+      "actions": [
+        {
+          "task": "Define the export button behavior for all required states.",
+          "owner": "Product/design owner",
+          "next_step": "Specify the button's enabled state, disabled or explanatory no-selection state, and visible failure feedback.",
+          "acceptance_condition": "The interface has defined behavior for ready, no note selected, and export failure states."
+        },
+        {
+          "task": "Implement current-note Markdown serialization and download.",
+          "owner": "Application developer",
+          "next_step": "Connect the export button to serialize the selected note as Markdown and trigger a local file download named from the note title.",
+          "acceptance_condition": "Selecting a note and activating export downloads a Markdown file whose filename uses the note title and whose content preserves headings and lists."
+        },
+        {
+          "task": "Test the export flow and scope boundaries.",
+          "owner": "QA owner",
+          "next_step": "Test successful export, no-selection behavior, simulated export failure, filename generation, Markdown structure, and absence of PDF or cloud-sync features.",
+          "acceptance_condition": "All acceptance checklist items pass without adding PDF export or cloud synchronization."
+        }
+      ],
+      "acceptance_checklist": [
+        "In the ready state, activating the export button downloads the currently selected note as a Markdown file.",
+        "The downloaded filename uses the selected note's title.",
+        "Exported headings retain valid Markdown heading structure.",
+        "Exported lists retain valid Markdown list structure.",
+        "When no note is selected, the app does not attempt an export and presents the defined no-selection state.",
+        "When export fails, the app presents the defined failure state and does not indicate success.",
+        "No cloud synchronization functionality is added.",
+        "No PDF export functionality is added."
+      ],
+      "risks": [
+        "Note titles may contain characters that are invalid or unsafe in filenames and require sanitization.",
+        "The notes app's internal content representation is unspecified, which may affect how headings and lists are converted to Markdown.",
+        "The expected UI presentation and recovery behavior for export failures are not specified.",
+        "Duplicate or empty note titles may require a filename fallback or collision policy."
+      ]
+    },
+    "assumptions": [
+      "The app already exposes the currently selected note's title and content to the export feature.",
+      "Export is a client-side file download rather than a server-side operation.",
+      "Filename sanitization may be applied while still basing the filename on the note title.",
+      "Preserving headings and lists means retaining their semantic structure as valid Markdown, not necessarily preserving visual styling."
+    ],
+    "missing_inputs": [
+      "The notes app's technology stack and internal note-content format are not provided.",
+      "The desired button placement, label, and visual design are not provided.",
+      "The exact error message and retry behavior for export failure are not provided.",
+      "Filename rules for empty, duplicate, or invalid note titles are not provided."
+    ],
+    "steps_taken": [
+      "Extracted the requested feature, explicit scope boundaries, required states, and acceptance criteria from the supplied synthetic input.",
+      "Converted the requirements into decisions, owned actions, acceptance checks, risks, assumptions, and missing inputs.",
+      "Checked the result against every required output field and self-check criterion."
+    ],
+    "self_check": [
+      {
+        "criterion_id": "deliverable_present",
+        "status": "pass",
+        "evidence": "A complete action brief for the Markdown export button is provided."
+      },
+      {
+        "criterion_id": "required_fields_complete",
+        "status": "pass",
+        "evidence": "The deliverable contains populated title, objective, decisions, actions, acceptance_checklist, and risks fields."
+      },
+      {
+        "criterion_id": "missing_inputs_explicit",
+        "status": "pass",
+        "evidence": "Unspecified technical, design, error-handling, and filename details are listed under missing_inputs."
+      },
+      {
+        "criterion_id": "executable_next_steps",
+        "status": "pass",
+        "evidence": "Each action identifies an owner, concrete next step, and acceptance condition."
+      },
+      {
+        "criterion_id": "acceptance_mapped",
+        "status": "pass",
+        "evidence": "The checklist covers successful export, filename, headings, lists, no-selection behavior, failure behavior, and scope exclusions."
+      },
+      {
+        "criterion_id": "assumptions_bounded",
+        "status": "pass",
+        "evidence": "Implementation assumptions are separated from supplied facts and recorded explicitly."
+      },
+      {
+        "criterion_id": "strict_output_format",
+        "status": "pass",
+        "evidence": "The response is one JSON object containing only schema-defined fields and valid enum values."
+      },
+      {
+        "criterion_id": "no_major_supplementation",
+        "status": "pass",
+        "evidence": "The brief is actionable as written; remaining choices are isolated as bounded missing inputs."
+      }
+    ]
+  }
+}

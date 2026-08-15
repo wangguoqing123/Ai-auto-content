@@ -1,0 +1,27 @@
+{
+  "source_id": "source_e063daae6225",
+  "material_id": "mat_e063daae6225",
+  "canonical_url": "https://openai.com/index/how-enterprises-put-ai-to-work",
+  "final_url": "https://openai.com/index/how-enterprises-put-ai-to-work",
+  "title": "From assistance to execution: How enterprises put AI to work",
+  "author": "",
+  "retrieved_at": "2026-08-15T03:17:41.701Z",
+  "content_type": "text/plain",
+  "content_sha256": "02df4fd4b1f63ec7f28b6d646d5fe942817aea673c79578b219de8cb95b3305e",
+  "fetch_status": "success",
+  "retrieval_method": "official_rss_replay",
+  "content_scope": "feed_item",
+  "retrieval_url": "https://openai.com/news/rss.xml",
+  "canonical_fetch_status": "blocked",
+  "canonical_http_status": 403,
+  "fallback_reason": "canonical_access_blocked",
+  "snapshot_collected_at": null,
+  "selected_quotes": [
+    {
+      "claim_id": "claim_supported_1",
+      "segment_id": "p0001",
+      "quote": "OpenAI research reveals how enterprises are adopting agentic AI, using ChatGPT and Codex, and how frontier firms are pulling ahead in AI adoption."
+    }
+  ],
+  "error_code": null
+}
