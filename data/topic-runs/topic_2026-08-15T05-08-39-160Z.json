@@ -1,0 +1,183 @@
+{
+  "version": 1,
+  "decision_date": "2026-08-15",
+  "run_id": "topic_2026-08-15T05-08-39-160Z",
+  "status": "success",
+  "decision": "NO_PUBLISH",
+  "prompt_version": "topic-intelligence-v1",
+  "input_hash": "7f86c49f33181ccb36197b8d1205278f65a291cdbf4fdd72f8f40ee0369a2130",
+  "input_summary": {
+    "total_before_filter": 282,
+    "eligible_total": 182,
+    "total_after_filter": 47,
+    "cloud_count": 14,
+    "twitter_count": 25,
+    "weixin_resolved_count": 0,
+    "restricted_count": 8,
+    "fact_source_count": 1,
+    "trend_signal_count": 25,
+    "structure_inspiration_count": 0,
+    "eligible_by_bucket": {
+      "cloud": 15,
+      "twitter": 139,
+      "weixin_resolved": 0,
+      "weixin_restricted": 28
+    },
+    "selected_by_bucket": {
+      "cloud": 14,
+      "twitter": 25,
+      "weixin_resolved": 0,
+      "weixin_restricted": 8
+    },
+    "dropped_by_reason": {
+      "duplicate": 7,
+      "outside_window": 42,
+      "invalid_status": 51,
+      "invalid_url": 0,
+      "invalid_material": 0,
+      "sensitive_content": 0,
+      "author_limit": 1,
+      "query_limit": 38,
+      "cluster_limit": 0,
+      "bucket_limit": 96,
+      "character_limit": 0
+    },
+    "source_gaps": []
+  },
+  "selected_topic": null,
+  "evaluated_candidates": [
+    {
+      "candidate_id": "candidate_agent_trace_debugging",
+      "working_title": "Agent 做错了，别急着重跑：先用“执行轨迹”定位失败步骤",
+      "one_sentence_promise": "带用户为一个多步骤 Agent 任务建立最小运行记录，并根据轨迹定位一次失败发生在哪个输入、工具调用或验收环节。",
+      "target_segment": "已经让 AI 或 Agent 执行多步骤任务，但遇到错误时只会反复重跑、改提示词的人。",
+      "learner_stage": "continuous_improvement",
+      "trigger_scenario": "Agent 已经能够调用工具完成任务，但结果缺项、用错资料或中途失败，用户看不到问题究竟出在哪一步。",
+      "user_problem": "Agent 的最终结果不合格时，用户缺少可检查的过程记录，无法判断应该修改输入、步骤、工具还是验收标准。",
+      "wrong_current_behavior": "只看最终答案，失败后立即重跑或整体重写提示词，既无法复现问题，也无法沉淀有效修正。",
+      "real_task": "选择一个包含资料读取、工具调用和结果生成的真实小任务，记录每一步的输入、动作、返回结果、异常与验收状态，再据此修正一个失败点。",
+      "minimum_result": "产出一张包含任务输入、步骤、工具返回、失败位置、修正动作和最终验收结果的 Agent 运行记录表。",
+      "content_pillar": "agents_and_workflows",
+      "primary_product_module_id": "codex_practice",
+      "supporting_product_module_ids": [
+        "beginner_ai_course"
+      ],
+      "funnel_role": "trust",
+      "core_angle": "Agent 从“能运行”走向“可复用”，关键不只是增加能力，而是让执行过程可观察、失败位置可定位、修正结果可验证。",
+      "why_now": "近期企业 Agent 应用与可观察执行轨迹同时受到关注，适合把抽象趋势转化为普通用户可以立即练习的排错方法。",
+      "proof_format": "一次真实任务的运行轨迹、失败定位截图、修正前后验收记录",
+      "time_sensitive": true,
+      "fact_source_ids": [
+        "mat_e063daae6225"
+      ],
+      "trend_signal_ids": [
+        "mat_661069c4af51"
+      ],
+      "structure_inspiration_ids": [
+        "mat_be0454ee86db"
+      ],
+      "restricted_inspiration_ids": [],
+      "supported_claims": [
+        {
+          "claim": "企业正在采用智能体式 AI，并使用 ChatGPT 与 Codex 将 AI 从辅助推向执行。",
+          "fact_source_ids": [
+            "mat_e063daae6225"
+          ]
+        }
+      ],
+      "research_questions": [
+        "官方材料中有哪些关于企业从 AI 辅助转向任务执行的具体描述或案例？",
+        "不同 Agent 工具能够公开展示哪些运行信息，哪些内部推理不应被当作可观察记录？",
+        "普通用户排查 Agent 失败时，最小必要记录字段应该包括什么？",
+        "如何区分输入错误、工具调用错误、步骤设计错误和验收错误？"
+      ],
+      "requires_research": true,
+      "requires_experiment": true,
+      "experiment_plan": [
+        "设计一个包含资料读取、一次工具调用和结构化输出的可复现小任务。",
+        "故意设置一个可控错误，例如缺少关键资料或使用错误字段。",
+        "记录每一步可见的输入、动作、工具返回、异常和验收状态。",
+        "仅修正轨迹所指向的失败点后重新运行，并保存前后结果。",
+        "根据验收清单判断修正是否有效，不外推速度或效率结论。"
+      ],
+      "cta_mode": "club",
+      "product_claim_ids": [
+        "product.positioning",
+        "product.mechanism.learning_path",
+        "product.learning.shared_foundation",
+        "product.learning.codex_practice"
+      ],
+      "product_claim_evidence": [],
+      "price_refresh_required": true,
+      "risk_flags": [
+        "唯一事实源只支持企业采用 Agent 的背景，不能用来证明具体轨迹功能或排错效果。",
+        "趋势信号只能说明用户关注执行轨迹，不能作为产品功能或效果证据。",
+        "避免展示或索取模型隐藏思维链，只记录用户可见的步骤、工具调用、返回结果与验收状态。",
+        "任何排错改善结论必须来自计划中的实际实验。"
+      ],
+      "hard_reject_reasons": [
+        "invalid_structure_inspiration_reference",
+        "invalid_novelty_evidence"
+      ],
+      "scores": {
+        "pain_score": 22,
+        "actionability_score": 19,
+        "demonstrability_score": 15,
+        "evidence_score": 11,
+        "engagement_potential_score": 13,
+        "product_fit_score": 10,
+        "total_score": 90
+      },
+      "score_reasons": {
+        "pain_score": "多步骤 Agent 失败后无法定位原因，是从单次使用走向稳定工作流的直接障碍。",
+        "actionability_score": "用户可以用一张最小运行记录表完成记录、定位、单点修正和复验。",
+        "demonstrability_score": "可清晰展示错误注入、执行轨迹、失败位置以及修正前后的验收结果。",
+        "evidence_score": "有近期官方材料支持 Agent 从辅助走向执行的背景，但具体排错方法仍需研究和实验验证。",
+        "engagement_potential_score": "“为什么 Agent 做错”具有明确冲突和讨论空间，轨迹截图也便于理解。",
+        "product_fit_score": "与已确认交付的 Codex 实操及智能体工作流练习直接对应。"
+      },
+      "decision_reason": "选题解决了 Agent 用户已经开始遇到的具体排错问题，能交付独立可用的运行记录表，并通过真实实验形成可验证证据；与昨日“把诉求改成可验收任务”相比，本题进一步处理任务运行后的失败定位与持续改进。",
+      "novelty_delta": "昨日主题聚焦执行前的任务定义与验收，本题聚焦执行中的可观察记录以及执行后的失败定位和单点修正。",
+      "new_evidence_refs": [
+        "material:mat_e063daae6225",
+        "material:mat_661069c4af51",
+        "experiment:agent_trace_debugging"
+      ],
+      "platform_plan": {
+        "wechat_article_type": "tutorial",
+        "wechat_required_evidence": [
+          "官方材料中关于 Agent 从辅助走向执行的原文依据",
+          "实验任务与错误设置说明",
+          "用户可见的运行轨迹截图",
+          "修正前后输出及逐项验收记录"
+        ],
+        "wechat_needs_step_images": true,
+        "wechat_needs_screenshots_or_experiment": true,
+        "x_format": "thread"
+      },
+      "topic_signature": "28e20f3e0752794b86f00e889de60de182ea73972e92064d5bbafe0fe0d51b9b",
+      "effective_product_fit_cap": 10,
+      "product_fit_cap_applied": false,
+      "cta_adjusted_from": null,
+      "evaluation_status": "rejected"
+    }
+  ],
+  "no_publish_reason_code": "all_candidates_hard_rejected",
+  "no_publish_reason": "所有候选都触发了硬性淘汰条件。",
+  "model": {
+    "provider": "codex_cli",
+    "model": "gpt-5.6-sol",
+    "runtime_version": "codex-cli 0.147.0",
+    "output_schema_version": "topic-judge-provider-v1",
+    "calls": 1,
+    "duration_ms": 67530,
+    "usage": {
+      "input_tokens": 118898,
+      "output_tokens": 2041,
+      "total_tokens": null
+    }
+  },
+  "error_code": null,
+  "error_message_safe": null,
+  "created_at": "2026-08-15T05:08:39.160Z"
+}
