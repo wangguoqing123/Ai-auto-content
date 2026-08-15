@@ -6,16 +6,16 @@
 
 > 系统每天运行，但不要求每天发布。没有足够高质量的题目时，后续选题阶段必须允许输出 `NO_PUBLISH`。
 
-## 当前阶段：第一方来源降级已实测，等待完整真实研究验证
+## 当前阶段：真实研究 dry-run 已验证，等待本机生产激活
 
-产品真相层、素材采集和每日选题已经进入 production。研究与实验 v0 只接受正式 `SELECT_TOPIC`，按 `canonical HTTP → 同一第一方官方 RSS item → 已保存官方 RSS 摘要 → unavailable` 获取 Topic 指定的 fact_source，保存本机清洗快照，精确核验短引用，回答原研究问题，并在需要时各运行一次 baseline / structured 合成文本实验。访问控制不会用浏览器、Cookie 或第三方代理绕过；摘要明确标记 `feed_excerpt`，不能补成完整正文。代码只输出 `READY_FOR_WRITING`、`RESEARCH_INCOMPLETE` 或 `NO_TOPIC`；全部来源不可用或 Provider 等基础设施故障保持 `status=failed`。本阶段仍不生成正文、配图或发布。
+产品真相层、素材采集和每日选题已经进入 production。研究与实验 v0 只接受正式 `SELECT_TOPIC`，按 `canonical HTTP → 同一第一方官方 RSS item → 已保存官方 RSS 摘要 → unavailable` 获取 Topic 指定的 fact_source，保存本机清洗快照，精确核验短引用，回答原研究问题，并在需要时各运行一次 baseline / structured 合成文本实验。访问控制不会用浏览器、Cookie 或第三方代理绕过；摘要明确标记 `feed_excerpt`，不能补成完整正文。2026-08-15 的第二次获准真实 dry-run 已对 2026-08-14 Topic Decision 完成整条链路：两条 canonical 403 后取得 2/2 个官方 RSS `feed_item`，Analyze 输出合法 `RESEARCH_INCOMPLETE`，两个实验 Variant 各成功运行一次且未写正式文件。代码只输出 `READY_FOR_WRITING`、`RESEARCH_INCOMPLETE` 或 `NO_TOPIC`；全部来源不可用或 Provider 等基础设施故障保持 `status=failed`。本阶段仍不生成正文、配图或发布，也尚未激活生产 Research Runtime。
 
 | 系统阶段 | 状态 |
 |---|---|
 | 采集 | `production` |
 | 产品真相层 | `production` |
 | 每日选题 | `production` |
-| 研究与实验 | `implemented_pending_live_validation` |
+| 研究与实验 | `implemented_live_validation_verified_pending_local_activation` |
 | 写作 | `not_started` |
 | 配图 | `not_started` |
 | 发布 | `not_started` |

@@ -1,8 +1,8 @@
 ---
 title: 自动研究、证据核验与安全实验包 v0
 version: 1.0.0
-updated_at: 2026-08-14
-status: implemented_pending_live_validation
+updated_at: 2026-08-15
+status: implemented_live_validation_verified_pending_local_activation
 ---
 
 # 自动研究、证据核验与安全实验包 v0
@@ -164,4 +164,6 @@ Research 自动提交只允许 `data/research-packs/**`、`data/research-runs/**
 
 本 PR 阶段不会安装、重装或 reload LaunchAgent，不修改生产 Runtime clone，不运行 Browser Collector，不访问 X 或公众号，也不生成正文、图片或发布。
 
-2026-08-14 的最新一次真实 `--dry-run` 中，两条 OpenAI canonical URL 均返回 HTTP 403 JavaScript/Cookie challenge；系统没有绕过，而是从 `https://openai.com/news/rss.xml` 成功匹配两条 item，得到 2/2 个 `official_rss_replay` / `feed_item` 快照并写入 0700/0600 本机 Cache。随后首次 Research Analyze 已发生并计为 1 次，但其结构化结果因旧契约额外要求 answered 问题必须引用事实 Claim 而被拒绝为 `codex_output_invalid`；baseline 与 structured 均未运行，正式 Research Pack 未写入。该额外限制已按本版 `gap_impact` 规则移除并完成离线验证，但没有重复真实 dry-run，因此阶段仍为 `implemented_pending_live_validation`。
+第一次获准的 2026-08-14 真实 `--dry-run` 中，两条 OpenAI canonical URL 均返回 HTTP 403 JavaScript/Cookie challenge；系统没有绕过，而是从 `https://openai.com/news/rss.xml` 成功匹配两条 item，得到 2/2 个 `official_rss_replay` / `feed_item` 快照并写入 0700/0600 本机 Cache。随后首次 Research Analyze 已发生并计为 1 次，但其结构化结果因旧契约额外要求 answered 问题必须引用事实 Claim 而被拒绝为 `codex_output_invalid`；baseline 与 structured 均未运行，正式 Research Pack 未写入。该失败记录保留不变；额外限制随后已按本版 `gap_impact` 规则移除并完成离线回归。
+
+第二次获准的真实 `--dry-run` 于 2026-08-15 对同一个 2026-08-14 Topic Decision 执行且只执行一次。两条 canonical URL 各返回一次 HTTP 403，系统仍未绕过访问控制，并从 OpenAI 官方 RSS 取得 2/2 个 `official_rss_replay` / `feed_item`，`unavailable=0`。Analyze 形成 2 条 `partial` Claim 和 3 个研究答案：1 个 answered、1 个 non-blocking partial、1 个 blocking unanswered，因此业务决定为 `RESEARCH_INCOMPLETE`，不是 `READY_FOR_WRITING`。未触发 Repair；baseline 与 structured 各运行一次，均为 `status=success`、`output_parse_status=valid`、代码验收 6 pass / 2 fail、缺失必需字段为 0。总计 3 次 Codex 调用，模型耗时 138,071 ms；dry-run 明确返回 `files_written=false`，没有写正式 Research Pack、运行记录或报告，也没有修改生产 Runtime、LaunchAgent、Topic、正文、图片或发布状态。当前阶段据此更新为 `implemented_live_validation_verified_pending_local_activation`；它只表示真实本机 dry-run 链路已验证，生产激活仍需合并后由用户显式执行。

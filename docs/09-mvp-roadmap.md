@@ -1,7 +1,7 @@
 ---
 title: MVP 实施路线
-version: 0.4.0
-updated_at: 2026-08-14
+version: 0.4.1
+updated_at: 2026-08-15
 status: approved
 ---
 
@@ -89,7 +89,7 @@ status: approved
 | 采集 | `production` |
 | 产品真相层 | `production` |
 | 每日选题 | `production` |
-| 研究与实验 | `implemented_pending_live_validation` |
+| 研究与实验 | `implemented_live_validation_verified_pending_local_activation` |
 | 写作 | `not_started` |
 | 配图 | `not_started` |
 | 发布 | `not_started` |
@@ -100,7 +100,7 @@ status: approved
 - 只抓原 Topic 指定的 fact_source canonical URL，并执行 SSRF、类型、大小、超时和版权边界。
 - 使用三个合成 text_to_text 任务之一，让 baseline 与 structured 各运行一次。
 - 由代码计算验收项，只输出 `READY_FOR_WRITING`、`RESEARCH_INCOMPLETE` 或 `NO_TOPIC`。
-- 状态：`implemented_pending_live_validation`。
+- 状态：`implemented_live_validation_verified_pending_local_activation`。第二次获准的真实 dry-run 已对 2026-08-14 Topic Decision 完成一次完整链路：两条 canonical 403 后安全降级到 2/2 个官方 RSS `feed_item`，Analyze 得到 `RESEARCH_INCOMPLETE`，baseline 与 structured 各成功运行一次；没有写正式 Research Pack，也没有激活生产 Runtime 或 LaunchAgent。
 
 研究之后的写作仍为 `not_started`：本阶段不生成平台无关母稿、公众号/X 正文、标题、配图或发布包。
 

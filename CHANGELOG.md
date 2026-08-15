@@ -13,6 +13,7 @@
 - 幂等判断移到当前来源获取和 hash 计算之后；hash 纳入获取方式、内容范围、canonical 状态与当前 Provider/模型/运行时/配置/Prompt/Schema。Analyze、Repair 和每个实验 Variant 均在调用前记录 attempt。
 - 记录 2026-08-14 真实 Research dry-run：两条获准 OpenAI 页面均返回 HTTP 403 JavaScript/Cookie challenge，系统在 Codex 前 fail-closed；未使用浏览器绕过，也未写正式 Research 输出。
 - 最新一次受限 dry-run 在两条 canonical 403 后从 OpenAI 官方 RSS 成功取得 2/2 个 `feed_item`；首次 Analyze 因旧 answered/Claim 附加约束返回 `codex_output_invalid`，准确记录 calls=1，未运行实验或写正式产物。该附加约束已按 `gap_impact` 规则移除并完成离线回归，未重复真实 dry-run。
+- 完成第二次获准的 2026-08-14 Research live dry-run：两条 canonical 各返回一次 403 后安全取得 2/2 个官方 RSS `feed_item`，Analyze 形成 2 条 partial Claim 和 answered / non-blocking partial / blocking unanswered 各 1 个答案，合法输出 `RESEARCH_INCOMPLETE`；未触发 Repair，baseline 与 structured 各成功运行一次、均为 6 pass / 2 fail，总计 3 次 Codex 调用。dry-run 未写正式 Research Pack、运行记录或报告，生产 Runtime 与 LaunchAgent 仍未激活。
 
 - 将每日选题生产 Provider 改为本机已登录的 Codex CLI：非交互 `codex exec`、显式模型、严格 JSON Schema、只读 Sandbox、无人工审批、隔离临时目录、2 MiB 输出上限和最小子进程环境；OpenAI API 仅保留为可选备用。
 - 将真实 Topic Selection 从 GitHub Actions 迁移到 Mac Local Runtime：新增 13:00—18:00 独立任务状态、最多 2 次尝试、Topic 数据 Git 白名单和 pending commit 恢复；PR/CI 不安装或 reload LaunchAgent。
