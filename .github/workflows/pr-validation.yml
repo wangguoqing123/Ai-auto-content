@@ -29,6 +29,9 @@ jobs:
       - name: Check product truth and content fit
         run: npm run product:check
 
+      - name: Check vendored writing Skills
+        run: npm run writing-skills:check
+
       - name: Check JSON Schema drift
         run: npm run schema:check
 
@@ -43,6 +46,12 @@ jobs:
 
       - name: Run offline research fixture
         run: npm run research:build -- --fixture --date=2026-08-14
+
+      - name: Run offline Style Profile distillation fixture
+        run: npm run style:distill -- --fixture
+
+      - name: Run offline writing lint fixture
+        run: npm run style:lint -- --fixture
 
       - name: Run offline local scheduler fixture
         run: npm run local:scheduler -- --once --fixture --dry-run --now=2026-08-14T00:00:00.000Z

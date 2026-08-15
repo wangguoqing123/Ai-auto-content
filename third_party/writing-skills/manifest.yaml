@@ -1,0 +1,77 @@
+schema_version: 1
+skills:
+  - id: human-writing
+    name: human-writing
+    version: 1.1.0
+    repository: https://github.com/KKKKhazix/human-writing
+    commit: 4fda173f3fef7fb808f3eba991eeb2528ea4b189
+    license: MIT
+    license_file: LICENSE
+    adaptation:
+      production_dependency: vendored_files_only
+      python_runtime_required: false
+      executable_allowlist:
+        - scripts/check_prose.py
+      responsibilities:
+        - material_gate
+        - speaking_position
+        - positive_chinese_longform_rules
+        - article_progression
+        - chinese_rhythm
+        - factual_boundary
+        - post_draft_revision
+        - deterministic_chinese_rule_source
+      exclusions:
+        - author_profile_creation
+        - full_text_serial_rewrite
+    files:
+      - path: LICENSE
+        sha256: 32ca81a9ae10dda7d18963c9eae733477073906b15ee498d02033c8966dbdcaa
+      - path: SKILL.md
+        sha256: 70a6e8c92ce74ac157e2ed11d022579aa67027610c47435a187296456008bcf3
+      - path: VERSION
+        sha256: 1575e1af4a95f12f70b4ee6a6adce8160953d93ea17dc2611b90883ccc3ad3b8
+      - path: agents/openai.yaml
+        sha256: 02b92cde5b47d90df37863f1cde3ababdec09a5406b1eb757a1d02a2f8ba8a3a
+      - path: dist/human-writing-lite.md
+        sha256: 52ba7c2fe1591d742a780e2d6ca2d6aa51dc430d88e2946fc4308470fa0bf884
+      - path: references/fiction.md
+        sha256: 6efea0c16f28b7ae2d3531a7e2413577e2f6e3c1945912b087c28a0da6d0ad83
+      - path: references/formats.md
+        sha256: dd63704550574cd562b55f24307815e9172a63320dcfcc6006b3eab0ccc406bb
+      - path: references/forum-prose.md
+        sha256: 20c22ad9c5c5c3f43ebae6bb7d258cfc42916413a82c2f95a0de9239541641dd
+      - path: references/reality.md
+        sha256: 02004e1fd4dba40d8d50260982ecead81ce3788c7269922b8311514fe8edd0e6
+      - path: references/revision.md
+        sha256: 2e7d8f74ace9d90e4805b6061b8015c91e6088166e5d224be185aba5a94e6592
+      - path: scripts/check_prose.py
+        sha256: 13110461036c25477963e19ce35c4a34df2a2d24a7132c909394370803822eea
+  - id: no-ai-slop
+    name: no-ai-slop
+    version: null
+    repository: https://github.com/petergyang/no-ai-slop
+    commit: d30eddb9e04562234f2070b5ee63ca4649d9a05e
+    license: MIT
+    license_file: LICENSE
+    adaptation:
+      production_dependency: vendored_files_only
+      python_runtime_required: false
+      executable_allowlist: []
+      responsibilities:
+        - post_draft_detect_only_review
+        - model_pattern_detection
+        - minimum_effective_change
+        - preserve_existing_voice
+        - reviewer_self_check
+      exclusions:
+        - first_draft_generation
+        - new_facts_examples_or_opinions
+        - full_text_rewrite
+    files:
+      - path: LICENSE
+        sha256: b7a7fe370cc4c9e974528c7cea7841cf8ac886bc9ed947edb11b289441fba4a8
+      - path: SKILL.md
+        sha256: 16719efd6dc6fe5978be7f6db41a474ca246970e5014acc057e29d7bfbd63b0e
+      - path: eval.md
+        sha256: d0625b5ab63aef355130bcc06d7c93a05bbb0279ab9d9bcf5fbd4176752f1c48

@@ -1,8 +1,8 @@
 ---
 title: 系统架构
-version: 0.3.0
-updated_at: 2026-08-14
-status: research_pack_implemented_pending_live_validation
+version: 0.4.0
+updated_at: 2026-08-15
+status: style_intelligence_implemented_pending_real_corpus
 ---
 
 # 系统架构
@@ -55,6 +55,22 @@ Topic Decision
 网络、Codex、文件或 Schema 故障保持 `status=failed`、`decision=null`。Research Pack 只提交短引用，不提交第三方完整网页；完整契约见 `docs/22-research-and-experiment-packs.md`。
 
 真实选题和研究不在 GitHub Actions 调用模型。Mac Local Runtime 复用 `RunAtLoad + StartInterval=900` 的 LaunchAgent：Morning 在 07:30—12:00，Topic Selection 在 13:00—18:00，Research Pack 在 13:30—21:00。Topic 与 Research 共用结构化 Codex Runner；最终校验、写盘和 Git 白名单提交仍由项目代码执行。
+
+写作前的风格智能 v0 已实现：
+
+```text
+本机 0700/0600 私有语料
+→ TypeScript 确定性节奏指标
+→ Fixture 或最多 Distill + Repair 两次只读 Codex 调用
+→ Style Profile（三类结果分开）
+→ 权重受限、可复现的 Style Recipe
+→ human-writing 正向规则
+→ 初稿后 revision + no-ai-slop detect-only
+→ 确定性 Lint + 仅本机语料防抄袭
+→ 人工修改反馈提案
+```
+
+真实语料不进入 Git，CI 只运行合成 Fixture。没有 owner Profile 时使用 editorial voice 与 human-writing baseline，不声称系统已经学会七天假的风格。完整契约见 `docs/23-style-intelligence-and-writing-skills.md`。
 
 ## 2. 架构原则
 
@@ -153,11 +169,11 @@ config/product.yaml                   config/content-fit.yaml
 
 ## 5. 后续模块边界
 
-PR #5 才增加每日自主选题或 `NO_PUBLISH`；之后再增加研究与内容生成、配图与发布包、平台数据回收、策略记忆。它们必须读取产品真相层，不能反向污染人物事实、产品交付状态和真实性规则。
+采集、产品真相、每日选题和研究已经进入 production。风格智能为 `implemented_pending_real_corpus`。PR #8 才消费 Research Pack、Style Recipe 和写作 Skill 生成正文；后续再增加配图与发布包、平台数据回收和策略记忆。它们必须读取产品真相层，不能反向污染人物事实、产品交付状态和真实性规则。
 
 当前不实现：
 
-- 自动选题、自动写作和多平台文案。
+- 正式正文、X 内容和多平台文案。
 - 图片生成、自动登录和自动发布。
 - 已发布内容的效果复盘和策略学习。
 - 数据库、管理后台、社交平台爬虫和反爬绕过。
@@ -178,7 +194,7 @@ COLLECTED
 → REVIEWED_PERFORMANCE
 ```
 
-当前采集器只负责到 `SCORED` 或 `REJECTED_LOW_VALUE`；产品真相层只提供约束和读取 API，二者都不越界产生选题或内容。
+当前风格智能只负责写作规则、Profile、Recipe、审查和反馈提案，不进入 `DRAFTING`，也不生成内容。
 
 ## 7. 安全与可追溯性
 
@@ -187,4 +203,5 @@ COLLECTED
 - 所有运行和来源结果都带时间、数量与状态。
 - 配置和输出通过 Zod 校验，损坏的去重状态不会被静默忽略。
 - 产品与内容承接配置使用 Draft 2020-12 JSON Schema，并由 `product:check` fail closed。
+- 写作 Skill 文件由 commit 与 SHA-256 固定；Style Profile/Recipe 使用 Draft 2020-12 JSON Schema，私有语料只保存在本机。
 - 自动提交只包含素材、运行日志、状态和日报目录。

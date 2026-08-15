@@ -6,16 +6,17 @@
 
 > 系统每天运行，但不要求每天发布。没有足够高质量的题目时，后续选题阶段必须允许输出 `NO_PUBLISH`。
 
-## 当前阶段：真实研究 dry-run 已验证，等待本机生产激活
+## 当前阶段：风格智能已实现，等待真实私有语料
 
-产品真相层、素材采集和每日选题已经进入 production。研究与实验 v0 只接受正式 `SELECT_TOPIC`，按 `canonical HTTP → 同一第一方官方 RSS item → 已保存官方 RSS 摘要 → unavailable` 获取 Topic 指定的 fact_source，保存本机清洗快照，精确核验短引用，回答原研究问题，并在需要时各运行一次 baseline / structured 合成文本实验。访问控制不会用浏览器、Cookie 或第三方代理绕过；摘要明确标记 `feed_excerpt`，不能补成完整正文。2026-08-15 的第二次获准真实 dry-run 已对 2026-08-14 Topic Decision 完成整条链路：两条 canonical 403 后取得 2/2 个官方 RSS `feed_item`，Analyze 输出合法 `RESEARCH_INCOMPLETE`，两个实验 Variant 各成功运行一次且未写正式文件。代码只输出 `READY_FOR_WRITING`、`RESEARCH_INCOMPLETE` 或 `NO_TOPIC`；全部来源不可用或 Provider 等基础设施故障保持 `status=failed`。本阶段仍不生成正文、配图或发布，也尚未激活生产 Research Runtime。
+产品真相层、素材采集、每日选题和研究已经进入 production。风格智能 v0 固定 human-writing 与 no-ai-slop，建立本机私有语料、Style Profile、Style Recipe、动态文章结构、确定性 Lint、防抄袭和人工改稿反馈提案。当前只使用离线 Fixture 验证，尚未导入七天假与参考作者的真实语料。本阶段不生成正文、X 内容、图片或发布包。
 
 | 系统阶段 | 状态 |
 |---|---|
 | 采集 | `production` |
 | 产品真相层 | `production` |
 | 每日选题 | `production` |
-| 研究与实验 | `implemented_live_validation_verified_pending_local_activation` |
+| 研究与实验 | `production` |
+| 风格智能 | `implemented_pending_real_corpus` |
 | 写作 | `not_started` |
 | 配图 | `not_started` |
 | 发布 | `not_started` |
@@ -56,12 +57,15 @@ Morning 的共享健康检查只以 Node、npm、OpenCLI、Chrome、daemon、Ext
 npm ci
 npm run typecheck
 npm run product:check
+npm run writing-skills:check
 npm run schema:check
 npm test
 npm run collect:fixture
 npm run topic:select -- --fixture --date=2026-08-14
 npm run topic:inspect-input -- --date=2026-08-14
 npm run research:build -- --fixture --date=2026-08-14
+npm run style:distill -- --fixture
+npm run style:lint -- --fixture
 npm run local:scheduler -- --once --fixture --dry-run --now=2026-08-14T05:30:00.000Z
 npm run local:morning -- --fixture --dry-run --now=2026-08-14T06:00:00.000Z
 npm run local:install -- --dry-run
@@ -155,6 +159,7 @@ reports/topics/YYYY-MM-DD.md        单一最终母题或 NO_PUBLISH 日报
 data/research-packs/YYYY-MM-DD/     Research Pack、短引用来源清单与合成实验结果
 data/research-runs/research_*.json  每次研究运行的安全审计记录
 reports/research/YYYY-MM-DD.md      不含正文的研究与实验报告
+~/Library/Application Support/AiAutoContent/style-corpus/  0700/0600 本机私有语料、反馈和 Profile 缓存，不进入 Git
 ```
 
 首次运行时，7 天以前的 RSS 只写入指纹状态，不写入当天素材；发布时间未知的素材进入 `quarantined`。缺失互动字段保存为 `null`，不以 0 冒充真实数据。
@@ -171,8 +176,10 @@ reports/research/YYYY-MM-DD.md      不含正文的研究与实验报告
 - `schemas/content-fit-profile.schema.json`：学习阶段、pillar、模块映射、适配上限与 CTA 契约，对应 `contentFitProfileSchema`。
 - `schemas/topic-decision.schema.json`：每日选题成功/失败、单一母题和最多 3 个候选契约，对应 `topicDecisionSchema`。
 - `schemas/research-pack.schema.json`：研究决定、来源短引用、Claim、问题答案、实验和写作门槛契约，对应 `researchPackSchema`。
+- `schemas/style-profile.schema.json`：三类风格蒸馏结果、确定性指标、版权与禁迁移契约，对应 `styleProfileSchema`。
+- `schemas/style-recipe.schema.json`：Owner/Reference/平台权重、动态文体选择和 fallback 契约，对应 `styleRecipeSchema`。
 
-六份提交文件都从 Zod Schema 生成。修改运行时模型后执行 `npm run schema:generate` 更新文件；`npm run schema:check` 会在临时目录重新生成并比较，发现漂移时返回非零退出码。PR CI 使用 Fixture 运行 Topic 与 Research 检查，不访问真实网页、平台或模型。
+八份提交文件都从 Zod Schema 生成。修改运行时模型后执行 `npm run schema:generate` 更新文件；`npm run schema:check` 会在临时目录重新生成并比较，发现漂移时返回非零退出码。PR CI 使用 Fixture 运行 Topic、Research、风格蒸馏和写作 Lint，不访问真实网页、平台或模型。
 
 ## 项目目标
 
@@ -218,6 +225,7 @@ reports/research/YYYY-MM-DD.md      不含正文的研究与实验报告
 20. `docs/20-product-truth-and-content-fit.md`
 21. `docs/21-daily-topic-intelligence.md`
 22. `docs/22-research-and-experiment-packs.md`
+23. `docs/23-style-intelligence-and-writing-skills.md`
 
 发生冲突时，真实性与合规规则、人物事实库和产品知识库优先。资料不足时必须标记 `UNKNOWN`，不得自行补全。
 

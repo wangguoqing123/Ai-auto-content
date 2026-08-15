@@ -1,0 +1,674 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/style-profile.schema.json",
+  "title": "Style Profile",
+  "type": "object",
+  "properties": {
+    "profile_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,100}$"
+    },
+    "profile_type": {
+      "type": "string",
+      "enum": [
+        "owner_voice",
+        "reference_technique",
+        "platform_convention"
+      ]
+    },
+    "rights_status": {
+      "type": "string",
+      "enum": [
+        "owned_by_user",
+        "licensed",
+        "public_reference"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "insufficient_samples"
+      ]
+    },
+    "platforms": {
+      "maxItems": 10,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      }
+    },
+    "content_types": {
+      "maxItems": 10,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      }
+    },
+    "sample_count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "corpus_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "quantitative_features": {
+      "type": "object",
+      "properties": {
+        "sample_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "chinese_char_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "sentence_length_p10": {
+          "type": "number",
+          "minimum": 0
+        },
+        "sentence_length_p50": {
+          "type": "number",
+          "minimum": 0
+        },
+        "sentence_length_p90": {
+          "type": "number",
+          "minimum": 0
+        },
+        "sentence_length_cv": {
+          "type": "number",
+          "minimum": 0
+        },
+        "paragraph_length_p10": {
+          "type": "number",
+          "minimum": 0
+        },
+        "paragraph_length_p50": {
+          "type": "number",
+          "minimum": 0
+        },
+        "paragraph_length_p90": {
+          "type": "number",
+          "minimum": 0
+        },
+        "one_sentence_paragraph_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "first_person_ratio": {
+          "type": "number",
+          "minimum": 0
+        },
+        "question_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "exclamation_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "conjunction_density": {
+          "type": "number",
+          "minimum": 0
+        },
+        "abstract_noun_density": {
+          "type": "number",
+          "minimum": 0
+        },
+        "action_verb_density": {
+          "type": "number",
+          "minimum": 0
+        },
+        "numerical_detail_density": {
+          "type": "number",
+          "minimum": 0
+        },
+        "example_density": {
+          "type": "number",
+          "minimum": 0
+        },
+        "evidence_distance": {
+          "type": "number",
+          "minimum": 0
+        },
+        "heading_density": {
+          "type": "number",
+          "minimum": 0
+        },
+        "list_density": {
+          "type": "number",
+          "minimum": 0
+        },
+        "opening_type_distribution": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "ending_type_distribution": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "cta_position_distribution": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "title_length_distribution": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      },
+      "required": [
+        "sample_count",
+        "chinese_char_count",
+        "sentence_length_p10",
+        "sentence_length_p50",
+        "sentence_length_p90",
+        "sentence_length_cv",
+        "paragraph_length_p10",
+        "paragraph_length_p50",
+        "paragraph_length_p90",
+        "one_sentence_paragraph_ratio",
+        "first_person_ratio",
+        "question_ratio",
+        "exclamation_ratio",
+        "conjunction_density",
+        "abstract_noun_density",
+        "action_verb_density",
+        "numerical_detail_density",
+        "example_density",
+        "evidence_distance",
+        "heading_density",
+        "list_density",
+        "opening_type_distribution",
+        "ending_type_distribution",
+        "cta_position_distribution",
+        "title_length_distribution"
+      ],
+      "additionalProperties": false
+    },
+    "voice_signals": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    },
+    "structural_patterns": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    },
+    "explanation_patterns": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    },
+    "evidence_patterns": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    },
+    "cta_patterns": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    },
+    "positive_rules": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    },
+    "anti_patterns": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    },
+    "preferred_terms": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    },
+    "forbidden_transfer": {
+      "maxItems": 6,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "personal_experience",
+          "personal_identity",
+          "signature_phrase",
+          "unique_metaphor",
+          "factual_claim",
+          "client_or_student_story"
+        ]
+      }
+    },
+    "content_pattern_profile": {
+      "type": "object",
+      "properties": {
+        "topic_entries": {
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "problem_definitions": {
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "evidence_placement": {
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "progression_patterns": {
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "ending_patterns": {
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        }
+      },
+      "required": [
+        "topic_entries",
+        "problem_definitions",
+        "evidence_placement",
+        "progression_patterns",
+        "ending_patterns"
+      ],
+      "additionalProperties": false
+    },
+    "language_style_profile": {
+      "type": "object",
+      "properties": {
+        "rhythm_observations": {
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "first_person_usage": {
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "question_usage": {
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "transition_patterns": {
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "abstraction_and_action": {
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "judgment_and_uncertainty": {
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "humor_and_asides": {
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        }
+      },
+      "required": [
+        "rhythm_observations",
+        "first_person_usage",
+        "question_usage",
+        "transition_patterns",
+        "abstraction_and_action",
+        "judgment_and_uncertainty",
+        "humor_and_asides"
+      ],
+      "additionalProperties": false
+    },
+    "conversion_pattern_profile": {
+      "type": "object",
+      "properties": {
+        "cta_positions": {
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "cta_length_patterns": {
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "free_value_completeness": {
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "product_connections": {
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "anxiety_patterns": {
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "omitted_step_patterns": {
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        }
+      },
+      "required": [
+        "cta_positions",
+        "cta_length_patterns",
+        "free_value_completeness",
+        "product_connections",
+        "anxiety_patterns",
+        "omitted_step_patterns"
+      ],
+      "additionalProperties": false
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+    },
+    "version": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+    }
+  },
+  "required": [
+    "profile_id",
+    "profile_type",
+    "rights_status",
+    "status",
+    "platforms",
+    "content_types",
+    "sample_count",
+    "corpus_hash",
+    "quantitative_features",
+    "voice_signals",
+    "structural_patterns",
+    "explanation_patterns",
+    "evidence_patterns",
+    "cta_patterns",
+    "positive_rules",
+    "anti_patterns",
+    "preferred_terms",
+    "forbidden_transfer",
+    "content_pattern_profile",
+    "language_style_profile",
+    "conversion_pattern_profile",
+    "confidence",
+    "created_at",
+    "version"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "sample_count": {
+            "type": "integer",
+            "maximum": 7
+          }
+        },
+        "required": [
+          "sample_count"
+        ]
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "insufficient_samples"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "sample_count": {
+            "type": "integer",
+            "minimum": 8
+          }
+        },
+        "required": [
+          "sample_count"
+        ]
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "ready"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "rights_status": {
+            "const": "public_reference"
+          }
+        },
+        "required": [
+          "rights_status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "profile_type": {
+            "const": "reference_technique"
+          },
+          "preferred_terms": {
+            "type": "array",
+            "maxItems": 0
+          },
+          "forbidden_transfer": {
+            "type": "array",
+            "allOf": [
+              {
+                "contains": {
+                  "const": "personal_experience"
+                },
+                "minContains": 1
+              },
+              {
+                "contains": {
+                  "const": "personal_identity"
+                },
+                "minContains": 1
+              },
+              {
+                "contains": {
+                  "const": "signature_phrase"
+                },
+                "minContains": 1
+              },
+              {
+                "contains": {
+                  "const": "unique_metaphor"
+                },
+                "minContains": 1
+              },
+              {
+                "contains": {
+                  "const": "factual_claim"
+                },
+                "minContains": 1
+              },
+              {
+                "contains": {
+                  "const": "client_or_student_story"
+                },
+                "minContains": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "profile_type",
+          "preferred_terms",
+          "forbidden_transfer"
+        ]
+      }
+    }
+  ]
+}

@@ -89,7 +89,8 @@ status: approved
 | 采集 | `production` |
 | 产品真相层 | `production` |
 | 每日选题 | `production` |
-| 研究与实验 | `implemented_live_validation_verified_pending_local_activation` |
+| 研究与实验 | `production` |
+| 风格智能 | `implemented_pending_real_corpus` |
 | 写作 | `not_started` |
 | 配图 | `not_started` |
 | 发布 | `not_started` |
@@ -100,9 +101,17 @@ status: approved
 - 只抓原 Topic 指定的 fact_source canonical URL，并执行 SSRF、类型、大小、超时和版权边界。
 - 使用三个合成 text_to_text 任务之一，让 baseline 与 structured 各运行一次。
 - 由代码计算验收项，只输出 `READY_FOR_WRITING`、`RESEARCH_INCOMPLETE` 或 `NO_TOPIC`。
-- 状态：`implemented_live_validation_verified_pending_local_activation`。第二次获准的真实 dry-run 已对 2026-08-14 Topic Decision 完成一次完整链路：两条 canonical 403 后安全降级到 2/2 个官方 RSS `feed_item`，Analyze 得到 `RESEARCH_INCOMPLETE`，baseline 与 structured 各成功运行一次；没有写正式 Research Pack，也没有激活生产 Runtime 或 LaunchAgent。
+- 状态：`production`。Research Pack、证据核验、安全实验与本机运行边界已经完成；历史 live dry-run 证据保留在 `docs/22-research-and-experiment-packs.md`。
 
-研究之后的写作仍为 `not_started`：本阶段不生成平台无关母稿、公众号/X 正文、标题、配图或发布包。
+## 阶段 3.5：风格智能与写作 Skill 编排
+
+- 固定 human-writing `4fda173f3fef7fb808f3eba991eeb2528ea4b189` 与 no-ai-slop `d30eddb9e04562234f2070b5ee63ca4649d9a05e`，保留 MIT License 和文件 SHA-256。
+- 建立 0700/0600 本机私有语料、Style Profile、Style Recipe、动态文章结构和最多两次的只读 Codex 蒸馏边界。
+- human-writing 负责正向中文写法与初稿后修订；no-ai-slop 只做 detect-only Reviewer，禁止串行全文重写。
+- 增加确定性 Lint、本机防抄袭和至少三次一致人工改稿后的 `proposed_profile_delta`。
+- 状态：`implemented_pending_real_corpus`。CI 只运行 Fixture，真实七天假与参考作者语料尚未导入。
+
+研究之后的正式写作仍为 `not_started`。PR #8 才生成平台无关母稿、公众号/X 正文或标题；本阶段不生成正文、配图或发布包。
 
 ## 阶段 4：配图与发布包
 

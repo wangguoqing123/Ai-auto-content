@@ -7,10 +7,23 @@ import { productProfileSchema } from '../src/product/product-profile.js';
 import { materialSchema, unifiedMaterialSchema } from '../src/types.js';
 import { topicDecisionSchema } from '../src/topic-intelligence/schemas.js';
 import { researchPackSchema } from '../src/research/schemas.js';
+import { styleProfileSchema, styleRecipeSchema } from '../src/style-intelligence/schemas.js';
 
 const JSON_SCHEMA_DRAFT = 'https://json-schema.org/draft/2020-12/schema';
 
 const schemas = [
+  {
+    filename: 'style-profile.schema.json',
+    id: 'https://example.local/schemas/style-profile.schema.json',
+    title: 'Style Profile',
+    schema: styleProfileSchema,
+  },
+  {
+    filename: 'style-recipe.schema.json',
+    id: 'https://example.local/schemas/style-recipe.schema.json',
+    title: 'Style Recipe',
+    schema: styleRecipeSchema,
+  },
   {
     filename: 'research-pack.schema.json',
     id: 'https://example.local/schemas/research-pack.schema.json',
@@ -87,6 +100,65 @@ function serializeSchema(schema: ZodType, id: string, title: string): string {
             error_code: { not: { type: 'null' } },
           },
           required: ['decision', 'selected_topic', 'error_code'],
+        },
+      },
+    ];
+  }
+  if (title === 'Style Profile') {
+    const forbiddenTransfers = [
+      'personal_experience', 'personal_identity', 'signature_phrase', 'unique_metaphor',
+      'factual_claim', 'client_or_student_story',
+    ];
+    document.allOf = [
+      {
+        if: { properties: { sample_count: { type: 'integer', maximum: 7 } }, required: ['sample_count'] },
+        then: { properties: { status: { const: 'insufficient_samples' } }, required: ['status'] },
+      },
+      {
+        if: { properties: { sample_count: { type: 'integer', minimum: 8 } }, required: ['sample_count'] },
+        then: { properties: { status: { const: 'ready' } }, required: ['status'] },
+      },
+      {
+        if: { properties: { rights_status: { const: 'public_reference' } }, required: ['rights_status'] },
+        then: {
+          properties: {
+            profile_type: { const: 'reference_technique' },
+            preferred_terms: { type: 'array', maxItems: 0 },
+            forbidden_transfer: {
+              type: 'array',
+              allOf: forbiddenTransfers.map((value) => ({ contains: { const: value }, minContains: 1 })),
+            },
+          },
+          required: ['profile_type', 'preferred_terms', 'forbidden_transfer'],
+        },
+      },
+    ];
+  }
+  if (title === 'Style Recipe') {
+    document.allOf = [
+      {
+        if: { properties: { primary_owner_profile: { type: 'string' } }, required: ['primary_owner_profile'] },
+        then: {
+          properties: {
+            fallback_mode: { const: 'owner_profile' },
+            claims_owner_voice_learned: { const: true },
+            source_weights: { type: 'object', properties: { owner: { type: 'number', minimum: 0.6 } }, required: ['owner'] },
+          },
+        },
+      },
+      {
+        if: { properties: { primary_owner_profile: { type: 'null' } }, required: ['primary_owner_profile'] },
+        then: {
+          properties: {
+            fallback_mode: { const: 'editorial_voice_human_writing' },
+            claims_owner_voice_learned: { const: false },
+            reference_profiles: { type: 'array', maxItems: 0 },
+            source_weights: {
+              type: 'object',
+              properties: { owner: { type: 'number', const: 0 }, references: { type: 'array', maxItems: 0 } },
+              required: ['owner', 'references'],
+            },
+          },
         },
       },
     ];

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- 固定 vendored human-writing 1.1.0（`4fda173f3fef7fb808f3eba991eeb2528ea4b189`）与 no-ai-slop（`d30eddb9e04562234f2070b5ee63ca4649d9a05e`），保留 MIT License、上游 URL、逐文件 SHA-256 和已知可执行文件 allowlist；CI 不联网下载 Skill。
+- 增加本机 0700/0600 私有 style corpus，支持 Markdown、纯文本和 JSONL 导入；完整文章、反馈和 Profile 缓存不进入 Git，也不自动抓取作者内容。
+- 增加严格 Style Profile 与 Style Recipe Schema，分离内容、语言和转化模式，计算确定性节奏指标，并限制 owner/reference/platform 权重与最多两个参考 Profile。
+- 复用只读 Codex structured runner 完成最多 Distill + Repair 两次风格蒸馏；CI 与本 PR 验收只用离线 Fixture，不调用真实 Codex。
+- 增加动态 article type 结构、human-writing 前后阶段 adapter、no-ai-slop detect-only Reviewer、规则优先级、上下文敏感 TypeScript Lint 和本机防抄袭。
+- 增加人工改稿反馈记录；一次改稿不更新 Profile，三次一致修改只产生待用户批准的 `proposed_profile_delta`。
+- 本阶段不生成正式公众号文章、X 内容、图片或发布包，也不访问 X、公众号、Browser Bridge、生产 Runtime、Scheduler 或 LaunchAgent。
+
 - 增加自动研究、证据核验与安全实验包 v0：严格消费正式 Topic Decision，只输出 `READY_FOR_WRITING`、`RESEARCH_INCOMPLETE` 或 `NO_TOPIC`，基础设施故障保持 failed。
 - 增加公共 URL 与 SSRF 防护：HTTP(S)/80/443、每次请求和重定向 DNS 全地址检查、固定已验证 IP、20 秒超时、2 MiB 上限和 Content-Type 白名单。
 - 增加本机 0700/0600 研究缓存、7 天清理命令和第三方版权边界；Git 只保存精确短引用，单条 500 字符、单来源合计 1,500 字符。
