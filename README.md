@@ -8,7 +8,9 @@
 
 ## 当前阶段：风格智能已实现，等待真实私有语料
 
-产品真相层、素材采集、每日选题和研究已经进入 production。风格智能 v0 固定 human-writing 与 no-ai-slop，建立本机私有语料、Style Profile、Style Recipe、动态文章结构、确定性 Lint、防抄袭和人工改稿反馈提案。当前只使用离线 Fixture 验证，尚未导入七天假与参考作者的真实语料。本阶段不生成正文、X 内容、图片或发布包。
+产品真相层、素材采集、每日选题和研究已经进入 production。风格智能 v0 固定 human-writing 与 no-ai-slop，并用可审计 Adaptation Map 连接内部规则；本机私有语料具备逐篇来源、权利依据和显式模型处理授权，Style Recipe 的权重会真实改变带来源的 `selected_rules`，Research Quote 只能从 READY_FOR_WRITING Pack 严格解析，公共参考还需要本机 Protected Transfer Index。当前只使用合成 Fixture，尚未导入七天假与参考作者的真实语料，也没有声称已经学会七天假的风格。本阶段不生成正文、X 内容、图片或发布包。
+
+> 本机 Codex CLI 不是离线模型。只有导入时明确 `model_processing=allowed` 的语料才可发送给 Codex 服务；任一文档 denied 时只计算本地指标，零模型调用。Protected Index 只供 Reviewer 使用，绝不进入 Writer。
 
 | 系统阶段 | 状态 |
 |---|---|

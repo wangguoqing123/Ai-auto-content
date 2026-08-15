@@ -1,56 +1,34 @@
 ---
 title: 写作 Skill 编排与风格智能 v0
-version: 1.0.0
+version: 1.1.0
 updated_at: 2026-08-15
 status: implemented_pending_real_corpus
 ---
 
 # 写作 Skill 编排与风格智能 v0
 
-本阶段建立写作前的规则、风格和审查底盘，只运行离线 Fixture。它不生成公众号正文、X 内容或图片，也不发布内容。真实写作由 PR #8 接入。
+本阶段只建立写作前的规则、风格和审查底盘。当前验收全部使用合成 Fixture：没有导入七天假或参考作者的真实语料，没有调用真实 Codex，没有生成公众号正文、X 内容或图片，也没有发布。
 
-## 1. 两个固定 Skill
+## 1. 固定 Skill 与可审计适配
 
-| Skill | 固定版本 | 许可证 | 在系统中的职责 |
-|---|---|---|---|
-| `human-writing` | `1.1.0` / `4fda173f3fef7fb808f3eba991eeb2528ea4b189` | MIT | 材料门槛、说话位置、中文正向写法、文章推进、节奏、事实边界和初稿后修订 |
-| `no-ai-slop` | `d30eddb9e04562234f2070b5ee63ca4649d9a05e` | MIT | 初稿后的 detect-only 审查、模型化结构识别、最小有效修改和 Reviewer 自检 |
+| Skill | 固定版本 | 职责 |
+|---|---|---|
+| `human-writing` | `1.1.0` / `4fda173f3fef7fb808f3eba991eeb2528ea4b189` | 材料门槛、中文正向写法、事实边界和初稿后修订 |
+| `no-ai-slop` | `d30eddb9e04562234f2070b5ee63ca4649d9a05e` | 初稿后的 detect-only 审查和最小有效修改 |
 
-文件固定在 `third_party/writing-skills/`。`manifest.yaml` 保存上游 URL、commit、版本、License、每个文件的 SHA-256 和已知可执行文件。`npm run writing-skills:check` 在本地检查这些内容，不从网络下载最新版，也不依赖全局 Skill 安装。
+上游文件、MIT License、commit 和逐文件 SHA-256 固定在 `third_party/writing-skills/manifest.yaml`。`adaptation-map.yaml` 再把每个内部规则映射到 Skill commit、已固定的来源文件、章节、适配方式和严重度。项目自建规则必须标成 `project_override`，不能伪装成第三方规则。
 
-human-writing 的 Python 脚本只作为规则来源和 Fixture 对照。生产 Runtime 继续只依赖 Node.js 和 TypeScript。
+Adapter 只消费审计后的内部映射，不会在运行时把上游 `SKILL.md` 或 `eval.md` 当成 Prompt 执行，也不依赖全局 Skill 安装。每个 `WritingIssue` 都保存 `rule_origin` 与 `source_commit`。
 
 ## 2. 编排边界
 
-human-writing 在第一稿前只提供材料门槛、说话位置、当前文体结构和正向规则。详细 revision rules 只能在初稿完成后加载。它不创建作者画像。
+human-writing 在第一稿前只提供材料门槛、说话位置、当前文体结构和正向规则；详细 revision rules 只能在初稿后使用。no-ai-slop 不生成第一稿，只返回定位明确的 Issue，不全文重写，也不新增事实、案例、观点或个人经历。
 
-no-ai-slop 不生成第一稿，只返回以下 Reviewer 字段：
+事实和硬约束优先于风格：Research 证据、Persona、Product Claim、平台规则、Owner Profile、当前 Recipe、human-writing、no-ai-slop 依次降级。风格规则不能改写事实。
 
-- `issue_code`
-- `pattern`
-- `quoted_text`
-- `location`
-- `severity`
-- `repair_constraint`
+## 3. Corpus 来源、权利与模型处理授权
 
-Reviewer 不返回全文重写，不新增事实、案例、观点或个人经历。两个 Skill 不会依次重写同一篇全文。连续重写会把已经存在的个人声音磨平，还可能让第二次改写覆盖第一次保留的事实边界。
-
-规则冲突按以下顺序处理：
-
-1. Research 事实与证据
-2. Persona 事实
-3. Product Claim
-4. 平台硬规则
-5. 七天假 Style Profile
-6. 当前 Style Recipe
-7. human-writing 正向规则
-8. no-ai-slop 审查规则
-
-风格规则不能改写事实、产品或平台规则。问题分为 `hard_blocker`、`blocking_style_issue`、`warning` 和 `profile_preference`。只有真实性、抄袭、产品、平台或可读性问题会阻止交付。
-
-## 3. 本机私有语料
-
-默认位置：
+默认私有目录：
 
 ```text
 ~/Library/Application Support/AiAutoContent/style-corpus/
@@ -59,82 +37,95 @@ Reviewer 不返回全文重写，不新增事实、案例、观点或个人经�
 ├── references/
 ├── feedback/
 └── cache/
+    └── protected/
 ```
 
-目录权限固定为 `0700`，文件固定为 `0600`。导入器支持 Markdown、纯文本和 JSONL，并拒绝把 corpus root 放进当前 Git 仓库。`.gitignore` 另有防护。完整文章、用户改稿和 Profile 缓存都只保存在本机。
+目录固定 `0700`，文件固定 `0600`，并且 corpus root 必须在 Git 仓库外。每篇 `CorpusDocument` 除正文、Profile、平台和内容类型外，还必须记录：
 
-语料来源声明包含：
+- `content_sha256`
+- `source.creator_id`、`creator_display_name`、`canonical_url`、`platform_item_id`、`published_at`、`source_filename`
+- `rights.basis`、`permission_reference`、`confirmed_at`
+- `model_processing.allowed`、`provider_scope`、`consent_recorded_at`
 
-- `rights_status`: `owned_by_user`、`licensed`、`public_reference`
-- `profile_type`: `owner_voice`、`reference_technique`、`platform_convention`
+`owned_by_user` 只接受 `user_owned`；`licensed` 只接受 `explicit_license`；`public_reference` 只接受 `public_reference_analysis`，且必须有 creator、HTTP(S) URL、平台，并只能生成 `reference_technique`。
 
-v0 不自动抓取作者内容，不访问 X、公众号或其他平台。每个参考 Profile 至少需要 8 篇，少于 8 篇时状态为 `insufficient_samples`，不能进入正式 Style Recipe。20 至 30 篇是建议范围，不是代码硬门槛。
+`model_processing.allowed` 必须在导入时明确传 `allowed` 或 `denied`，没有默认 true。JSONL 可以逐条覆盖 source、rights 和 model-processing 元数据。相同 Profile 内，重复 `content_sha256` 或相同 `canonical_url + platform_item_id` 不会重复导入，也不会增加 sample count。
 
-## 4. 风格蒸馏与作者模仿的区别
+本机 Codex CLI 不是离线模型。只有明确 `allowed` 且 `provider_scope=codex_cli` 的语料，才会作为模型输入发送给 Codex 服务；程序不输出认证信息。任一文档为 denied 时，蒸馏不调用 Provider，只计算本地确定性指标，Profile 状态为 `processing_not_allowed`，不能进入正式 Recipe。
 
-风格蒸馏只保留可以跨主题使用的抽象技巧和统计特征。它不迁移参考作者的身份、观点、个人经历、标志性口头禅、专属比喻、事实 Claim 或客户故事，也不产生“模仿某某”的 Prompt。
+## 4. 输入预算与 Profile 内容审计
 
-`owned_by_user` 可以学习词汇偏好、节奏和稳定判断方式，但历史事实不会自动升级为当前事实。`public_reference` 的 `preferred_terms` 在 v0 固定为空，输出必须带完整 `forbidden_transfer` 清单。模型输出中的来源原句和个人经历会再次由代码过滤。
+确定性输入预算为最多 30 篇、每篇 12,000 字符、合计 240,000 字符。超限时从文档集合及每篇正文的开头、中段、结尾确定性取样，标题单独保留，因此结尾 CTA 位置仍在输入中。Profile 记录逐篇和汇总的原始字符、提交字符、覆盖率和截断状态；`corpus_hash` 基于完整原文，`model_input_hash` 基于实际模型输入。覆盖率下降时，confidence 上限同步下降。
 
-Codex 风格 provider 复用 `src/local-agent/codex-structured-runner.ts`。一次蒸馏最多调用两次，第一次 Distill，结构非法时允许一次 Repair。语料作为 `untrusted_content`，只读 Runner 不访问链接、不调用工具、不执行语料命令，也不生成文章。CI 和本 PR 验收只使用 Fixture provider。
+`evidence_distance` 先在每篇文档内部计算，再按有效判断数量加权；上一篇的数字不会被当成下一篇判断的证据。
 
-## 5. Style Profile
+Public Reference Profile 只保存抽象 structure、explanation、evidence placement 和 CTA 技巧，不保存 voice、preferred terms、身份、经历、事实、原句、口头禅或专属比喻。Owner Profile 也拒绝 URL、年份事件、金额或收入、客户/学员故事、未抽象的个人事件、原文长句和具体事实数字。内容审计失败时最多 Repair 一次，Repair 后仍有事实就终止 Profile 生成。
 
-`schemas/style-profile.schema.json` 把结果分成三类：
+## 5. Protected Transfer Index
 
-- `content_pattern_profile`: 选题进入、问题定义、证据位置、推进和结束方式
-- `language_style_profile`: 句段节奏、第一人称、问句、转折、抽象词与动作词、判断强度和插话方式
-- `conversion_pattern_profile`: CTA 位置和长度、免费内容完整度、产品连接、焦虑和步骤省略
+每个 Public Reference Profile 的本机 Reviewer Index 保存到 `cache/protected/<profile_id>.protected.json`。条目可标记 `signature_phrase`、`unique_metaphor`、`personal_experience_entity` 或 `distinctive_short_fragment`，必须记录来源文档，并由代码确认 `text` 是原文连续精确子串；口头禅至少含 4 个中文字符。
 
-TypeScript 在本地确定性计算 sample count、中文字数、句长和段长分位数、句长 CV、单句段比例、第一人称与标点比例、连接词/抽象名词/动作词/数字/例子密度、证据距离、标题/列表密度、开头/结尾/CTA/标题长度分布。指标只描述语料，不等于好坏，也不产生“真人分数”。
+Protected Index 只供 plagiarism Reviewer 使用，绝不进入 Style Profile、Style Recipe、Writer Prompt 或 Git。Guard 自动加载当前公共参考 Profile 对应的 Index，检查短口头禅、专属比喻、个人实体和独特短片段。缺 Index 的公共 Reference Profile 只能用于 Fixture 或 metrics-only，不能进入正式写作 Recipe。
 
-## 6. Style Recipe
+## 6. Style Recipe：权重真实选择规则
 
-`schemas/style-recipe.schema.json` 约束每篇写作前选择的少量技巧：
+`selected_rules` 是 Recipe 的唯一事实源。每条规则都含 `rule_id`、category、text、`source_role`、`source_profile_id`、`source_weight` 和 `selection_reason`；便捷数组完全由它派生。
 
-- owner 权重至少 `0.60`
-- 所有 reference 合计不超过 `0.30`
-- 单个 reference 不超过 `0.20`
-- 一次最多两个 reference Profile
-- 平台权重不超过 `0.15`
+有 Owner 时：
 
-没有可用 owner Profile 时，Recipe 进入 `editorial_voice_human_writing` fallback，不加入参考作者，也不声称系统已经学会七天假的风格。`recipe_hash` 由规范化输入确定性生成，相同输入得到相同结果。
+```text
+owner_weight = 1 - reference_total - platform_weight
+owner_weight >= 0.60
+reference_total <= 0.30
+each_reference <= 0.20
+platform_weight <= 0.15
+baseline_weight = 0
+```
 
-## 7. 动态文章结构
+没有 Owner 时，Reference 必须为空，`baseline_weight = 1 - platform_weight`，且不能声称已学习七天假声音。Platform 仍可贡献组织、格式、长度与阅读规则，但永远不能贡献 voice。
 
-全局固定 3 到 5 步的规则已经移除。结构按 `article_type` 选择：
+选择器按来源权重计算确定性配额，再做确定性交错；非零 Reference 和 Platform 只要有可用规则就至少进入一条。改变权重会改变配额或顺序，而不只是改元数据。Reference 不提供 voice、个人经历、身份或 preferred terms。所有权重以 `1e-9` 容差检查总和为 1，相同输入稳定产生相同 `recipe_hash`。
 
-| 类型 | 结构 |
-|---|---|
-| `tutorial` | 任务、卡点、步骤、交付物、验收、失败处理 |
-| `analysis` | 判断、证据、机制、用户影响、边界、行动 |
-| `case_breakdown` | 背景、关键选择、过程、结果、可复用与不可复用 |
-| `opinion` | 争议、判断、依据、最强反方、边界、下一步 |
-| `checklist` | 场景、判断标准、清单、误用、建议 |
+## 7. Research Quote 严格授权
 
-只有 tutorial 和 checklist 强制包含步骤或清单。
+Plagiarism Guard 不接受调用者自由构造的 `claim_id + quote`。`style:lint --research-pack <path>` 先用 `researchPackSchema` 验证 Pack，只有 `status=success`、`decision=READY_FOR_WRITING`、存在的 direct Claim（或明确允许的 partial）、非空且完全一致的 quote/source_id/segment_id，才能生成不可伪造且运行时复验的内部豁免对象。
 
-## 8. 确定性 Lint 与防抄袭
+即使通过授权，quote 仍必须在公开正文中放在中文/英文引号或 Markdown 引用块内；把引用改成作者自己的叙述不会豁免。没有 `--research-pack` 时没有任何 Quote 豁免。
 
-TypeScript Lint 检查翻案腔、假洞察、机械排比、重复段落作用、过度整齐句长、连续短句、商业黑话、模型路标、名词化、同义词轮换和不合格结尾。冒号和破折号按上下文处理。代码、URL、Markdown 元数据、正常教程列表标签和来源字段不会被机械报错。
+## 8. Lint 的能力边界
 
-防抄袭只把待审内容与本机语料比较，不上传第三方语料。检测包含最长连续字符、中文 12-gram 重合、标志性短语、专属比喻和个人经历实体。Research Pack 中精确授权并映射合法 Claim ID 的 quote 可以豁免。public reference 的未授权长句重合是 `hard_blocker`，不能改几个词后重试，必须重新组织观点和结构。
+Raw Markdown Lint 不做不可靠的指代消解。“工具、应用、平台、系统”同时出现不再触发 `synonym_cycling`。只有结构化 `EntityNamingAudit` 已确认同一个 `entity_id` 在相邻内容块无原因换名，才会 blocking。
 
-## 9. 人工修改反馈
+`商业闭环`、`价值闭环`、`迭代闭环`、`赋能`、`组合拳`、`降本增效` 是 blocking；`学习闭环`、`反馈闭环`、`执行闭环`、`颗粒度`、`协同`、`方法论` 默认只是 warning，需要结合是否替代了具体动作与结果判断。完全相同段落的 Issue 名为 `exact_duplicate_paragraph`，不声称能检测语义重复。
 
-最终人工改稿保存在 `style-corpus/feedback/`，包含 before、after、接受和拒绝的修改、reason labels、平台、文体和时间。一次修改不会改变 Profile。至少三次同方向修改后，系统只生成 `proposed_profile_delta`，仍需用户明确批准才能升级 Profile 版本。
+代码、URL、Markdown 元数据、来源字段和正常教程列表继续排除机械误报。
 
-## 10. 命令
+## 9. 三次一致反馈
+
+反馈保存 writing pack、写作输入 hash、初稿 hash、Profile ID/版本、change signature，以及结构化 accepted/rejected change。Proposal 不是按 reason labels 凑三次，而是要求：
+
+- 同一 `change_signature` 至少被接受 3 次
+- 来自至少 3 个不同 `writing_pack_id` 和 3 个不同 `draft_hash`
+- 平台一致
+- article type 一致，或每条都明确 `cross_type`
+- 同一 signature 没有任何 rejection
+
+Proposal 保存 `supporting_feedback_ids` 和 `conflict_count=0`，状态仍是 `proposal_only`，不会自动修改 Profile。
+
+## 10. 命令边界
 
 ```bash
 npm run writing-skills:check
-npm run style:import -- --source <file> --profile-id <id> --profile-type owner_voice --rights-status owned_by_user --platform wechat --content-type tutorial
+npm run style:import -- \
+  --source <file> --profile-id <id> --profile-type owner_voice --rights-status owned_by_user \
+  --platform wechat --content-type tutorial --creator-id <id> --creator-name <name> \
+  --platform-item-id <id> --published-at <iso> --rights-basis user_owned \
+  --permission-reference <record> --rights-confirmed-at <iso> \
+  --model-processing allowed --consent-recorded-at <iso>
 npm run style:inspect
 npm run style:distill -- --fixture
-npm run style:feedback -- --before <file> --after <file> --reason-labels more_concrete --platform wechat --article-type tutorial
 npm run style:lint -- --fixture
+npm run style:lint -- --draft <file> --research-pack <ready-pack.json>
 ```
 
-## 11. PR #8 的消费方式
-
-PR #8 只能在 Research Pack 达到写作门槛后调用这些能力。顺序是：加载事实和产品约束，选择 Style Recipe，加载 human-writing 初稿前规则，生成一份初稿，再加载 revision rules 和 no-ai-slop detect-only Reviewer，运行确定性 Lint 与防抄袭，最后等待人工确认。PR #8 不能恢复串行全文重写，也不能把 Fixture 成功当成真实七天假语料已经接入。
+真实语料导入前仍需要用户提供每篇来源、权利依据和明确的模型处理授权，并为每个公共 Reference Profile 建好经精确子串验证的 Protected Index。满足这些输入条件不等于自动生成或发布内容；PR #8 仍需单独接入写作和人工确认。
