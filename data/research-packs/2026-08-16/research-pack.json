@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "research_date": "2026-08-16",
+  "run_id": "research_2026-08-16T05-42-29-811Z",
+  "status": "success",
+  "decision": "NO_TOPIC",
+  "topic": null,
+  "input_hash": "47c855df7385fa9ac8412df0c3080ab5462f661630b5df9450f5c3e5563a7098",
+  "source_summary": {
+    "requested": 0,
+    "fetched": 0,
+    "failed": 0,
+    "unsupported_content_type": 0,
+    "canonical_success": 0,
+    "canonical_blocked": 0,
+    "rss_replay_success": 0,
+    "persisted_excerpt_used": 0,
+    "unavailable": 0
+  },
+  "sources": [],
+  "verified_claims": [],
+  "research_answers": [],
+  "experiment": null,
+  "writing_requirements": {
+    "main_promise": "No topic was selected for this date.",
+    "minimum_result": "Do not enter the writing stage.",
+    "required_claim_ids": [],
+    "required_disclosures": [],
+    "forbidden_claims": [
+      "Do not create content when the Topic Decision is NO_PUBLISH."
+    ],
+    "required_visual_evidence": []
+  },
+  "readiness": {
+    "fact_claims_verified": true,
+    "research_questions_sufficient": true,
+    "experiment_completed": true,
+    "open_gaps": []
+  },
+  "model": {
+    "provider": "codex_cli",
+    "model": "gpt-5.6-sol",
+    "runtime_version": null,
+    "calls": 0,
+    "duration_ms": 0,
+    "usage": null
+  },
+  "error_code": null,
+  "error_message_safe": null,
+  "created_at": "2026-08-16T05:42:29.811Z"
+}
