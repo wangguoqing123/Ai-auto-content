@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "decision_date": "2026-08-16",
+  "run_id": "topic_2026-08-16T05-12-21-939Z",
+  "status": "success",
+  "decision": "NO_PUBLISH",
+  "prompt_version": "topic-intelligence-v1",
+  "input_hash": "5962c733df8cf237a5f44ca3b42e790165d508df06c1c13c4bc95ff17ea81388",
+  "input_summary": {
+    "total_before_filter": 382,
+    "eligible_total": 248,
+    "total_after_filter": 43,
+    "cloud_count": 10,
+    "twitter_count": 25,
+    "weixin_resolved_count": 0,
+    "restricted_count": 8,
+    "fact_source_count": 0,
+    "trend_signal_count": 25,
+    "structure_inspiration_count": 0,
+    "eligible_by_bucket": {
+      "cloud": 11,
+      "twitter": 201,
+      "weixin_resolved": 0,
+      "weixin_restricted": 36
+    },
+    "selected_by_bucket": {
+      "cloud": 10,
+      "twitter": 25,
+      "weixin_resolved": 0,
+      "weixin_restricted": 8
+    },
+    "dropped_by_reason": {
+      "duplicate": 17,
+      "outside_window": 65,
+      "invalid_status": 52,
+      "invalid_url": 0,
+      "invalid_material": 0,
+      "sensitive_content": 0,
+      "author_limit": 1,
+      "query_limit": 65,
+      "cluster_limit": 0,
+      "bucket_limit": 139,
+      "character_limit": 0
+    },
+    "source_gaps": []
+  },
+  "selected_topic": null,
+  "evaluated_candidates": [
+    {
+      "candidate_id": "candidate_workflow_before_agent",
+      "working_title": "别急着搭智能体：先把一个重复工作画成能长期运行的流程",
+      "one_sentence_promise": "带用户把一个反复手工完成的工作，整理成包含输入、步骤、异常处理和验收点的最小自动化流程图。",
+      "target_segment": "已经会使用单个 AI 工具，但一搭自动化就堆节点、频繁报错、每次仍需人工救火的人。",
+      "learner_stage": "workflow_building",
+      "trigger_scenario": "用户准备把资料收集、整理、生成和交付串成自动化流程，却不知道哪些步骤适合自动执行、哪些环节必须保留人工检查。",
+      "user_problem": "只关注工具能否连接，没有先定义输入、状态、异常和验收标准，导致流程看似自动化，实际难以稳定复用。",
+      "wrong_current_behavior": "看到智能体或自动化演示后直接照抄工具与节点，用一次成功代替对可靠性和后续维护的判断。",
+      "real_task": "选择一个每周重复发生的真实工作，画出从输入到交付的流程，并标注自动步骤、人工判断、失败分支和验收点。",
+      "minimum_result": "完成一张最小流程图，并用同一份测试材料跑通一次，记录至少一个失败点及对应处理方式。",
+      "content_pillar": "agents_and_workflows",
+      "primary_product_module_id": "codex_practice",
+      "supporting_product_module_ids": [
+        "beginner_ai_course"
+      ],
+      "funnel_role": "trust",
+      "core_angle": "工作流是否值得搭，不取决于节点数量，而取决于任务边界、异常处理和结果验收是否清楚。",
+      "why_now": "近期材料同时出现智能体应用、工作流平台和可替换 Skill／插件的讨论，用户容易先追工具组合；此时更需要一套从真实任务出发的搭建方法。",
+      "proof_format": "工作流图、一次运行记录、失败分支与验收清单",
+      "time_sensitive": false,
+      "fact_source_ids": [
+        "mat_45beb8e27c6c",
+        "mat_be0454ee86db"
+      ],
+      "trend_signal_ids": [
+        "mat_293e9cbd6147",
+        "mat_f79153842d44"
+      ],
+      "structure_inspiration_ids": [],
+      "restricted_inspiration_ids": [
+        "mat_0a78f4a13f0c"
+      ],
+      "supported_claims": [
+        {
+          "claim": "评估自动化方案不能只看能否运行，还应考虑可靠性、安全性、扩展性、可观测性和长期运维。",
+          "fact_source_ids": [
+            "mat_45beb8e27c6c"
+          ]
+        },
+        {
+          "claim": "生产工作流需要可观测信息来理解智能体行为并调查失败。",
+          "fact_source_ids": [
+            "mat_be0454ee86db"
+          ]
+        }
+      ],
+      "research_questions": [
+        "面向普通职场任务，最小工作流图必须包含哪些字段？",
+        "怎样用非技术语言解释触发、状态、失败重试和人工接管？",
+        "选择哪个日常任务最适合做完整演示且不与近期“可验收执行流程”选题重复？",
+        "如何设计一份能暴露流程脆弱点的测试材料？"
+      ],
+      "requires_research": true,
+      "requires_experiment": true,
+      "experiment_plan": [
+        "选择一个固定输入和明确交付物的重复任务。",
+        "先按原有手工方式完成一次并记录步骤与失败点。",
+        "画出包含自动步骤、人工判断、异常分支和验收点的最小流程。",
+        "使用同一份材料运行流程并保存每一步结果。",
+        "故意制造一次缺失输入，检查流程能否提示、停止或转交人工处理。"
+      ],
+      "cta_mode": "club",
+      "product_claim_ids": [
+        "product.positioning",
+        "product.learning.shared_foundation",
+        "product.learning.codex_practice"
+      ],
+      "product_claim_evidence": [],
+      "price_refresh_required": true,
+      "risk_flags": [
+        "不能把趋势信号中的可替换插件或 Skill 说法当作事实证据。",
+        "实验完成前不能宣称流程更快、更稳定或节省成本。",
+        "需避免与近期“把日常任务改造成可验收执行流程”重复，应突出异常处理与长期维护。"
+      ],
+      "hard_reject_reasons": [
+        "invalid_fact_source_reference",
+        "supported_claim_without_fact_source",
+        "invalid_novelty_evidence"
+      ],
+      "scores": {
+        "pain_score": 22,
+        "actionability_score": 19,
+        "demonstrability_score": 14,
+        "evidence_score": 13,
+        "engagement_potential_score": 12,
+        "product_fit_score": 10,
+        "total_score": 90
+      },
+      "score_reasons": {
+        "pain_score": "会连接工具却无法稳定复用，是工作流阶段常见且明确的阻塞。",
+        "actionability_score": "用户可选择一个重复任务，按流程图和测试步骤当天完成最小结果。",
+        "demonstrability_score": "流程图、运行记录、故障注入和验收结果都能直观展示。",
+        "evidence_score": "两张事实来源卡分别覆盖长期自动化评估维度与智能体可观测性。",
+        "engagement_potential_score": "“先搭智能体还是先理流程”具有讨论性，也容易引出用户的真实失败案例。",
+        "product_fit_score": "直接对应已确认交付的 Codex 实操和智能体与工作流练习。"
+      },
+      "decision_reason": "候选同时具备具体痛点、可完成的小任务、可视化证据和直接产品承接。它不追逐某个新工具，而是借近期智能体与工作流讨论，帮助用户产出一张可运行、可检查、能处理失败的最小流程图；发布前需用实验记录支撑任何稳定性或效率判断。",
+      "novelty_delta": "近期选题聚焦把模糊诉求变成可验收任务；本题进一步聚焦多步骤流程的异常分支、人工接管、可观测性和长期维护，交付物也从任务执行卡变为工作流图与故障测试记录。",
+      "new_evidence_refs": [
+        "material:mat_45beb8e27c6c",
+        "material:mat_be0454ee86db"
+      ],
+      "platform_plan": {
+        "wechat_article_type": "tutorial",
+        "wechat_required_evidence": [
+          "完整的最小工作流图",
+          "正常输入的逐步运行记录",
+          "缺失输入的故障测试结果",
+          "每个关键步骤的验收清单"
+        ],
+        "wechat_needs_step_images": true,
+        "wechat_needs_screenshots_or_experiment": true,
+        "x_format": "thread"
+      },
+      "topic_signature": "d3a6f248f2f64b088234141048a60840ab689ea0d27d7bcbb3f4bc7cda17d2c0",
+      "effective_product_fit_cap": 10,
+      "product_fit_cap_applied": false,
+      "cta_adjusted_from": null,
+      "evaluation_status": "rejected"
+    }
+  ],
+  "no_publish_reason_code": "all_candidates_hard_rejected",
+  "no_publish_reason": "所有候选都触发了硬性淘汰条件。",
+  "model": {
+    "provider": "codex_cli",
+    "model": "gpt-5.6-sol",
+    "runtime_version": "codex-cli 0.147.0",
+    "output_schema_version": "topic-judge-provider-v1",
+    "calls": 1,
+    "duration_ms": 58172,
+    "usage": {
+      "input_tokens": 130448,
+      "output_tokens": 2219,
+      "total_tokens": null
+    }
+  },
+  "error_code": null,
+  "error_message_safe": null,
+  "created_at": "2026-08-16T05:12:21.940Z"
+}
