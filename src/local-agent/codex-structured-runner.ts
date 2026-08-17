@@ -45,6 +45,7 @@ export class CodexStructuredOutputError extends Error {
   constructor(
     readonly durationMs: number,
     readonly usage: CodexStructuredUsage | null,
+    readonly safeDiagnostic: string | null = null,
   ) {
     super('codex_output_invalid');
     this.name = 'CodexStructuredOutputError';
@@ -381,7 +382,7 @@ export class CodexStructuredRunner {
     if (processResult.outputLimitExceeded) throw new CodexStructuredOutputError(durationMs, usage);
     if (processResult.exitCode !== 0) {
       const message = `${processResult.stderr}\n${processResult.stdout}`;
-      if (isStructuredOutputFailure(message)) throw new CodexStructuredOutputError(durationMs, usage);
+      if (isStructuredOutputFailure(message)) throw new CodexStructuredOutputError(durationMs, usage, safeFailureDiagnostic(processResult));
       throw new CodexStructuredRunnerError(classifyFailure(message), safeFailureDiagnostic(processResult));
     }
     try {

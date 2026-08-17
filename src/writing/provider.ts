@@ -52,7 +52,7 @@ Return only schema-valid JSON.`;
 
 function mapProviderError(error: unknown): never {
   if (error instanceof CodexStructuredTimeoutError) throw new WritingProviderError('codex_timeout');
-  if (error instanceof CodexStructuredOutputError) throw new WritingProviderError('codex_output_invalid');
+  if (error instanceof CodexStructuredOutputError) throw new WritingProviderError('codex_output_invalid', error.safeDiagnostic === null ? 'codex_output_invalid' : `codex_output_invalid: ${error.safeDiagnostic}`);
   if (error instanceof CodexStructuredRunnerError) throw new WritingProviderError(error.code, error.safeDiagnostic === null ? error.code : `${error.code}: ${error.safeDiagnostic}`);
   throw error;
 }
