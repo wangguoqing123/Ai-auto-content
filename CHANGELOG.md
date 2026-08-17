@@ -8,6 +8,7 @@
 - 增加 Evidence、Experiment、Product、First-person、Style、Plagiarism/Protected Transfer 六类审计；human-writing 分前后阶段、no-ai-slop detect-only、Reviewer 只报问题、Repair 只改命中 Block，总调用最多 3 次。
 - 增加 Human Send Gate 与仅规划不生成的 Visual Slots；Provisional 只允许显式 dry-run/Synthetic READY Fixture，production 与 Scheduler 均拒绝自动消费，不生成图片、不访问平台、不发布。
 - 增加 Writing CLI、18 份生成式 JSON Schema、14:30—22:00 Scheduler 状态结构、项目自有 Synthetic READY Research Fixture 和本机 0700/0600 写作效果审阅包。
+- 完成一次真实 Synthetic READY Codex dry-run：Writer、Reviewer、Repair 共 3 次调用，初稿 1629 个汉字、3 个标题、一个 5 条 thread；四类事实审计通过，但 Style Audit 在 Repair 后发现第二处翻案腔并 fail closed，未生成审阅包或发布。随后离线修复 lint 为单轮报告同类全部命中，未重复真实模型调用，状态保持 `implemented_pending_live_validation`。
 
 - 固定 vendored human-writing 1.1.0（`4fda173f3fef7fb808f3eba991eeb2528ea4b189`）与 no-ai-slop（`d30eddb9e04562234f2070b5ee63ca4649d9a05e`），保留 MIT License、上游 URL、逐文件 SHA-256 和已知可执行文件 allowlist；CI 不联网下载 Skill。
 - 增加本机 0700/0600 私有 style corpus，支持 Markdown、纯文本和 JSONL 导入；完整文章、反馈和 Profile 缓存不进入 Git，也不自动抓取作者内容。

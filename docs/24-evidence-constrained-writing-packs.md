@@ -74,3 +74,9 @@ npm run writing:inspect -- --date=YYYY-MM-DD
 ```
 
 2026-08-14 的正式 Research Pack 为 `RESEARCH_INCOMPLETE`，所以正式阻塞验证应返回 `status=success`、`decision=BLOCKED_BY_RESEARCH`、`model.calls=0`，且不读 Style、不初始化 Codex、不产生正文。
+
+## 8. 2026-08-18 Synthetic READY live 结果
+
+在最新代码、Fixture 与 PR CI 通过后执行了一次真实本机 Codex dry-run。Writer、Reviewer、一次 Repair 共 3 次调用；初稿为 1629 个汉字、3 个公众号标题和一个 5 条 thread。Repair 后 Evidence、Experiment、Product、First-person Audit 均通过，所有 Research disclosure 与 experiment limitation 已补齐。
+
+最终 Style Audit 仍 fail closed：旧 lint 每类只暴露第一处翻案腔，Repair 修复首处后第二处才出现。系统返回 `status=failed`、`decision=null`、`error_code=writing_audit_failed`，没有生成 Writing Pack 正文输出或本机效果审阅包。该覆盖缺陷随后用离线复盘修复为一次报告同类全部命中，并增加回归测试；遵守“一次真实 dry-run”的授权边界，没有再次调用 Codex。因此当前状态仍是 `implemented_pending_live_validation`，尚不满足 Provisional Profile 写作效果审核条件。
