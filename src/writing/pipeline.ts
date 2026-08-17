@@ -129,11 +129,14 @@ function publicResearchInput(research: ResearchPack) {
 function structuralIssues(output: WriterOutput, rendered: ReturnType<typeof renderWriterOutput>, articleType: ArticleType, xFormat: ReturnType<typeof xFormatForResearch>, minimum: number, maximum: number, maxX: number): SimpleIssue[] {
   const issues: SimpleIssue[] = [];
   const add = (issue_code: string, location: string, quoted_text: string, repair_constraint: string) => issues.push({ issue_code, location, quoted_text, repair_constraint, severity: 'hard_blocker' });
-  if (output.article_type !== articleType) add('article_type_mismatch', 'block_hook', output.article_type, `Use the planned ${articleType} structure.`);
-  if (rendered.wechat.chinese_character_count < minimum || rendered.wechat.chinese_character_count > maximum) add('wechat_length_out_of_range', 'block_boundary', String(rendered.wechat.chinese_character_count), `Keep the rendered WeChat body between ${minimum} and ${maximum} Chinese characters without new facts.`);
-  if (output.x.format !== xFormat) add('x_format_mismatch', 'block_cta', output.x.format, `Return only the planned ${xFormat} format.`);
+  const firstBlock = output.blocks[0]!.block_id;
+  const boundaryBlock = output.blocks.find(({ block_type }) => block_type === 'boundary')?.block_id ?? firstBlock;
+  const ctaBlock = output.blocks.find(({ block_type }) => block_type === 'cta')?.block_id ?? output.blocks.at(-1)!.block_id;
+  if (output.article_type !== articleType) add('article_type_mismatch', firstBlock, output.article_type, `Use the planned ${articleType} structure.`);
+  if (rendered.wechat.chinese_character_count < minimum || rendered.wechat.chinese_character_count > maximum) add('wechat_length_out_of_range', boundaryBlock, String(rendered.wechat.chinese_character_count), `Keep the rendered WeChat body between ${minimum} and ${maximum} Chinese characters without new facts.`);
+  if (output.x.format !== xFormat) add('x_format_mismatch', ctaBlock, output.x.format, `Return only the planned ${xFormat} format.`);
   const items = output.x.format === 'thread' ? output.x.thread : [output.x.single_post ?? output.x.debate_prompt ?? ''];
-  if (items.some((item) => [...item].filter((character) => /\p{Script=Han}/u.test(character)).length > maxX)) add('x_item_too_long', 'block_cta', '', `Each X item must be at most ${maxX} Chinese characters.`);
+  if (items.some((item) => [...item].filter((character) => /\p{Script=Han}/u.test(character)).length > maxX)) add('x_item_too_long', ctaBlock, '', `Each X item must be at most ${maxX} Chinese characters.`);
   if (output.visual_slots.some(({ generation_status }) => generation_status !== 'not_started')) add('visual_generation_attempted', 'visual_slots', '', 'Visual slots are planning only.');
   return issues;
 }
