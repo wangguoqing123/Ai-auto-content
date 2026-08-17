@@ -20,7 +20,7 @@ export interface WritingProvider {
 }
 
 export class WritingProviderError extends Error {
-  constructor(readonly code: string) { super(code); this.name = 'WritingProviderError'; }
+  constructor(readonly code: string, readonly safeMessage: string = code) { super(code); this.name = 'WritingProviderError'; }
 }
 
 const WRITER_PROMPT = `You are the evidence-constrained Chinese Writer for AI Auto Content.
@@ -53,7 +53,7 @@ Return only schema-valid JSON.`;
 function mapProviderError(error: unknown): never {
   if (error instanceof CodexStructuredTimeoutError) throw new WritingProviderError('codex_timeout');
   if (error instanceof CodexStructuredOutputError) throw new WritingProviderError('codex_output_invalid');
-  if (error instanceof CodexStructuredRunnerError) throw new WritingProviderError(error.code);
+  if (error instanceof CodexStructuredRunnerError) throw new WritingProviderError(error.code, error.safeDiagnostic === null ? error.code : `${error.code}: ${error.safeDiagnostic}`);
   throw error;
 }
 

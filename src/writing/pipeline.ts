@@ -93,8 +93,8 @@ function earlyResult(base: ReturnType<typeof basePack>, decision: 'BLOCKED_BY_RE
   return { execution_status: decision === 'BLOCKED_BY_RESEARCH' ? 'BLOCKED' : 'WAITING', pack, files_written: false, repository_files: [], temporary_output_directory: null, review_pack_directory: null };
 }
 
-function failedResult(base: ReturnType<typeof basePack>, code: WritingPack['error_code'], model: WritingPack['model'], style: WritingPack['style'] = null): RunWritingBuildResult {
-  const pack = writingPackSchema.parse({ ...base, status: 'failed', decision: null, style, master_draft: null, wechat: null, x: null, audits: null, model, error_code: code, error_message_safe: code });
+function failedResult(base: ReturnType<typeof basePack>, code: WritingPack['error_code'], model: WritingPack['model'], style: WritingPack['style'] = null, safeMessage: string | null = code): RunWritingBuildResult {
+  const pack = writingPackSchema.parse({ ...base, status: 'failed', decision: null, style, master_draft: null, wechat: null, x: null, audits: null, model, error_code: code, error_message_safe: safeMessage });
   return { execution_status: 'FAILED', pack, files_written: false, repository_files: [], temporary_output_directory: null, review_pack_directory: null };
 }
 
@@ -240,7 +240,7 @@ export async function runWritingBuild(options: RunWritingBuildOptions): Promise<
 
   let provider: WritingProvider;
   try { provider = options.provider ?? await (options.providerFactory ?? (options.fixture ? async () => new FixtureWritingProvider() : () => codexCliWritingProviderFromEnvironment()))(); }
-  catch (error) { return failedResult(base, error instanceof WritingProviderError ? error.code as WritingPack['error_code'] : 'codex_process_failed', emptyModel(), packStyle); }
+  catch (error) { return failedResult(base, error instanceof WritingProviderError ? error.code as WritingPack['error_code'] : 'codex_process_failed', emptyModel(), packStyle, error instanceof WritingProviderError ? error.safeMessage : 'codex_process_failed'); }
   let calls = 0;
   let duration = 0;
   let usage: WritingPack['model']['usage'] = null;
@@ -249,7 +249,7 @@ export async function runWritingBuild(options: RunWritingBuildOptions): Promise<
 
   let output: WriterOutput;
   try { output = record(await provider.write(writerInput)); }
-  catch (error) { return failedResult(base, error instanceof WritingProviderError ? error.code as WritingPack['error_code'] : 'writing_output_invalid', model(), packStyle); }
+  catch (error) { return failedResult(base, error instanceof WritingProviderError ? error.code as WritingPack['error_code'] : 'writing_output_invalid', model(), packStyle, error instanceof WritingProviderError ? error.safeMessage : 'writing_output_invalid'); }
   if (calls > 3) return failedResult(base, 'writing_output_invalid', model(), packStyle);
   if (ctaMode === 'none') output = writerOutputSchema.parse({ ...output, cta: { mode: 'none', text: '' } });
 
@@ -261,7 +261,7 @@ export async function runWritingBuild(options: RunWritingBuildOptions): Promise<
       output, audits, constraints: { article_type: articleType, x_format: xFormat, effective_cta_mode: ctaMode, human_gate_required: true, no_full_rewrite: true },
     }));
     qualityIssues = [...qualityIssues, ...reviewer.issues];
-  } catch (error) { return failedResult(base, error instanceof WritingProviderError ? error.code as WritingPack['error_code'] : 'writing_output_invalid', model(), packStyle); }
+  } catch (error) { return failedResult(base, error instanceof WritingProviderError ? error.code as WritingPack['error_code'] : 'writing_output_invalid', model(), packStyle, error instanceof WritingProviderError ? error.safeMessage : 'writing_output_invalid'); }
   audits = runDeterministicWritingAudits({ ...rendered, research, product, recipes, style, qualityIssues });
 
   let blockers = blockingAuditIssues(audits);
@@ -269,7 +269,7 @@ export async function runWritingBuild(options: RunWritingBuildOptions): Promise<
     const targets = repairTargets(output, blockers);
     if (targets.length === 0 || calls >= 3) return failedResult(base, 'writing_audit_failed', model(), packStyle);
     try { output = applyRepair(output, targets, record(await provider.repair({ blocks: targets, no_new_facts: true, preserve_block_metadata: true }))); }
-    catch (error) { return failedResult(base, error instanceof WritingProviderError ? error.code as WritingPack['error_code'] : 'writing_output_invalid', model(), packStyle); }
+    catch (error) { return failedResult(base, error instanceof WritingProviderError ? error.code as WritingPack['error_code'] : 'writing_output_invalid', model(), packStyle, error instanceof WritingProviderError ? error.safeMessage : 'writing_output_invalid'); }
     rendered = renderWriterOutput(output, research);
     const remainingWarnings = qualityIssues.filter(({ severity }) => severity === 'warning' || severity === 'profile_preference');
     const newStructural = structuralIssues(output, rendered, articleType, xFormat, config.writing.minimum_wechat_chinese_chars, config.writing.maximum_wechat_chinese_chars, config.writing.maximum_x_chinese_chars);

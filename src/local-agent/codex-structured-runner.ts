@@ -19,7 +19,10 @@ export const codexStructuredErrorCodes = [
 export type CodexStructuredErrorCode = typeof codexStructuredErrorCodes[number];
 
 export class CodexStructuredRunnerError extends Error {
-  constructor(readonly code: Exclude<CodexStructuredErrorCode, 'codex_timeout' | 'codex_output_invalid'>) {
+  constructor(
+    readonly code: Exclude<CodexStructuredErrorCode, 'codex_timeout' | 'codex_output_invalid'>,
+    readonly safeDiagnostic: string | null = null,
+  ) {
     super(code);
     this.name = 'CodexStructuredRunnerError';
   }
@@ -198,6 +201,37 @@ function classifyFailure(stderr: string): Exclude<CodexStructuredErrorCode, 'cod
   return 'codex_process_failed';
 }
 
+function sanitizeDiagnostic(value: string): string {
+  return value
+    .replace(/\/Users\/[^/\s]+/gu, '/Users/[redacted]')
+    .replace(/(?:Bearer\s+|gho_|ghp_|github_pat_|sk-)[A-Za-z0-9._-]+/giu, '[redacted credential]')
+    .replace(/([?&](?:token|code|session|cookie|pass_ticket|auth)[^=]*)=[^&\s]+/giu, '$1=[redacted]')
+    .replace(/\s+/gu, ' ')
+    .trim()
+    .slice(0, 500);
+}
+
+function safeFailureDiagnostic(result: CodexProcessResult): string | null {
+  const messages: string[] = [];
+  if (result.stderr.trim() !== '') messages.push(result.stderr);
+  for (const line of result.stdout.split(/\r?\n/u).filter(Boolean)) {
+    try {
+      const event = JSON.parse(line) as Record<string, unknown>;
+      const error = event.error;
+      if (typeof error === 'string') messages.push(error);
+      else if (error !== null && typeof error === 'object') {
+        const message = (error as Record<string, unknown>).message;
+        if (typeof message === 'string') messages.push(message);
+      }
+      if (typeof event.message === 'string' && /error|failed|invalid|unavailable|denied|limit/iu.test(event.message)) messages.push(event.message);
+    } catch {
+      // stdout may contain non-error telemetry; never retain it as a diagnostic.
+    }
+  }
+  const safe = sanitizeDiagnostic(messages.join('\n'));
+  return safe === '' ? null : safe;
+}
+
 function isStructuredOutputFailure(message: string): boolean {
   return /output schema|structured output|invalid json|failed to parse (?:the )?(?:final )?output|result\.json/i.test(message);
 }
@@ -346,9 +380,9 @@ export class CodexStructuredRunner {
     if (processResult.timedOut) throw new CodexStructuredTimeoutError();
     if (processResult.outputLimitExceeded) throw new CodexStructuredOutputError(durationMs, usage);
     if (processResult.exitCode !== 0) {
-      const message = processResult.stderr || processResult.stdout;
+      const message = `${processResult.stderr}\n${processResult.stdout}`;
       if (isStructuredOutputFailure(message)) throw new CodexStructuredOutputError(durationMs, usage);
-      throw new CodexStructuredRunnerError(classifyFailure(message));
+      throw new CodexStructuredRunnerError(classifyFailure(message), safeFailureDiagnostic(processResult));
     }
     try {
       const file = await stat(resultPath);
