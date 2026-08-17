@@ -16,6 +16,8 @@ import { loadWritingIntelligenceConfig } from '../src/writing/config.js';
 import { buildWritingStyleRecipes } from '../src/writing/style-recipe.js';
 import { resolveStyleApprovalChain, resolvedWritingStyleSnapshot } from '../src/writing/style-approval-resolver.js';
 import { reviewerOutputSchema } from '../src/writing/schemas.js';
+import { writerOutputSchema } from '../src/writing/schemas.js';
+import { toJSONSchema } from 'zod';
 import { loadProductProfile } from '../src/product/load-product-profile.js';
 import { createStyleChainFixture, type StyleChainFixture } from './writing-test-helpers.js';
 
@@ -165,5 +167,17 @@ describe('Writing orchestration and safety', () => {
     await runWritingBuild({ rootDir: process.cwd(), writingDate: '2026-08-14', dryRun: true, fixture: true, syntheticReadyFixture: true, ...pipelineStyle(), provider, writeOutputs: false });
     const serialized = JSON.stringify(provider.writerInput);
     expect(serialized).not.toMatch(/OCV-09|CON-05|OCV-10|approval-receipt|binding-attestation|blind-map|protected_text/iu);
+  });
+
+  it('77. emits a Structured Outputs-compatible Writer JSON Schema without tuple items arrays', () => {
+    const schema = toJSONSchema(writerOutputSchema, { target: 'draft-7' });
+    const visit = (value: unknown): boolean => {
+      if (Array.isArray(value)) return value.some(visit);
+      if (value === null || typeof value !== 'object') return false;
+      const record = value as Record<string, unknown>;
+      if (Array.isArray(record.items)) return true;
+      return Object.values(record).some(visit);
+    };
+    expect(visit(schema)).toBe(false);
   });
 });

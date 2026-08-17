@@ -233,7 +233,7 @@ function safeFailureDiagnostic(result: CodexProcessResult): string | null {
 }
 
 function isStructuredOutputFailure(message: string): boolean {
-  return /output schema|structured output|invalid json|failed to parse (?:the )?(?:final )?output|result\.json/i.test(message);
+  return /output schema|structured output|invalid[_ ]json(?:[_ ]schema)?|failed to parse (?:the )?(?:final )?output|result\.json/i.test(message);
 }
 
 function parseVersion(output: string): string {

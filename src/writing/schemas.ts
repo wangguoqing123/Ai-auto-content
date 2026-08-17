@@ -318,7 +318,7 @@ export const writingPackSchema = z.strictObject({
 export const writerOutputSchema = z.strictObject({
   article_type: articleTypeSchema,
   primary_title: text(100),
-  alternative_titles: z.tuple([text(100), text(100)]),
+  alternative_titles: z.array(text(100)).length(2),
   abstract: text(500),
   blocks: z.array(contentBlockSchema).min(6).max(24),
   source_notes: z.array(z.strictObject({ claim_id: z.string(), title: text(500), url: z.url().nullable() })).max(8),
