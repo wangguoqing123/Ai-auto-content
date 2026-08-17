@@ -1,0 +1,732 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/provisional-style-profile.schema.json",
+  "title": "Provisional Style Profile",
+  "type": "object",
+  "properties": {
+    "artifact_schema": {
+      "type": "string",
+      "const": "ai_auto_content_provisional_style_overlay_v1"
+    },
+    "artifact_type": {
+      "type": "string",
+      "const": "provisional_profile_v1"
+    },
+    "provisional_profile_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,100}$"
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "status": {
+      "type": "string",
+      "const": "provisional_approved_with_pending_items"
+    },
+    "review_status": {
+      "type": "string",
+      "const": "user_confirmed_provisional"
+    },
+    "approved_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+    },
+    "authorization": {
+      "type": "object",
+      "properties": {
+        "confirmation_phrase": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "approval_scope": {
+          "type": "string",
+          "const": "calibration_only"
+        }
+      },
+      "required": [
+        "confirmation_phrase",
+        "approval_scope"
+      ],
+      "additionalProperties": false
+    },
+    "production": {
+      "type": "object",
+      "properties": {
+        "promoted": {
+          "type": "boolean",
+          "const": false
+        },
+        "production_compatible": {
+          "type": "boolean",
+          "const": false
+        },
+        "runtime_enabled": {
+          "type": "boolean",
+          "const": false
+        },
+        "automatic_writing_enabled": {
+          "type": "boolean",
+          "const": false
+        },
+        "scheduler_enabled": {
+          "type": "boolean",
+          "const": false
+        }
+      },
+      "required": [
+        "promoted",
+        "production_compatible",
+        "runtime_enabled",
+        "automatic_writing_enabled",
+        "scheduler_enabled"
+      ],
+      "additionalProperties": false
+    },
+    "source_profiles": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "object",
+          "properties": {
+            "base_profile_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "base_status": {
+              "type": "string",
+              "const": "ready"
+            },
+            "base_file_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "base_profile_unchanged": {
+              "type": "boolean",
+              "const": true
+            },
+            "sample_count": {
+              "type": "integer",
+              "minimum": 8,
+              "maximum": 9007199254740991
+            },
+            "profile_scope": {
+              "type": "string",
+              "const": "owner_shortform_social_proxy"
+            },
+            "platform_fidelity": {
+              "type": "string",
+              "const": "proxy"
+            },
+            "confidence_label": {
+              "type": "string",
+              "const": "medium"
+            },
+            "safe_display_name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            }
+          },
+          "required": [
+            "base_profile_id",
+            "base_status",
+            "base_file_sha256",
+            "base_profile_unchanged",
+            "sample_count",
+            "profile_scope",
+            "platform_fidelity",
+            "confidence_label",
+            "safe_display_name"
+          ],
+          "additionalProperties": false
+        },
+        "reference": {
+          "type": "object",
+          "properties": {
+            "base_profile_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "base_status": {
+              "type": "string",
+              "const": "ready"
+            },
+            "base_file_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "base_profile_unchanged": {
+              "type": "boolean",
+              "const": true
+            },
+            "sample_count": {
+              "type": "integer",
+              "minimum": 8,
+              "maximum": 9007199254740991
+            },
+            "profile_scope": {
+              "type": "string",
+              "const": "reference_wechat_technique"
+            },
+            "confidence_label": {
+              "type": "string",
+              "const": "medium"
+            },
+            "safe_display_name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            }
+          },
+          "required": [
+            "base_profile_id",
+            "base_status",
+            "base_file_sha256",
+            "base_profile_unchanged",
+            "sample_count",
+            "profile_scope",
+            "confidence_label",
+            "safe_display_name"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "owner",
+        "reference"
+      ],
+      "additionalProperties": false
+    },
+    "owner_transfer_policy": {
+      "type": "object",
+      "properties": {
+        "allowed": {
+          "maxItems": 20,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "forbidden": {
+          "maxItems": 20,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "approved_rules": {
+          "minItems": 1,
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "rule_group_id": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+              },
+              "display_name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              },
+              "plain_language_description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "decision": {
+                "type": "string",
+                "enum": [
+                  "keep",
+                  "keep_with_scope",
+                  "reject",
+                  "pending",
+                  "use",
+                  "cautious_use",
+                  "solution_a",
+                  "solution_b",
+                  "scenario_switch"
+                ]
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "applicable_platforms": {
+                "minItems": 1,
+                "maxItems": 2,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "shortform_social_proxy",
+                    "wechat"
+                  ]
+                }
+              },
+              "applicable_article_types": {
+                "minItems": 1,
+                "maxItems": 5,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "tutorial",
+                    "analysis",
+                    "case_breakdown",
+                    "opinion",
+                    "checklist"
+                  ]
+                }
+              },
+              "scope_limit": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "risk_if_overused": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "enforcement": {
+                "type": "string",
+                "maxLength": 1000
+              }
+            },
+            "required": [
+              "rule_group_id",
+              "display_name",
+              "plain_language_description",
+              "decision",
+              "confidence",
+              "applicable_platforms",
+              "applicable_article_types",
+              "scope_limit",
+              "risk_if_overused"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "allowed",
+        "forbidden",
+        "approved_rules"
+      ],
+      "additionalProperties": false
+    },
+    "reference_transfer_policy": {
+      "type": "object",
+      "properties": {
+        "allowed": {
+          "maxItems": 20,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "forbidden": {
+          "maxItems": 20,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "protected_index_status": {
+          "type": "string",
+          "const": "ready"
+        },
+        "fail_closed": {
+          "type": "boolean",
+          "const": true
+        },
+        "approved_rules": {
+          "minItems": 1,
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "rule_group_id": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+              },
+              "display_name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              },
+              "plain_language_description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "decision": {
+                "type": "string",
+                "enum": [
+                  "keep",
+                  "keep_with_scope",
+                  "reject",
+                  "pending",
+                  "use",
+                  "cautious_use",
+                  "solution_a",
+                  "solution_b",
+                  "scenario_switch"
+                ]
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "applicable_platforms": {
+                "minItems": 1,
+                "maxItems": 2,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "shortform_social_proxy",
+                    "wechat"
+                  ]
+                }
+              },
+              "applicable_article_types": {
+                "minItems": 1,
+                "maxItems": 5,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "tutorial",
+                    "analysis",
+                    "case_breakdown",
+                    "opinion",
+                    "checklist"
+                  ]
+                }
+              },
+              "scope_limit": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "risk_if_overused": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "enforcement": {
+                "type": "string",
+                "maxLength": 1000
+              }
+            },
+            "required": [
+              "rule_group_id",
+              "display_name",
+              "plain_language_description",
+              "decision",
+              "confidence",
+              "applicable_platforms",
+              "applicable_article_types",
+              "scope_limit",
+              "risk_if_overused"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "allowed",
+        "forbidden",
+        "protected_index_status",
+        "fail_closed",
+        "approved_rules"
+      ],
+      "additionalProperties": false
+    },
+    "conflict_policies": {
+      "minItems": 1,
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "rule_group_id": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "plain_language_description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "keep",
+              "keep_with_scope",
+              "reject",
+              "pending",
+              "use",
+              "cautious_use",
+              "solution_a",
+              "solution_b",
+              "scenario_switch"
+            ]
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "applicable_platforms": {
+            "minItems": 1,
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "shortform_social_proxy",
+                "wechat"
+              ]
+            }
+          },
+          "applicable_article_types": {
+            "minItems": 1,
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "tutorial",
+                "analysis",
+                "case_breakdown",
+                "opinion",
+                "checklist"
+              ]
+            }
+          },
+          "scope_limit": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "risk_if_overused": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "enforcement": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "rule_group_id",
+          "display_name",
+          "plain_language_description",
+          "decision",
+          "confidence",
+          "applicable_platforms",
+          "applicable_article_types",
+          "scope_limit",
+          "risk_if_overused"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "blind_review_adjustments": {
+      "type": "object",
+      "properties": {
+        "short_content": {
+          "type": "object",
+          "properties": {
+            "directness_target": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "current_naturalness_feedback": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "avoid_coaching_opener": {
+              "type": "boolean"
+            },
+            "voice_implementation_requires_revision": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "directness_target",
+            "current_naturalness_feedback",
+            "avoid_coaching_opener",
+            "voice_implementation_requires_revision"
+          ],
+          "additionalProperties": false
+        },
+        "wechat_longform": {
+          "type": "object",
+          "properties": {
+            "owner_natural_expression_priority": {
+              "type": "boolean"
+            },
+            "reference_structure_secondary": {
+              "type": "boolean"
+            },
+            "avoid_fragmented_paragraphs": {
+              "type": "boolean"
+            },
+            "avoid_over_regular_structure": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "owner_natural_expression_priority",
+            "reference_structure_secondary",
+            "avoid_fragmented_paragraphs",
+            "avoid_over_regular_structure"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "short_content",
+        "wechat_longform"
+      ],
+      "additionalProperties": false
+    },
+    "safe_defaults_for_pending_items": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    },
+    "counts": {
+      "type": "object",
+      "properties": {
+        "owner_keep": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "owner_keep_with_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "owner_reject": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "owner_pending": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "reference_use": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "reference_cautious_use": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "conflict_active": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "conflict_pending": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "finalized_manual_decisions": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "unresolved_manual_items": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner_keep",
+        "owner_keep_with_scope",
+        "owner_reject",
+        "owner_pending",
+        "reference_use",
+        "reference_cautious_use",
+        "conflict_active",
+        "conflict_pending",
+        "finalized_manual_decisions",
+        "unresolved_manual_items"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "artifact_schema",
+    "artifact_type",
+    "provisional_profile_id",
+    "display_name",
+    "status",
+    "review_status",
+    "approved_at",
+    "authorization",
+    "production",
+    "source_profiles",
+    "owner_transfer_policy",
+    "reference_transfer_policy",
+    "conflict_policies",
+    "blind_review_adjustments",
+    "safe_defaults_for_pending_items",
+    "counts"
+  ],
+  "additionalProperties": false
+}

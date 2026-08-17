@@ -7,6 +7,16 @@ status: proposed
 
 # 数据模型
 
+## Writing Pack v1
+
+`writingPackSchema` 保存版本、日期、run/input hash、Research 血缘、Style Chain 与 Recipe 安全摘要、结构化母稿、公众号、单一 X、六类审计、模型计数和 Human Gate。非 READY 决定的三类内容均为 `null`；failed run 的 `decision=null`。
+
+`ContentBlock` 包含 `block_id`、`block_type`、`text`、`claim_ids`、`experiment_refs`、`product_claim_ids`、`persona_fact_ids`、`style_rule_ids` 与 `is_opinion`。事实 Block 必须有 Claim，实验结论必须有 experiment ref，事实型第一人称必须有真实人物或项目证据。
+
+`wechatDraftSchema` 固定一个主标题和两个备用标题、1200–2400 汉字正文、公开安全 source notes、none/light CTA 与仅规划的 Visual Slots。`xDraftSchema` 确保 single post、4–7 条 thread 或 debate prompt 只有一种非空。
+
+新增生成式契约：`writing-pack.schema.json`、`provisional-style-profile.schema.json`、`style-approval-receipt.schema.json`、`style-approval-binding-attestation.schema.json`。
+
 ## 1. 设计目标
 
 数据模型必须回答四个问题：

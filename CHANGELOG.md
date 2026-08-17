@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- 增加 Evidence-constrained Writing Pack v0：Research Gate 必须先于 Style 文件和 Codex，业务决定固定为 READY/BLOCKED/NO_CONTENT/WAITING，基础设施与审计故障保持 `status=failed, decision=null`。
+- 增加 Receipt v2 与 Legacy Receipt + Binding Attestation Resolver；只读验证仓库外路径、0600、无 symlink、固定 Hash、28 项决定、Owner/Reference Hash 与关闭/删除规则，并用 WeakMap 输出不可伪造 Resolved Writing Style。
+- 增加 Owner 0.65 / Reference 0.20 / WeChat 0.15 与 X Owner 1.00 双平台 Recipe、动态 article type、结构化 Content Blocks、一篇公众号和一个 X 版本。
+- 增加 Evidence、Experiment、Product、First-person、Style、Plagiarism/Protected Transfer 六类审计；human-writing 分前后阶段、no-ai-slop detect-only、Reviewer 只报问题、Repair 只改命中 Block，总调用最多 3 次。
+- 增加 Human Send Gate 与仅规划不生成的 Visual Slots；Provisional 只允许显式 dry-run/Synthetic READY Fixture，production 与 Scheduler 均拒绝自动消费，不生成图片、不访问平台、不发布。
+- 增加 Writing CLI、18 份生成式 JSON Schema、14:30—22:00 Scheduler 状态结构、项目自有 Synthetic READY Research Fixture 和本机 0700/0600 写作效果审阅包。
+
 - 固定 vendored human-writing 1.1.0（`4fda173f3fef7fb808f3eba991eeb2528ea4b189`）与 no-ai-slop（`d30eddb9e04562234f2070b5ee63ca4649d9a05e`），保留 MIT License、上游 URL、逐文件 SHA-256 和已知可执行文件 allowlist；CI 不联网下载 Skill。
 - 增加本机 0700/0600 私有 style corpus，支持 Markdown、纯文本和 JSONL 导入；完整文章、反馈和 Profile 缓存不进入 Git，也不自动抓取作者内容。
 - 增加严格 Style Profile 与 Style Recipe Schema，分离内容、语言和转化模式，计算确定性节奏指标，并限制 owner/reference/platform 权重与最多两个参考 Profile。
