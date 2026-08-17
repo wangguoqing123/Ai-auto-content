@@ -155,7 +155,7 @@ export class FixtureWritingProvider implements WritingProvider {
       alternative_titles: ['别让 AI 补猜：会议记录整理的最小验收法', '三个步骤，把会议待办整理成能执行的行动清单'],
       abstract: '用一个项目自有合成样例，演示怎样提取任务、显式保留缺口，并用同一张清单逐项验收。',
       blocks,
-      source_notes: claims.map((claim_id) => ({ claim_id, title: '项目自有合成会议记录', url: null })),
+      source_notes: claims.map((claim_id) => ({ claim_id })),
       cta: { mode: 'light', text: '先用一段去敏记录做出最小执行卡。' },
       visual_slots: [
         { slot_id: 'visual_process', location: '步骤段之后', purpose: '展示记录到执行卡的字段转换', visual_type: 'process_diagram', required_evidence_refs: claims, caption: '只提取已有信息，把缺口保留为待确认。', generation_status: 'not_started' },

@@ -321,7 +321,7 @@ export const writerOutputSchema = z.strictObject({
   alternative_titles: z.array(text(100)).length(2),
   abstract: text(500),
   blocks: z.array(contentBlockSchema).min(6).max(24),
-  source_notes: z.array(z.strictObject({ claim_id: z.string(), title: text(500), url: z.url().nullable() })).max(8),
+  source_notes: z.array(z.strictObject({ claim_id: z.string() })).max(8),
   cta: z.strictObject({ mode: z.enum(['none', 'light']), text: optionalText(1_000) }),
   visual_slots: z.array(visualSlotSchema).max(10),
   x: xDraftSchema,

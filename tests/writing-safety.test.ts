@@ -179,5 +179,6 @@ describe('Writing orchestration and safety', () => {
       return Object.values(record).some(visit);
     };
     expect(visit(schema)).toBe(false);
+    expect(JSON.stringify(schema)).not.toContain('"format":"uri"');
   });
 });
