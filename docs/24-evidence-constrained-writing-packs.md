@@ -99,3 +99,19 @@ npm run writing:inspect -- --date=YYYY-MM-DD
 - 未访问 X、公众号、网页或 Browser Bridge；未生成图片；未发布；未写 `data/writing-packs/**`、`data/writing-runs/**` 或 `reports/writing/**`
 
 本次验证表明“同类全部报告”修复已经生效，但当前 Repair 契约只允许修改 Content Blocks，不能修改 `abstract` 或 X item。按本次授权，失败后没有再次运行，也没有修改 Prompt、代码或稿件冒充成功。写作状态继续保持 `implemented_pending_live_validation`，尚不满足 Provisional Profile 写作效果人工审核条件。
+
+## Public-surface audit and repair hardening
+
+第二次真实 dry-run 的根因是 Audit Scope 大于 Repair Scope：Style Audit 检查了标题、摘要、Blocks、CTA 与 X，但旧 Repair 只能修改 Content Blocks；`output.abstract` 和 `output.x.thread[2]` 即使被准确定位，也无法成为合法 Target。本轮只做离线结构修正，没有调用真实 Codex。
+
+Writer 现在把全部公开文本建模为八类 `PublicContentUnit`。主标题、两个备用标题、摘要、CTA 与每条 X 都具有独立、稳定的 `unit_id` 和完整 Evidence / Experiment / Product / Persona / Style 元数据；Blocks 通过 `wechat.block.<block_id>` Adapter 进入同一生命周期。最终渲染仍只输出文本，不暴露 Unit ID。
+
+五类确定性 Audit 改为逐 Unit 运行。human-writing 与 no-ai-slop 的 Raw Issues 都保留 Skill 来源与 commit；同一文本范围的跨 Skill 命中先形成 `RepairIssueGroup`，再按 Unit 合成一个 Repair Target，因此第二次失败形状中的 4 条 Raw Issues 正好生成 `wechat.abstract` 与 `x.thread.2` 两个 targets。
+
+Repair Contract 改为 `repaired_units`：每个 Patch 绑定当前 Unit 的 `original_sha256`，只能修改该 Target 的 `allowed_fields`，并复验 Claim、Experiment、Product、Persona 与 Style allowlist。Unit ID/surface、未命中 Unit、X format/thread 条数、标题数量、article type、block type 和 Unit 集合均不可更改。结构、格式、未知 Claim、关闭 Style Rule等 `non_repairable_contract` 问题直接 `writing_output_invalid`，不再被随意映射到 CTA 或第一 Block。
+
+Plagiarism Audit 现在明确区分 `not_run`、`pass`、`blocked`。Guard 未执行时 `protected_transfer_detected` 与 `reference_overlap_detected` 均为 `null`，报告只能写“未评估”；`READY_FOR_HUMAN_REVIEW` 必须要求实际 Guard `pass`。
+
+离线回归已复现第二次真实失败：摘要与第三条 X 各一处 reversal，Raw Issues 为 `reversal_rhetoric × 2 + binary_contrast × 2`，Repair Targets 为 2；一次 Fixture Repair 同时修复两处，最终 Style Audit `pass`、Plagiarism Guard 实际运行并 `pass`，Writing Pack 达到 `READY_FOR_HUMAN_REVIEW`。完整回归为 68 个测试文件、997 项测试，18 份生成式 Schema 无漂移。
+
+本轮未调用真实 Codex，未访问 X、公众号、网页或 Browser Bridge，未生成图片、未发布、未写正式 Writing 数据，也未修改 Runtime、LaunchAgent、Provisional 审批链或校准 Corpus。工程离线门槛已经满足再次验证条件，但任何真实 Synthetic READY dry-run 仍需要新的明确授权。

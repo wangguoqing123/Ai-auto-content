@@ -17,6 +17,15 @@
 - Evidence、Experiment、Product、First-person Audit 通过；`output.abstract` 与 `output.x.thread[2]` 不属于 Content Block，仍留下 `reversal_rhetoric` × 2 与 `binary_contrast` × 2，Style Audit fail closed。最终 `status=failed`、`decision=null`、`writing_audit_failed`。
 - 因 Style blocker 未清零，管道未进入 Plagiarism / Protected Transfer Guard，未生成审阅包。未访问平台/网页、未生成图片、未发布、未写正式 Writing 数据，状态继续为 `implemented_pending_live_validation`。
 
+### Public-surface audit and repair hardening
+
+- 统一建模八类 `PublicContentUnit`：公众号主/备用标题、摘要、Block、CTA 与 X single/thread/debate；所有表面携带 Evidence、Experiment、Product、Persona、Style 元数据，最终渲染不暴露内部 ID。
+- 五类 Audit 改为逐 Unit 执行并使用稳定 `unit_id`；保留 human-writing/no-ai-slop 两条 Raw Issue，同时按 Unit 与规范化命中片段分组为单一 Repair Target。
+- Repair 升级为带 `original_sha256` 与 `allowed_fields` 的 `repaired_units` Patch；锁定 Unit 集合、标题数量、X format/thread 条数、article type 和 block identity，并校验所有新增元数据 ID 的 allowlist。
+- 明确区分 repairable text/metadata issue 与 `non_repairable_contract`；format/type/未知 Claim/关闭 Style Rule 等问题直接 fail closed，不再错误映射到任意 Block。
+- Plagiarism Audit 增加 `not_run` 与 null detection fields；READY 必须要求终局 Guard 实际 `pass`。
+- 新增 80 项 Public Unit / Audit / Repair / 第二次失败回归测试；完整离线回归为 68 files / 997 tests，Fixture 一次 Repair 后 Style 与 Plagiarism 均通过并达到 READY。本轮未调用真实 Codex、未访问平台、未生成图片或发布。
+
 - 固定 vendored human-writing 1.1.0（`4fda173f3fef7fb808f3eba991eeb2528ea4b189`）与 no-ai-slop（`d30eddb9e04562234f2070b5ee63ca4649d9a05e`），保留 MIT License、上游 URL、逐文件 SHA-256 和已知可执行文件 allowlist；CI 不联网下载 Skill。
 - 增加本机 0700/0600 私有 style corpus，支持 Markdown、纯文本和 JSONL 导入；完整文章、反馈和 Profile 缓存不进入 Git，也不自动抓取作者内容。
 - 增加严格 Style Profile 与 Style Recipe Schema，分离内容、语言和转化模式，计算确定性节奏指标，并限制 owner/reference/platform 权重与最多两个参考 Profile。
