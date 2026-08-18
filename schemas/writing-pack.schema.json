@@ -780,10 +780,45 @@
                           "profile_preference"
                         ]
                       },
-                      "location": {
+                      "unit_id": {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 300
+                        "maxLength": 200
+                      },
+                      "surface": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "wechat_primary_title",
+                              "wechat_alternative_title",
+                              "wechat_abstract",
+                              "wechat_block",
+                              "wechat_cta",
+                              "x_single_post",
+                              "x_thread_item",
+                              "x_debate_prompt"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "writing_contract",
+                              "visual_slots",
+                              "writing_pack"
+                            ]
+                          }
+                        ]
+                      },
+                      "rule_origin": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "source_commit": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
                       },
                       "quoted_text": {
                         "type": "string",
@@ -798,7 +833,10 @@
                     "required": [
                       "issue_code",
                       "severity",
-                      "location",
+                      "unit_id",
+                      "surface",
+                      "rule_origin",
+                      "source_commit",
                       "quoted_text",
                       "repair_constraint"
                     ],
@@ -866,10 +904,45 @@
                           "profile_preference"
                         ]
                       },
-                      "location": {
+                      "unit_id": {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 300
+                        "maxLength": 200
+                      },
+                      "surface": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "wechat_primary_title",
+                              "wechat_alternative_title",
+                              "wechat_abstract",
+                              "wechat_block",
+                              "wechat_cta",
+                              "x_single_post",
+                              "x_thread_item",
+                              "x_debate_prompt"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "writing_contract",
+                              "visual_slots",
+                              "writing_pack"
+                            ]
+                          }
+                        ]
+                      },
+                      "rule_origin": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "source_commit": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
                       },
                       "quoted_text": {
                         "type": "string",
@@ -884,7 +957,10 @@
                     "required": [
                       "issue_code",
                       "severity",
-                      "location",
+                      "unit_id",
+                      "surface",
+                      "rule_origin",
+                      "source_commit",
                       "quoted_text",
                       "repair_constraint"
                     ],
@@ -938,10 +1014,45 @@
                           "profile_preference"
                         ]
                       },
-                      "location": {
+                      "unit_id": {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 300
+                        "maxLength": 200
+                      },
+                      "surface": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "wechat_primary_title",
+                              "wechat_alternative_title",
+                              "wechat_abstract",
+                              "wechat_block",
+                              "wechat_cta",
+                              "x_single_post",
+                              "x_thread_item",
+                              "x_debate_prompt"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "writing_contract",
+                              "visual_slots",
+                              "writing_pack"
+                            ]
+                          }
+                        ]
+                      },
+                      "rule_origin": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "source_commit": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
                       },
                       "quoted_text": {
                         "type": "string",
@@ -956,7 +1067,10 @@
                     "required": [
                       "issue_code",
                       "severity",
-                      "location",
+                      "unit_id",
+                      "surface",
+                      "rule_origin",
+                      "source_commit",
                       "quoted_text",
                       "repair_constraint"
                     ],
@@ -1034,10 +1148,45 @@
                           "profile_preference"
                         ]
                       },
-                      "location": {
+                      "unit_id": {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 300
+                        "maxLength": 200
+                      },
+                      "surface": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "wechat_primary_title",
+                              "wechat_alternative_title",
+                              "wechat_abstract",
+                              "wechat_block",
+                              "wechat_cta",
+                              "x_single_post",
+                              "x_thread_item",
+                              "x_debate_prompt"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "writing_contract",
+                              "visual_slots",
+                              "writing_pack"
+                            ]
+                          }
+                        ]
+                      },
+                      "rule_origin": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "source_commit": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
                       },
                       "quoted_text": {
                         "type": "string",
@@ -1052,7 +1201,10 @@
                     "required": [
                       "issue_code",
                       "severity",
-                      "location",
+                      "unit_id",
+                      "surface",
+                      "rule_origin",
+                      "source_commit",
                       "quoted_text",
                       "repair_constraint"
                     ],
@@ -1144,10 +1296,45 @@
                           "profile_preference"
                         ]
                       },
-                      "location": {
+                      "unit_id": {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 300
+                        "maxLength": 200
+                      },
+                      "surface": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "wechat_primary_title",
+                              "wechat_alternative_title",
+                              "wechat_abstract",
+                              "wechat_block",
+                              "wechat_cta",
+                              "x_single_post",
+                              "x_thread_item",
+                              "x_debate_prompt"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "writing_contract",
+                              "visual_slots",
+                              "writing_pack"
+                            ]
+                          }
+                        ]
+                      },
+                      "rule_origin": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "source_commit": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
                       },
                       "quoted_text": {
                         "type": "string",
@@ -1162,7 +1349,10 @@
                     "required": [
                       "issue_code",
                       "severity",
-                      "location",
+                      "unit_id",
+                      "surface",
+                      "rule_origin",
+                      "source_commit",
                       "quoted_text",
                       "repair_constraint"
                     ],
@@ -1192,6 +1382,7 @@
                 "status": {
                   "type": "string",
                   "enum": [
+                    "not_run",
                     "pass",
                     "blocked"
                   ]
@@ -1216,10 +1407,45 @@
                           "profile_preference"
                         ]
                       },
-                      "location": {
+                      "unit_id": {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 300
+                        "maxLength": 200
+                      },
+                      "surface": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "wechat_primary_title",
+                              "wechat_alternative_title",
+                              "wechat_abstract",
+                              "wechat_block",
+                              "wechat_cta",
+                              "x_single_post",
+                              "x_thread_item",
+                              "x_debate_prompt"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "writing_contract",
+                              "visual_slots",
+                              "writing_pack"
+                            ]
+                          }
+                        ]
+                      },
+                      "rule_origin": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "source_commit": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
                       },
                       "quoted_text": {
                         "type": "string",
@@ -1234,7 +1460,10 @@
                     "required": [
                       "issue_code",
                       "severity",
-                      "location",
+                      "unit_id",
+                      "surface",
+                      "rule_origin",
+                      "source_commit",
                       "quoted_text",
                       "repair_constraint"
                     ],
@@ -1251,10 +1480,24 @@
                   }
                 },
                 "protected_transfer_detected": {
-                  "type": "boolean"
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "reference_overlap_detected": {
-                  "type": "boolean"
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 }
               },
               "required": [
@@ -1295,10 +1538,45 @@
                       "profile_preference"
                     ]
                   },
-                  "location": {
+                  "unit_id": {
                     "type": "string",
                     "minLength": 1,
-                    "maxLength": 300
+                    "maxLength": 200
+                  },
+                  "surface": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "wechat_primary_title",
+                          "wechat_alternative_title",
+                          "wechat_abstract",
+                          "wechat_block",
+                          "wechat_cta",
+                          "x_single_post",
+                          "x_thread_item",
+                          "x_debate_prompt"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "writing_contract",
+                          "visual_slots",
+                          "writing_pack"
+                        ]
+                      }
+                    ]
+                  },
+                  "rule_origin": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "source_commit": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
                   },
                   "quoted_text": {
                     "type": "string",
@@ -1313,7 +1591,10 @@
                 "required": [
                   "issue_code",
                   "severity",
-                  "location",
+                  "unit_id",
+                  "surface",
+                  "rule_origin",
+                  "source_commit",
                   "quoted_text",
                   "repair_constraint"
                 ],

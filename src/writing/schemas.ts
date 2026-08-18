@@ -206,6 +206,32 @@ export const contentBlockSchema = z.strictObject({
   is_opinion: z.boolean(),
 });
 
+export const publicContentSurfaceSchema = z.enum([
+  'wechat_primary_title', 'wechat_alternative_title', 'wechat_abstract', 'wechat_block', 'wechat_cta',
+  'x_single_post', 'x_thread_item', 'x_debate_prompt',
+]);
+
+const publicUnitMetadata = {
+  claim_ids: z.array(z.string().regex(/^claim_[a-z0-9_-]{1,60}$/)).max(8),
+  experiment_refs: z.array(z.enum(['baseline_chat_request', 'structured_task_card'])).max(2),
+  product_claim_ids: z.array(z.string().max(200)).max(10),
+  persona_fact_ids: z.array(z.string().max(200)).max(10),
+  style_rule_ids: z.array(ruleIdSchema).max(20),
+  is_opinion: z.boolean(),
+} as const;
+
+export const publicTextUnitSchema = z.strictObject({
+  unit_id: z.string().regex(/^(?:wechat\.(?:primary_title|alternative_title\.[01]|abstract|cta)|x\.(?:single_post|thread\.\d+|debate_prompt))$/),
+  text: optionalText(6_000),
+  ...publicUnitMetadata,
+});
+
+export const publicContentUnitSchema = publicTextUnitSchema.extend({
+  unit_id: z.string().regex(/^(?:wechat\.(?:primary_title|alternative_title\.[01]|abstract|cta|block\.block_[a-z0-9_-]{1,60})|x\.(?:single_post|thread\.\d+|debate_prompt))$/),
+  surface: publicContentSurfaceSchema,
+  index: z.number().int().nonnegative().nullable(),
+});
+
 export const visualSlotSchema = z.strictObject({
   slot_id: z.string().regex(/^visual_[a-z0-9_-]{1,60}$/), location: text(500), purpose: text(1_000),
   visual_type: z.enum(['cover', 'process_diagram', 'checklist', 'comparison', 'screenshot', 'result_card']),
@@ -242,9 +268,13 @@ export const xDraftSchema = z.strictObject({
   if (draft.format === 'debate_prompt' && (draft.single_post !== null || draft.thread.length > 0 || draft.debate_prompt === null)) context.addIssue({ code: 'custom', message: 'debate_prompt must be the only X output' });
 });
 
+export const writingIssueSurfaceSchema = z.union([publicContentSurfaceSchema, z.enum(['writing_contract', 'visual_slots', 'writing_pack'])]);
+
 export const writingIssueSchema = z.strictObject({
   issue_code: text(100), severity: z.enum(['hard_blocker', 'blocking_style_issue', 'warning', 'profile_preference']),
-  location: text(300), quoted_text: optionalText(1_000), repair_constraint: text(1_000),
+  unit_id: text(200), surface: writingIssueSurfaceSchema,
+  rule_origin: text(100), source_commit: text(200),
+  quoted_text: optionalText(1_000), repair_constraint: text(1_000),
 });
 
 const auditSchema = z.strictObject({
@@ -259,7 +289,16 @@ export const writingAuditSchema = z.strictObject({
   product: auditSchema.extend({ requested_cta_mode: z.enum(['none', 'light', 'club']).nullable(), effective_cta_mode: z.enum(['none', 'light']) }),
   first_person: auditSchema.extend({ sentences: z.array(z.strictObject({ sentence: text(1_000), type: z.enum(['opinion', 'factual']), evidence_refs: z.array(z.string()), allowed: z.boolean() })).max(100) }),
   style: auditSchema,
-  plagiarism: auditSchema.extend({ protected_transfer_detected: z.boolean(), reference_overlap_detected: z.boolean() }),
+  plagiarism: z.strictObject({
+    status: z.enum(['not_run', 'pass', 'blocked']),
+    issues: z.array(writingIssueSchema).max(100),
+    checked_items: stringList(100, 1_000),
+    protected_transfer_detected: z.boolean().nullable(),
+    reference_overlap_detected: z.boolean().nullable(),
+  }).superRefine((audit, context) => {
+    if (audit.status === 'not_run' && (audit.protected_transfer_detected !== null || audit.reference_overlap_detected !== null)) context.addIssue({ code: 'custom', message: 'Unexecuted plagiarism Guard requires null detection fields' });
+    if (audit.status !== 'not_run' && (audit.protected_transfer_detected === null || audit.reference_overlap_detected === null)) context.addIssue({ code: 'custom', message: 'Executed plagiarism Guard requires boolean detection fields' });
+  }),
   unknowns: stringList(100, 2_000),
   quality_issues: z.array(writingIssueSchema).max(100),
 });
@@ -311,20 +350,39 @@ export const writingPackSchema = z.strictObject({
     if (pack.decision !== null || pack.error_code === null) context.addIssue({ code: 'custom', message: 'Failed runs require decision=null and error_code' });
   } else if (pack.decision === null || pack.error_code !== null) context.addIssue({ code: 'custom', message: 'Successful runs require decision and no error_code' });
   if (pack.decision === 'READY_FOR_HUMAN_REVIEW' && (!contentPresent || pack.style === null)) context.addIssue({ code: 'custom', message: 'READY_FOR_HUMAN_REVIEW requires all content and audits' });
+  if (pack.decision === 'READY_FOR_HUMAN_REVIEW' && pack.audits !== null && ([pack.audits.evidence.status, pack.audits.experiment.status, pack.audits.product.status, pack.audits.first_person.status, pack.audits.style.status].some((status) => status !== 'pass') || pack.audits.plagiarism.status !== 'pass')) context.addIssue({ code: 'custom', message: 'READY_FOR_HUMAN_REVIEW requires every Audit and the executed plagiarism Guard to pass' });
   if (pack.decision !== 'READY_FOR_HUMAN_REVIEW' && contentPresent) context.addIssue({ code: 'custom', message: 'Non-ready decisions cannot contain content' });
   if (pack.style?.provisional_style_used === true && pack.style.production_eligible) context.addIssue({ code: 'custom', message: 'Provisional style cannot be production eligible' });
 });
 
 export const writerOutputSchema = z.strictObject({
   article_type: articleTypeSchema,
-  primary_title: text(100),
-  alternative_titles: z.array(text(100)).length(2),
-  abstract: text(500),
+  primary_title: publicTextUnitSchema,
+  alternative_titles: z.array(publicTextUnitSchema).length(2),
+  abstract: publicTextUnitSchema,
   blocks: z.array(contentBlockSchema).min(6).max(24),
   source_notes: z.array(z.strictObject({ claim_id: z.string() })).max(8),
-  cta: z.strictObject({ mode: z.enum(['none', 'light']), text: optionalText(1_000) }),
+  cta: z.strictObject({ mode: z.enum(['none', 'light']), unit: publicTextUnitSchema }),
   visual_slots: z.array(visualSlotSchema).max(10),
-  x: xDraftSchema,
+  x: z.strictObject({
+    format: z.enum(['single_post', 'thread', 'debate_prompt']),
+    single_post: publicTextUnitSchema.nullable(),
+    thread: z.strictObject({ items: z.array(publicTextUnitSchema).max(7) }),
+    debate_prompt: publicTextUnitSchema.nullable(),
+  }),
+}).superRefine((output, context) => {
+  const expected = [
+    [output.primary_title, 'wechat.primary_title'], [output.alternative_titles[0], 'wechat.alternative_title.0'],
+    [output.alternative_titles[1], 'wechat.alternative_title.1'], [output.abstract, 'wechat.abstract'], [output.cta.unit, 'wechat.cta'],
+  ] as const;
+  for (const [unit, id] of expected) if (unit?.unit_id !== id) context.addIssue({ code: 'custom', path: [id], message: `Expected stable unit_id ${id}` });
+  if ([output.primary_title, ...output.alternative_titles, output.abstract].some(({ text: value }) => value.trim() === '')) context.addIssue({ code: 'custom', message: 'Titles and abstract require non-empty text' });
+  if (output.x.format === 'single_post') {
+    if (output.x.single_post?.unit_id !== 'x.single_post' || output.x.single_post.text.trim() === '' || output.x.thread.items.length > 0 || output.x.debate_prompt !== null) context.addIssue({ code: 'custom', message: 'single_post must be the only stable X unit' });
+  } else if (output.x.format === 'thread') {
+    if (output.x.single_post !== null || output.x.debate_prompt !== null || output.x.thread.items.length < 4 || output.x.thread.items.length > 7) context.addIssue({ code: 'custom', message: 'thread must contain 4-7 stable units and be the only X output' });
+    output.x.thread.items.forEach((unit, index) => { if (unit.unit_id !== `x.thread.${index}` || unit.text.trim() === '') context.addIssue({ code: 'custom', path: ['x', 'thread', 'items', index], message: `Expected stable unit_id x.thread.${index}` }); });
+  } else if (output.x.debate_prompt?.unit_id !== 'x.debate_prompt' || output.x.debate_prompt.text.trim() === '' || output.x.single_post !== null || output.x.thread.items.length > 0) context.addIssue({ code: 'custom', message: 'debate_prompt must be the only stable X unit' });
 });
 
 export const reviewerOutputSchema = z.strictObject({
@@ -332,7 +390,11 @@ export const reviewerOutputSchema = z.strictObject({
 });
 
 export const repairOutputSchema = z.strictObject({
-  repaired_blocks: z.array(z.strictObject({ block_id: z.string(), text: text(6_000) })).max(24),
+  repaired_units: z.array(z.strictObject({
+    unit_id: z.string().min(1).max(200),
+    original_sha256: sha256Schema,
+    replacement: z.strictObject({ text: optionalText(6_000), ...publicUnitMetadata }),
+  })).max(40),
 });
 
 export type WritingIntelligenceConfig = z.infer<typeof writingIntelligenceConfigSchema>;
@@ -342,10 +404,14 @@ export type ApprovalBindingAttestation = z.infer<typeof approvalBindingAttestati
 export type ResolvedWritingStyleSnapshot = z.infer<typeof resolvedWritingStyleSchema>;
 export type ResolvedStyleRule = z.infer<typeof resolvedStyleRuleSchema>;
 export type ContentBlock = z.infer<typeof contentBlockSchema>;
+export type PublicTextUnit = z.infer<typeof publicTextUnitSchema>;
+export type PublicContentUnit = z.infer<typeof publicContentUnitSchema>;
+export type PublicContentSurface = z.infer<typeof publicContentSurfaceSchema>;
 export type MasterDraft = z.infer<typeof masterDraftSchema>;
 export type WechatDraft = z.infer<typeof wechatDraftSchema>;
 export type XDraft = z.infer<typeof xDraftSchema>;
 export type WritingAudit = z.infer<typeof writingAuditSchema>;
+export type WritingIssue = z.infer<typeof writingIssueSchema>;
 export type WritingPack = z.infer<typeof writingPackSchema>;
 export type WriterOutput = z.infer<typeof writerOutputSchema>;
 export type ReviewerOutput = z.infer<typeof reviewerOutputSchema>;

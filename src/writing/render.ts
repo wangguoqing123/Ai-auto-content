@@ -35,10 +35,15 @@ export function renderWriterOutput(output: WriterOutput, research: ResearchPack)
   return {
     master: masterDraftSchema.parse({ article_type: output.article_type, blocks: output.blocks, rendered_markdown: rendered }),
     wechat: wechatDraftSchema.parse({
-      primary_title: output.primary_title, alternative_titles: output.alternative_titles, abstract: output.abstract,
-      article_type: output.article_type, blocks: output.blocks, article_markdown: `# ${output.primary_title}\n\n${rendered}`,
-      chinese_character_count: chineseCharacterCount(rendered), source_notes: sourceNotes, cta: output.cta, visual_slots: output.visual_slots,
+      primary_title: output.primary_title.text, alternative_titles: output.alternative_titles.map(({ text }) => text), abstract: output.abstract.text,
+      article_type: output.article_type, blocks: output.blocks, article_markdown: `# ${output.primary_title.text}\n\n${rendered}`,
+      chinese_character_count: chineseCharacterCount(rendered), source_notes: sourceNotes, cta: { mode: output.cta.mode, text: output.cta.unit.text }, visual_slots: output.visual_slots,
     }),
-    x: xDraftSchema.parse(output.x),
+    x: xDraftSchema.parse({
+      format: output.x.format,
+      single_post: output.x.single_post?.text ?? null,
+      thread: output.x.thread.items.map(({ text }) => text),
+      debate_prompt: output.x.debate_prompt?.text ?? null,
+    }),
   };
 }

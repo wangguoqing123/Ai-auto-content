@@ -7,11 +7,14 @@ import type { ResearchPack } from '../research/schemas.js';
 import { loadProductProfile } from '../product/load-product-profile.js';
 import { sha256, stableJson } from '../style-intelligence/hash.js';
 import type { ArticleType } from '../style-intelligence/schemas.js';
+import { resolveFixtureProtectedTransferIndexes } from '../style-intelligence/protected-transfer.js';
 import { blockingAuditIssues, runDeterministicWritingAudits, withPlagiarismAudit } from './audits.js';
 import { loadWritingIntelligenceConfig } from './config.js';
 import { CodexCliWritingProvider, FixtureWritingProvider, WritingProviderError, codexCliWritingProviderFromEnvironment, type WritingProvider } from './provider.js';
 import { loadReferenceGuardInputsReadOnly } from './reference-guard.js';
 import { renderWriterOutput } from './render.js';
+import { enumeratePublicContentUnits } from './public-content-units.js';
+import { applyUnitRepair, buildRepairPlan, RepairContractError } from './repair.js';
 import { evaluateResearchGate } from './research-gate.js';
 import {
   resolvedWritingStyleSnapshot,
@@ -21,9 +24,15 @@ import {
 } from './style-approval-resolver.js';
 import { buildWritingStyleRecipes } from './style-recipe.js';
 import { writeProductionWritingPack, writeSyntheticReviewPack, writeTemporaryWritingPack } from './storage.js';
-import { writingPackSchema, writerOutputSchema, type WriterOutput, type WritingPack } from './schemas.js';
+import { writingIssueSchema, writingPackSchema, writerOutputSchema, type WriterOutput, type WritingAudit, type WritingIssue, type WritingPack } from './schemas.js';
 
-interface SimpleIssue { issue_code: string; severity: 'hard_blocker' | 'blocking_style_issue' | 'warning' | 'profile_preference'; location: string; quoted_text: string; repair_constraint: string }
+export interface WritingRunDiagnostics {
+  audit_statuses: { evidence: string; experiment: string; product: string; first_person: string; style: string; plagiarism: string } | null;
+  blocking_issues: Array<{ issue_code: string; unit_id: string; surface: string }>;
+  repair_executed: boolean;
+  repair_target_count: number;
+  plagiarism_guard_executed: boolean;
+}
 
 export interface RunWritingBuildOptions {
   rootDir?: string;
@@ -53,6 +62,7 @@ export interface RunWritingBuildResult {
   repository_files: string[];
   temporary_output_directory: string | null;
   review_pack_directory: string | null;
+  diagnostics: WritingRunDiagnostics | null;
 }
 
 function runId(now: Date): string { return `writing_${now.toISOString().replace(/[:.]/g, '-')}`; }
@@ -90,12 +100,12 @@ function emptyModel(): WritingPack['model'] { return { provider: 'none', model: 
 
 function earlyResult(base: ReturnType<typeof basePack>, decision: 'BLOCKED_BY_RESEARCH' | 'NO_CONTENT' | 'WAITING_FOR_RESEARCH' | 'WAITING_FOR_APPROVED_STYLE'): RunWritingBuildResult {
   const pack = writingPackSchema.parse({ ...base, status: 'success', decision, style: null, master_draft: null, wechat: null, x: null, audits: null, model: emptyModel(), error_code: null, error_message_safe: null });
-  return { execution_status: decision === 'BLOCKED_BY_RESEARCH' ? 'BLOCKED' : 'WAITING', pack, files_written: false, repository_files: [], temporary_output_directory: null, review_pack_directory: null };
+  return { execution_status: decision === 'BLOCKED_BY_RESEARCH' ? 'BLOCKED' : 'WAITING', pack, files_written: false, repository_files: [], temporary_output_directory: null, review_pack_directory: null, diagnostics: null };
 }
 
-function failedResult(base: ReturnType<typeof basePack>, code: WritingPack['error_code'], model: WritingPack['model'], style: WritingPack['style'] = null, safeMessage: string | null = code): RunWritingBuildResult {
+function failedResult(base: ReturnType<typeof basePack>, code: WritingPack['error_code'], model: WritingPack['model'], style: WritingPack['style'] = null, safeMessage: string | null = code, diagnostics: WritingRunDiagnostics | null = null): RunWritingBuildResult {
   const pack = writingPackSchema.parse({ ...base, status: 'failed', decision: null, style, master_draft: null, wechat: null, x: null, audits: null, model, error_code: code, error_message_safe: safeMessage });
-  return { execution_status: 'FAILED', pack, files_written: false, repository_files: [], temporary_output_directory: null, review_pack_directory: null };
+  return { execution_status: 'FAILED', pack, files_written: false, repository_files: [], temporary_output_directory: null, review_pack_directory: null, diagnostics };
 }
 
 function articleTypeForResearch(research: ResearchPack): ArticleType {
@@ -126,18 +136,21 @@ function publicResearchInput(research: ResearchPack) {
   };
 }
 
-function structuralIssues(output: WriterOutput, rendered: ReturnType<typeof renderWriterOutput>, articleType: ArticleType, xFormat: ReturnType<typeof xFormatForResearch>, minimum: number, maximum: number, maxX: number): SimpleIssue[] {
-  const issues: SimpleIssue[] = [];
-  const add = (issue_code: string, location: string, quoted_text: string, repair_constraint: string) => issues.push({ issue_code, location, quoted_text, repair_constraint, severity: 'hard_blocker' });
-  const firstBlock = output.blocks[0]!.block_id;
-  const boundaryBlock = output.blocks.find(({ block_type }) => block_type === 'boundary')?.block_id ?? firstBlock;
-  const ctaBlock = output.blocks.find(({ block_type }) => block_type === 'cta')?.block_id ?? output.blocks.at(-1)!.block_id;
-  if (output.article_type !== articleType) add('article_type_mismatch', firstBlock, output.article_type, `Use the planned ${articleType} structure.`);
-  if (rendered.wechat.chinese_character_count < minimum || rendered.wechat.chinese_character_count > maximum) add('wechat_length_out_of_range', boundaryBlock, String(rendered.wechat.chinese_character_count), `Keep the rendered WeChat body between ${minimum} and ${maximum} Chinese characters without new facts.`);
-  if (output.x.format !== xFormat) add('x_format_mismatch', ctaBlock, output.x.format, `Return only the planned ${xFormat} format.`);
-  const items = output.x.format === 'thread' ? output.x.thread : [output.x.single_post ?? output.x.debate_prompt ?? ''];
-  if (items.some((item) => [...item].filter((character) => /\p{Script=Han}/u.test(character)).length > maxX)) add('x_item_too_long', ctaBlock, '', `Each X item must be at most ${maxX} Chinese characters.`);
-  if (output.visual_slots.some(({ generation_status }) => generation_status !== 'not_started')) add('visual_generation_attempted', 'visual_slots', '', 'Visual slots are planning only.');
+function structuralIssues(output: WriterOutput, rendered: ReturnType<typeof renderWriterOutput>, articleType: ArticleType, xFormat: ReturnType<typeof xFormatForResearch>, minimum: number, maximum: number, maxX: number): WritingIssue[] {
+  const issues: WritingIssue[] = [];
+  const units = enumeratePublicContentUnits(output);
+  const addContract = (issue_code: string, quoted_text: string, repair_constraint: string, surface: 'writing_contract' | 'visual_slots' = 'writing_contract') => issues.push(writingIssueSchema.parse({ issue_code, severity: 'hard_blocker', unit_id: surface === 'visual_slots' ? 'writing.visual_slots' : 'writing.contract', surface, rule_origin: 'project', source_commit: 'project-v0', quoted_text, repair_constraint }));
+  const addUnit = (issue_code: string, unitId: string, quoted_text: string, repair_constraint: string) => {
+    const unit = units.find(({ unit_id }) => unit_id === unitId)!;
+    issues.push(writingIssueSchema.parse({ issue_code, severity: 'hard_blocker', unit_id: unit.unit_id, surface: unit.surface, rule_origin: 'project', source_commit: 'project-v0', quoted_text, repair_constraint }));
+  };
+  const boundary = output.blocks.find(({ block_type }) => block_type === 'boundary') ?? output.blocks[0]!;
+  if (output.article_type !== articleType) addContract('article_type_mismatch', output.article_type, `Use the planned ${articleType} structure.`);
+  if (rendered.wechat.chinese_character_count < minimum || rendered.wechat.chinese_character_count > maximum) addUnit('wechat_length_out_of_range', `wechat.block.${boundary.block_id}`, String(rendered.wechat.chinese_character_count), `Keep the rendered WeChat body between ${minimum} and ${maximum} Chinese characters without new facts.`);
+  if (output.x.format !== xFormat) addContract('x_format_mismatch', output.x.format, `Return only the planned ${xFormat} format.`);
+  const xUnits = units.filter(({ surface }) => ['x_single_post', 'x_thread_item', 'x_debate_prompt'].includes(surface));
+  for (const unit of xUnits) if ([...unit.text].filter((character) => /\p{Script=Han}/u.test(character)).length > maxX) addUnit('x_item_too_long', unit.unit_id, unit.text, `Each X item must be at most ${maxX} Chinese characters.`);
+  if (output.visual_slots.some(({ generation_status }) => generation_status !== 'not_started')) addContract('visual_generation_attempted', '', 'Visual slots are planning only.', 'visual_slots');
   return issues;
 }
 
@@ -163,27 +176,14 @@ function stylePack(style: ReturnType<typeof resolvedWritingStyleSnapshot>, recip
   };
 }
 
-export function repairTargets(output: WriterOutput, issues: readonly SimpleIssue[]) {
-  const targets = new Map<string, { block_id: string; text: string; constraints: string[] }>();
-  for (const item of issues) {
-    const explicit = /block_[a-z0-9_-]+/u.exec(item.location)?.[0];
-    const byQuote = item.quoted_text === '' ? undefined : output.blocks.find(({ text }) => text.includes(item.quoted_text))?.block_id;
-    const blockId = explicit ?? byQuote ?? (item.issue_code.includes('limitation') ? output.blocks.find(({ block_type }) => block_type === 'boundary')?.block_id : undefined);
-    if (blockId === undefined) continue;
-    const block = output.blocks.find(({ block_id }) => block_id === blockId);
-    if (block === undefined) continue;
-    const current = targets.get(blockId) ?? { block_id: blockId, text: block.text, constraints: [] };
-    current.constraints.push(item.repair_constraint);
-    targets.set(blockId, current);
-  }
-  return [...targets.values()];
-}
-
-export function applyRepair(output: WriterOutput, targets: ReturnType<typeof repairTargets>, repaired: Awaited<ReturnType<WritingProvider['repair']>>['output']): WriterOutput {
-  const allowed = new Set(targets.map(({ block_id }) => block_id));
-  if (repaired.repaired_blocks.some(({ block_id }) => !allowed.has(block_id))) throw new Error('repair_modified_unlisted_block');
-  const replacements = new Map(repaired.repaired_blocks.map(({ block_id, text }) => [block_id, text]));
-  return writerOutputSchema.parse({ ...output, blocks: output.blocks.map((block) => replacements.has(block.block_id) ? { ...block, text: replacements.get(block.block_id)! } : block) });
+function diagnosticsFor(audits: WritingAudit | null, blockers: readonly WritingIssue[], repairExecuted: boolean, repairTargetCount: number, guardExecuted: boolean): WritingRunDiagnostics {
+  return {
+    audit_statuses: audits === null ? null : { evidence: audits.evidence.status, experiment: audits.experiment.status, product: audits.product.status, first_person: audits.first_person.status, style: audits.style.status, plagiarism: audits.plagiarism.status },
+    blocking_issues: blockers.map(({ issue_code, unit_id, surface }) => ({ issue_code, unit_id, surface })),
+    repair_executed: repairExecuted,
+    repair_target_count: repairTargetCount,
+    plagiarism_guard_executed: guardExecuted,
+  };
 }
 
 export async function runWritingBuild(options: RunWritingBuildOptions): Promise<RunWritingBuildResult> {
@@ -251,47 +251,65 @@ export async function runWritingBuild(options: RunWritingBuildOptions): Promise<
   try { output = record(await provider.write(writerInput)); }
   catch (error) { return failedResult(base, error instanceof WritingProviderError ? error.code as WritingPack['error_code'] : 'writing_output_invalid', model(), packStyle, error instanceof WritingProviderError ? error.safeMessage : 'writing_output_invalid'); }
   if (calls > 3) return failedResult(base, 'writing_output_invalid', model(), packStyle);
-  if (ctaMode === 'none') output = writerOutputSchema.parse({ ...output, cta: { mode: 'none', text: '' } });
+  if (ctaMode === 'none') output = writerOutputSchema.parse({ ...output, cta: { mode: 'none', unit: { ...output.cta.unit, text: '' } } });
 
   let rendered = renderWriterOutput(output, research);
   let qualityIssues = structuralIssues(output, rendered, articleType, xFormat, config.writing.minimum_wechat_chinese_chars, config.writing.maximum_wechat_chinese_chars, config.writing.maximum_x_chinese_chars);
-  let audits = runDeterministicWritingAudits({ ...rendered, research, product, recipes, style, qualityIssues });
+  let audits = runDeterministicWritingAudits({ output, ...rendered, research, product, recipes, style, qualityIssues });
   try {
     const reviewer = record(await provider.review({
-      output, audits, constraints: { article_type: articleType, x_format: xFormat, effective_cta_mode: ctaMode, human_gate_required: true, no_full_rewrite: true },
+      units: enumeratePublicContentUnits(output), audits, constraints: { article_type: articleType, x_format: xFormat, effective_cta_mode: ctaMode, human_gate_required: true, no_full_rewrite: true, stable_unit_location_required: true },
     }));
     qualityIssues = [...qualityIssues, ...reviewer.issues];
   } catch (error) { return failedResult(base, error instanceof WritingProviderError ? error.code as WritingPack['error_code'] : 'writing_output_invalid', model(), packStyle, error instanceof WritingProviderError ? error.safeMessage : 'writing_output_invalid'); }
-  audits = runDeterministicWritingAudits({ ...rendered, research, product, recipes, style, qualityIssues });
+  audits = runDeterministicWritingAudits({ output, ...rendered, research, product, recipes, style, qualityIssues });
 
   let blockers = blockingAuditIssues(audits);
+  let repairExecuted = false;
+  let repairTargetCount = 0;
   if (blockers.length > 0) {
-    const targets = repairTargets(output, blockers);
-    if (targets.length === 0 || calls >= 3) return failedResult(base, 'writing_audit_failed', model(), packStyle);
-    try { output = applyRepair(output, targets, record(await provider.repair({ blocks: targets, no_new_facts: true, preserve_block_metadata: true }))); }
-    catch (error) { return failedResult(base, error instanceof WritingProviderError ? error.code as WritingPack['error_code'] : 'writing_output_invalid', model(), packStyle, error instanceof WritingProviderError ? error.safeMessage : 'writing_output_invalid'); }
+    const plan = buildRepairPlan(output, blockers);
+    repairTargetCount = plan.targets.length;
+    if (plan.non_repairable.length > 0) return failedResult(base, 'writing_output_invalid', model(), packStyle, 'writing_output_invalid', diagnosticsFor(audits, plan.non_repairable, false, repairTargetCount, false));
+    if (plan.targets.length === 0 || calls >= 3) return failedResult(base, 'writing_audit_failed', model(), packStyle, 'writing_audit_failed', diagnosticsFor(audits, blockers, false, repairTargetCount, false));
+    try {
+      const repaired = record(await provider.repair({ targets: plan.targets, no_new_facts: true, no_full_rewrite: true, preserve_unit_identity: true }));
+      repairExecuted = true;
+      const units = enumeratePublicContentUnits(output);
+      output = applyUnitRepair(output, plan.targets, repaired, {
+        allowedClaimIds: new Set(research.verified_claims.map(({ claim_id }) => claim_id)),
+        allowedExperimentRefs: new Set(research.experiment?.results.map(({ variant_id }) => variant_id) ?? []),
+        allowedProductClaimIds: new Set(product.claims.confirmed),
+        allowedPersonaFactIds: new Set(units.flatMap(({ persona_fact_ids }) => persona_fact_ids)),
+        allowedStyleRuleIds: new Set(recipes.selected_rule_ids),
+      });
+    } catch (error) {
+      const safe = error instanceof WritingProviderError ? error.safeMessage : error instanceof RepairContractError ? `${error.code}: ${error.reason}` : 'writing_output_invalid';
+      return failedResult(base, error instanceof WritingProviderError ? error.code as WritingPack['error_code'] : 'writing_output_invalid', model(), packStyle, safe, diagnosticsFor(audits, blockers, repairExecuted, repairTargetCount, false));
+    }
     rendered = renderWriterOutput(output, research);
     const remainingWarnings = qualityIssues.filter(({ severity }) => severity === 'warning' || severity === 'profile_preference');
     const newStructural = structuralIssues(output, rendered, articleType, xFormat, config.writing.minimum_wechat_chinese_chars, config.writing.maximum_wechat_chinese_chars, config.writing.maximum_x_chinese_chars);
-    audits = runDeterministicWritingAudits({ ...rendered, research, product, recipes, style, qualityIssues: [...remainingWarnings, ...newStructural] });
+    audits = runDeterministicWritingAudits({ output, ...rendered, research, product, recipes, style, qualityIssues: [...remainingWarnings, ...newStructural] });
     blockers = blockingAuditIssues(audits);
-    if (blockers.length > 0) return failedResult(base, 'writing_audit_failed', model(), packStyle);
+    if (blockers.length > 0) return failedResult(base, 'writing_audit_failed', model(), packStyle, 'writing_audit_failed', diagnosticsFor(audits, blockers, repairExecuted, repairTargetCount, false));
   }
   if (calls > 3) return failedResult(base, 'writing_output_invalid', model(), packStyle);
 
   try {
     const authorizedResearchQuotes = resolveAuthorizedResearchQuotes(research, { allowPartialClaimIds: research.verified_claims.filter(({ support_status }) => support_status === 'partial').map(({ claim_id }) => claim_id) });
     const guardInputs = options.fixture === true && options.skipReferenceGuardForFixture !== false
-      ? (await import('../style-intelligence/protected-transfer.js')).resolveFixtureProtectedTransferIndexes()
+      ? resolveFixtureProtectedTransferIndexes()
       : null;
     const guard = guardInputs === null
       ? await loadReferenceGuardInputsReadOnly(options.corpusRoot ?? path.resolve(path.dirname(options.styleProfilePath!), '..', '..', '..'), style.profile_ids.reference)
       : { corpus: [], protectedIndexes: guardInputs };
     const result = guardAgainstPlagiarism({ draft: `${rendered.wechat.article_markdown}\n${rendered.x.single_post ?? rendered.x.debate_prompt ?? rendered.x.thread.join('\n')}`, corpus: guard.corpus, protectedIndexes: guard.protectedIndexes, authorizedResearchQuotes });
     audits = withPlagiarismAudit(audits, result);
-    if (result.status === 'blocked') return failedResult(base, audits.plagiarism.protected_transfer_detected ? 'protected_transfer_detected' : 'reference_overlap_detected', model(), packStyle);
-  } catch {
-    return failedResult(base, 'writing_audit_failed', model(), packStyle);
+    if (result.status === 'blocked') return failedResult(base, audits.plagiarism.protected_transfer_detected ? 'protected_transfer_detected' : 'reference_overlap_detected', model(), packStyle, audits.plagiarism.protected_transfer_detected ? 'protected_transfer_detected' : 'reference_overlap_detected', diagnosticsFor(audits, [], repairExecuted, repairTargetCount, true));
+  } catch (error) {
+    const safe = error instanceof Error ? `writing_audit_failed: ${error.message}`.slice(0, 1_000) : 'writing_audit_failed';
+    return failedResult(base, 'writing_audit_failed', model(), packStyle, safe, diagnosticsFor(audits, [], repairExecuted, repairTargetCount, false));
   }
 
   const pack = writingPackSchema.parse({
@@ -310,5 +328,5 @@ export async function runWritingBuild(options: RunWritingBuildOptions): Promise<
       }
     } else if (!options.dryRun) repositoryFiles = await writeProductionWritingPack(rootDir, pack);
   }
-  return { execution_status: 'READY', pack, files_written: repositoryFiles.length > 0, repository_files: repositoryFiles, temporary_output_directory: temporaryOutput, review_pack_directory: reviewPack };
+  return { execution_status: 'READY', pack, files_written: repositoryFiles.length > 0, repository_files: repositoryFiles, temporary_output_directory: temporaryOutput, review_pack_directory: reviewPack, diagnostics: diagnosticsFor(audits, [], repairExecuted, repairTargetCount, true) };
 }
