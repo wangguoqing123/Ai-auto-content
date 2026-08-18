@@ -165,7 +165,7 @@ describe('Writing Pack production and Research boundaries', () => {
   });
 
   it('46. rejects an unsupported Claim through the Evidence Audit contract', () => {
-    expect(success.pack.audits!.evidence.checked_items).toContain('partial claims bounded'); expect(success.pack.audits!.evidence.status).toBe('pass');
+    expect(success.pack.audits!.evidence.checked_items).toContain('partial claims bounded and excluded from titles'); expect(success.pack.audits!.evidence.status).toBe('pass');
   });
 
   it('47. prevents partial Claims from silently becoming title-level certainty', () => {

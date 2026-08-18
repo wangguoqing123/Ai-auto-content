@@ -9,14 +9,14 @@ import { guardAgainstPlagiarism } from '../src/writing-lint/plagiarism-guard.js'
 import { resolveAuthorizedResearchQuotes } from '../src/writing-lint/authorized-research-quotes.js';
 import { blockingAuditIssues, runDeterministicWritingAudits } from '../src/writing/audits.js';
 import { buildSyntheticReadyResearchPack } from '../src/writing/fixture.js';
-import { applyRepair, repairTargets, runWritingBuild } from '../src/writing/pipeline.js';
+import { runWritingBuild } from '../src/writing/pipeline.js';
+import { applyUnitRepair, buildRepairPlan } from '../src/writing/repair.js';
 import { FixtureWritingProvider } from '../src/writing/provider.js';
 import { renderWriterOutput } from '../src/writing/render.js';
 import { loadWritingIntelligenceConfig } from '../src/writing/config.js';
 import { buildWritingStyleRecipes } from '../src/writing/style-recipe.js';
 import { resolveStyleApprovalChain, resolvedWritingStyleSnapshot } from '../src/writing/style-approval-resolver.js';
-import { reviewerOutputSchema } from '../src/writing/schemas.js';
-import { writerOutputSchema } from '../src/writing/schemas.js';
+import { reviewerOutputSchema, writerOutputSchema, writingIssueSchema } from '../src/writing/schemas.js';
 import { toJSONSchema } from 'zod';
 import { loadProductProfile } from '../src/product/load-product-profile.js';
 import { createStyleChainFixture, type StyleChainFixture } from './writing-test-helpers.js';
@@ -33,6 +33,9 @@ async function makeContext() {
   const output = (await new FixtureWritingProvider().write({ selected_style_rule_ids: recipes.selected_rule_ids, x_format: 'thread' })).output;
   const rendered = renderWriterOutput(output, research);
   return { style, snapshot: resolvedWritingStyleSnapshot(style), research, product: await loadProductProfile(), recipes, output, rendered };
+}
+function reviewIssue(severity: 'hard_blocker' | 'blocking_style_issue' = 'blocking_style_issue') {
+  return writingIssueSchema.parse({ issue_code: 'reversal_rhetoric', severity, unit_id: 'wechat.block.block_cta', surface: 'wechat_block', rule_origin: 'quality_reviewer', source_commit: 'fixture-reviewer', quoted_text: '最小结果', repair_constraint: 'remove repetition' });
 }
 beforeAll(async () => {
   chainFixture = await createStyleChainFixture();
@@ -57,20 +60,24 @@ describe('Writing orchestration and safety', () => {
   });
 
   it('59. applies Repair only to explicitly targeted Blocks', () => {
-    const targets = repairTargets(context.output, [{ issue_code: 'test', severity: 'blocking_style_issue', location: 'block_cta', quoted_text: '', repair_constraint: 'shorten' }]);
-    const changed = applyRepair(context.output, targets, { repaired_blocks: [{ block_id: 'block_cta', text: '保留一个可验证动作。' }] });
+    const plan = buildRepairPlan(context.output, [reviewIssue()]);
+    const target = plan.targets[0]!;
+    const changed = applyUnitRepair(context.output, plan.targets, { repaired_units: [{ unit_id: target.unit_id, original_sha256: target.original_sha256, replacement: { text: '保留一个可验证动作。', claim_ids: target.current_unit.claim_ids, experiment_refs: target.current_unit.experiment_refs, product_claim_ids: target.current_unit.product_claim_ids, persona_fact_ids: target.current_unit.persona_fact_ids, style_rule_ids: target.current_unit.style_rule_ids, is_opinion: target.current_unit.is_opinion } }] }, {
+      allowedClaimIds: new Set(context.research.verified_claims.map(({ claim_id }) => claim_id)), allowedExperimentRefs: new Set(context.research.experiment!.results.map(({ variant_id }) => variant_id)),
+      allowedProductClaimIds: new Set(context.product.claims.confirmed), allowedPersonaFactIds: new Set(), allowedStyleRuleIds: new Set(context.recipes.selected_rule_ids),
+    });
     expect(changed.blocks.find(({ block_id }) => block_id === 'block_cta')?.text).toBe('保留一个可验证动作。');
     expect(changed.blocks.find(({ block_id }) => block_id === 'block_hook')?.text).toBe(context.output.blocks.find(({ block_id }) => block_id === 'block_hook')?.text);
   });
 
   it('60. caps a blocking-review flow at three model calls', async () => {
-    const provider = new FixtureWritingProvider([{ issue_code: 'review_block', severity: 'blocking_style_issue', location: 'block_cta', quoted_text: '最小结果', repair_constraint: 'remove repetition' }]);
+    const provider = new FixtureWritingProvider([reviewIssue()]);
     const result = await runWritingBuild({ rootDir: process.cwd(), writingDate: '2026-08-14', dryRun: true, fixture: true, syntheticReadyFixture: true, ...pipelineStyle(), provider, writeOutputs: false });
     expect(result.pack.model.calls).toBe(3); expect(provider.calls).toBe(3);
   });
 
   it('61. never performs a fourth Writer, Reviewer, or Repair call', async () => {
-    const provider = new FixtureWritingProvider([{ issue_code: 'review_block', severity: 'hard_blocker', location: 'block_cta', quoted_text: '最小结果', repair_constraint: 'repair once' }]);
+    const provider = new FixtureWritingProvider([reviewIssue('hard_blocker')]);
     await runWritingBuild({ rootDir: process.cwd(), writingDate: '2026-08-14', dryRun: true, fixture: true, syntheticReadyFixture: true, ...pipelineStyle(), provider, writeOutputs: false });
     expect(provider.calls).toBeLessThanOrEqual(3);
   });
@@ -134,27 +141,27 @@ describe('Writing orchestration and safety', () => {
 
   it('72. blocks an unsupported Claim attached to a factual Block', () => {
     const research = structuredClone(context.research); research.verified_claims[0] = { ...research.verified_claims[0]!, support_status: 'unsupported', source_id: null, segment_id: null, quote: '', scope_limit: '' };
-    const audits = runDeterministicWritingAudits({ ...context.rendered, research, product: context.product, recipes: context.recipes, style: context.snapshot });
+    const audits = runDeterministicWritingAudits({ output: context.output, ...context.rendered, research, product: context.product, recipes: context.recipes, style: context.snapshot });
     expect(blockingAuditIssues(audits).map(({ issue_code }) => issue_code)).toContain('unsupported_claim_used');
   });
 
   it('73. blocks an unbounded partial Claim', () => {
     const research = structuredClone(context.research); research.verified_claims[0] = { ...research.verified_claims[0]!, support_status: 'partial', scope_limit: '只限当前样例。' };
-    const audits = runDeterministicWritingAudits({ ...context.rendered, research, product: context.product, recipes: context.recipes, style: context.snapshot });
+    const audits = runDeterministicWritingAudits({ output: context.output, ...context.rendered, research, product: context.product, recipes: context.recipes, style: context.snapshot });
     expect(blockingAuditIssues(audits).map(({ issue_code }) => issue_code)).toContain('partial_claim_overstated');
   });
 
   it('74. blocks an unconfirmed public price or Product claim', () => {
-    const output = { ...context.output, blocks: context.output.blocks.map((block, index) => index === 0 ? { ...block, text: `${block.text} 价格 365 元。` } : block) };
+    const output = writerOutputSchema.parse({ ...context.output, blocks: context.output.blocks.map((block, index) => index === 0 ? { ...block, text: `${block.text} 价格 365 元。` } : block) });
     const rendered = renderWriterOutput(output, context.research);
-    const audits = runDeterministicWritingAudits({ ...rendered, research: context.research, product: context.product, recipes: context.recipes, style: context.snapshot });
+    const audits = runDeterministicWritingAudits({ output, ...rendered, research: context.research, product: context.product, recipes: context.recipes, style: context.snapshot });
     expect(blockingAuditIssues(audits).map(({ issue_code }) => issue_code)).toContain('forbidden_product_claim');
   });
 
   it('75. blocks an unevidenced factual first-person sentence', () => {
-    const output = { ...context.output, blocks: context.output.blocks.map((block, index) => index === 0 ? { ...block, text: `${block.text} 我最近用了这个方法。`, is_opinion: false, persona_fact_ids: [] } : block) };
+    const output = writerOutputSchema.parse({ ...context.output, blocks: context.output.blocks.map((block, index) => index === 0 ? { ...block, text: `${block.text} 我最近用了这个方法。`, is_opinion: false, persona_fact_ids: [] } : block) });
     const rendered = renderWriterOutput(output, context.research);
-    const audits = runDeterministicWritingAudits({ ...rendered, research: context.research, product: context.product, recipes: context.recipes, style: context.snapshot });
+    const audits = runDeterministicWritingAudits({ output, ...rendered, research: context.research, product: context.product, recipes: context.recipes, style: context.snapshot });
     expect(blockingAuditIssues(audits).map(({ issue_code }) => issue_code)).toContain('unsupported_first_person_fact');
   });
 
