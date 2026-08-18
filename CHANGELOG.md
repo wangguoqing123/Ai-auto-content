@@ -10,6 +10,13 @@
 - 增加 Writing CLI、18 份生成式 JSON Schema、14:30—22:00 Scheduler 状态结构、项目自有 Synthetic READY Research Fixture 和本机 0700/0600 写作效果审阅包。
 - 完成一次真实 Synthetic READY Codex dry-run：Writer、Reviewer、Repair 共 3 次调用，初稿 1629 个汉字、3 个标题、一个 5 条 thread；四类事实审计通过，但 Style Audit 在 Repair 后发现第二处翻案腔并 fail closed，未生成审阅包或发布。随后离线修复 lint 为单轮报告同类全部命中，未重复真实模型调用，状态保持 `implemented_pending_live_validation`。
 
+### Second authorized Synthetic READY live validation
+
+- 在 Head `63883aadce678f435f78c1e045a27e3d88953887` 上按新授权只执行 1 次真实 writing dry-run；`codex-cli 0.147.0` / `gpt-5.6-sol` 完成 Writer、Reviewer 和一次 Repair，共 3 次调用、143424 ms。
+- 新 Lint 已在 Repair 前一次报告 4 处 reversal；Repair 精确修改 `block_boundary`、`block_step_owner_deadline`、`block_step_acceptance` 3 个命中 Block。修复后为 1567 个公众号汉字、3 个标题、单一 5 条 X thread。
+- Evidence、Experiment、Product、First-person Audit 通过；`output.abstract` 与 `output.x.thread[2]` 不属于 Content Block，仍留下 `reversal_rhetoric` × 2 与 `binary_contrast` × 2，Style Audit fail closed。最终 `status=failed`、`decision=null`、`writing_audit_failed`。
+- 因 Style blocker 未清零，管道未进入 Plagiarism / Protected Transfer Guard，未生成审阅包。未访问平台/网页、未生成图片、未发布、未写正式 Writing 数据，状态继续为 `implemented_pending_live_validation`。
+
 - 固定 vendored human-writing 1.1.0（`4fda173f3fef7fb808f3eba991eeb2528ea4b189`）与 no-ai-slop（`d30eddb9e04562234f2070b5ee63ca4649d9a05e`），保留 MIT License、上游 URL、逐文件 SHA-256 和已知可执行文件 allowlist；CI 不联网下载 Skill。
 - 增加本机 0700/0600 私有 style corpus，支持 Markdown、纯文本和 JSONL 导入；完整文章、反馈和 Profile 缓存不进入 Git，也不自动抓取作者内容。
 - 增加严格 Style Profile 与 Style Recipe Schema，分离内容、语言和转化模式，计算确定性节奏指标，并限制 owner/reference/platform 权重与最多两个参考 Profile。

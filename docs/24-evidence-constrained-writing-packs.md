@@ -80,3 +80,22 @@ npm run writing:inspect -- --date=YYYY-MM-DD
 在最新代码、Fixture 与 PR CI 通过后执行了一次真实本机 Codex dry-run。Writer、Reviewer、一次 Repair 共 3 次调用；初稿为 1629 个汉字、3 个公众号标题和一个 5 条 thread。Repair 后 Evidence、Experiment、Product、First-person Audit 均通过，所有 Research disclosure 与 experiment limitation 已补齐。
 
 最终 Style Audit 仍 fail closed：旧 lint 每类只暴露第一处翻案腔，Repair 修复首处后第二处才出现。系统返回 `status=failed`、`decision=null`、`error_code=writing_audit_failed`，没有生成 Writing Pack 正文输出或本机效果审阅包。该覆盖缺陷随后用离线复盘修复为一次报告同类全部命中，并增加回归测试；遵守“一次真实 dry-run”的授权边界，没有再次调用 Codex。因此当前状态仍是 `implemented_pending_live_validation`，尚不满足 Provisional Profile 写作效果审核条件。
+
+## Second authorized Synthetic READY live validation
+
+- 执行前 Head：`63883aadce678f435f78c1e045a27e3d88953887`
+- 实际 writing dry-run 次数：1
+- 最新 Lint 行为：Repair 前一次报告 4 处 `reversal_rhetoric`；human-writing 与 no-ai-slop 都对同类全部命中
+- Codex：`codex-cli 0.147.0` / `gpt-5.6-sol`，Writer、Reviewer、Repair 共 3 次调用，模型总耗时 143424 ms；命令墙钟时间 144 秒
+- Repair：已执行，3 个 targets，均为命中的 Content Blocks：`block_boundary`、`block_step_owner_deadline`、`block_step_acceptance`
+- 修复后公众号：1567 个汉字、3 个标题
+- X：单一 `thread`，5 条
+- Audit：Evidence `pass`、Experiment `pass`、Product `pass`、First-person `pass`、Style `blocked`
+- 最终 blocking issues：4 个；`reversal_rhetoric` × 2、`binary_contrast` × 2，位于非 Block 单元 `output.abstract` 与 `output.x.thread[2]`（最终 lint 行 46、51）
+- Plagiarism / Protected Transfer：`not_run`；Style Audit 仍有 blocker，管道按顺序未进入终局 Guard，因此 Protected Transfer 与 Reference Overlap 均未评估
+- 最终结果：`status=failed`、`decision=null`、`error_code=writing_audit_failed`
+- 审阅包：未生成；预定目录仍不存在
+- 安全边界：`OCV-09`、`CON-05` 未使用，`OCV-10` 不存在；未发现虚构事实、产品权益或实验外推
+- 未访问 X、公众号、网页或 Browser Bridge；未生成图片；未发布；未写 `data/writing-packs/**`、`data/writing-runs/**` 或 `reports/writing/**`
+
+本次验证表明“同类全部报告”修复已经生效，但当前 Repair 契约只允许修改 Content Blocks，不能修改 `abstract` 或 X item。按本次授权，失败后没有再次运行，也没有修改 Prompt、代码或稿件冒充成功。写作状态继续保持 `implemented_pending_live_validation`，尚不满足 Provisional Profile 写作效果人工审核条件。
