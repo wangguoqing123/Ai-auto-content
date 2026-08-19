@@ -25,6 +25,9 @@
 - 明确区分 repairable text/metadata issue 与 `non_repairable_contract`；format/type/未知 Claim/关闭 Style Rule 等问题直接 fail closed，不再错误映射到任意 Block。
 - Plagiarism Audit 增加 `not_run` 与 null detection fields；READY 必须要求终局 Guard 实际 `pass`。
 - 新增 80 项 Public Unit / Audit / Repair / 第二次失败回归测试；完整离线回归为 68 files / 997 tests，Fixture 一次 Repair 后 Style 与 Plagiarism 均通过并达到 READY。本轮未调用真实 Codex、未访问平台、未生成图片或发布。
+- 修复 Repair completion fail-open：`repaired_units` 必须完整且唯一覆盖所有 Targets，每个 Target 的 allowed fields 必须至少一项真实变化；漏项和原样返回分别以 `repair_target_missing`、`repair_target_unchanged` fail closed。
+- 修复 Reviewer blocker preservation：Repair 前验证 stable Unit 与 exact quoted text；Repair 后只有完整 Target、真实变化、quote 消失和确定性 Audit 全过才 discharge。quote 残留继续 `writing_audit_failed`，终局 Guard 保持 `not_run`。
+- 新增 8 项 Target omission / unchanged / Reviewer quote discharge 回归；完整离线回归更新为 68 files / 1005 tests。本轮未调用真实 Codex、未访问平台、未生成图片或发布。
 
 - 固定 vendored human-writing 1.1.0（`4fda173f3fef7fb808f3eba991eeb2528ea4b189`）与 no-ai-slop（`d30eddb9e04562234f2070b5ee63ca4649d9a05e`），保留 MIT License、上游 URL、逐文件 SHA-256 和已知可执行文件 allowlist；CI 不联网下载 Skill。
 - 增加本机 0700/0600 私有 style corpus，支持 Markdown、纯文本和 JSONL 导入；完整文章、反馈和 Profile 缓存不进入 Git，也不自动抓取作者内容。

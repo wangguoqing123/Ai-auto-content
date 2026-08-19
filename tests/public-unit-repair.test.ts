@@ -106,6 +106,42 @@ class SurfaceRepairProvider extends FixtureWritingProvider {
   }
 }
 
+type ReviewerRepairMode = 'unchanged' | 'other_change' | 'remove_quote' | 'empty_quote' | 'missing_quote';
+class ReviewerBlockerProvider extends FixtureWritingProvider {
+  constructor(readonly mode: ReviewerRepairMode) { super(); }
+  override async write(input: unknown) {
+    const call = await super.write(input);
+    const output = structuredClone(call.output);
+    output.abstract.text = `${output.abstract.text} 这里保留待复核片段。`;
+    return { ...call, output: writerOutputSchema.parse(output) };
+  }
+  override async review(): Promise<WritingProviderCall<{ issues: WritingIssue[] }>> {
+    this.calls += 1;
+    const quoted_text = this.mode === 'empty_quote' ? '' : this.mode === 'missing_quote' ? '并不存在的片段' : '待复核片段';
+    return {
+      output: { issues: [writingIssueSchema.parse({ issue_code: 'faux_insight', severity: 'blocking_style_issue', unit_id: 'wechat.abstract', surface: 'wechat_abstract', rule_origin: 'quality_reviewer', source_commit: 'fixture-reviewer', quoted_text, repair_constraint: '移除审阅者指出的精确片段。' })] },
+      durationMs: 5,
+      usage: null,
+    };
+  }
+  override async repair(inputValue: unknown): Promise<WritingProviderCall<RepairOutput>> {
+    this.calls += 1;
+    const input = inputValue as { targets: RepairTarget[] };
+    return {
+      output: repairOutputSchema.parse({ repaired_units: input.targets.map((target) => {
+        const text = this.mode === 'remove_quote'
+          ? target.current_unit.text.replace('待复核片段', '待复核内容')
+          : this.mode === 'other_change'
+            ? `${target.current_unit.text} 已调整其他文字。`
+            : target.current_unit.text;
+        return replacement(target, { text });
+      }) }),
+      durationMs: 5,
+      usage: null,
+    };
+  }
+}
+
 beforeAll(async () => {
   chain = await createStyleChainFixture();
   base = await setup();
@@ -195,10 +231,8 @@ describe('Surface-aware Repair planning and contract', () => {
     expect(() => applyUnitRepair(regressionOutput, [target], { repaired_units: [{ ...replacement(target), unit_id: 'wechat.block.block_new' }] }, options(regressionOutput))).toThrow('writing_output_invalid');
   });
 
-  it('53. cannot delete an existing Unit by omitting it from Repair output', () => {
-    const before = enumeratePublicContentUnits(regressionOutput).map(({ unit_id }) => unit_id);
-    const next = applyUnitRepair(regressionOutput, regressionPlan.targets, { repaired_units: [] }, options(regressionOutput));
-    expect(enumeratePublicContentUnits(next).map(({ unit_id }) => unit_id)).toEqual(before);
+  it('53. rejects Repair output that omits every required Target', () => {
+    expect(() => applyUnitRepair(regressionOutput, regressionPlan.targets, { repaired_units: [] }, options(regressionOutput))).toThrow('writing_output_invalid');
   });
 
   it('54. rejects an original_sha256 mismatch', () => {
@@ -347,4 +381,79 @@ describe('Surface-aware Repair planning and contract', () => {
   it('80. preserves the maximum of three Provider calls', () => {
     expect(regressionResult.pack.model.calls).toBe(3);
   });
+
+  it('81. reports the exact missing unit_id when one of two Targets is omitted', () => {
+    const returned = replacement(regressionPlan.targets[0]!, { text: '已修改第一个 Target。' });
+    try {
+      applyUnitRepair(regressionOutput, regressionPlan.targets, { repaired_units: [returned] }, options(regressionOutput));
+      throw new Error('expected RepairContractError');
+    } catch (error) {
+      expect(error).toMatchObject({ code: 'writing_output_invalid', reason: `repair_target_missing:${regressionPlan.targets[1]!.unit_id}` });
+    }
+  });
+
+  it('82. rejects a complete Target whose replacement is unchanged', () => {
+    const target = regressionPlan.targets[0]!;
+    try {
+      applyUnitRepair(regressionOutput, [target], { repaired_units: [replacement(target)] }, options(regressionOutput));
+      throw new Error('expected RepairContractError');
+    } catch (error) {
+      expect(error).toMatchObject({ code: 'writing_output_invalid', reason: `repair_target_unchanged:${target.unit_id}` });
+    }
+  });
+
+  it('83. fails when a Reviewer blocker receives an unchanged Repair', async () => {
+    const provider = new ReviewerBlockerProvider('unchanged');
+    const result = await runWithProvider(provider);
+    expect(result.pack).toMatchObject({ status: 'failed', decision: null, error_code: 'writing_output_invalid', model: { calls: 3 } });
+    expect(result.pack.error_message_safe).toContain('repair_target_unchanged:wechat.abstract');
+    expect(result.diagnostics).toMatchObject({ repair_executed: true, plagiarism_guard_executed: false, audit_statuses: { plagiarism: 'not_run' } });
+  });
+
+  it('84. preserves a Reviewer blocker when other text changes but quoted_text remains', async () => {
+    const provider = new ReviewerBlockerProvider('other_change');
+    const result = await runWithProvider(provider);
+    expect(result.pack).toMatchObject({ status: 'failed', decision: null, error_code: 'writing_audit_failed', model: { calls: 3 } });
+    expect(result.diagnostics).toMatchObject({ repair_executed: true, plagiarism_guard_executed: false, blocking_issues: [expect.objectContaining({ issue_code: 'faux_insight', unit_id: 'wechat.abstract' })] });
+  });
+
+  it('85. fails closed before Repair when Reviewer quoted_text is empty', async () => {
+    const provider = new ReviewerBlockerProvider('empty_quote');
+    const result = await runWithProvider(provider);
+    expect(provider.calls).toBe(2);
+    expect(result.pack).toMatchObject({ status: 'failed', decision: null, error_code: 'writing_output_invalid' });
+    expect(result.pack.error_message_safe).toContain('reviewer_quoted_text_empty:wechat.abstract');
+    expect(result.diagnostics).toMatchObject({ repair_executed: false, plagiarism_guard_executed: false });
+  });
+
+  it('86. fails closed before Repair when Reviewer quoted_text is not in the Unit', async () => {
+    const provider = new ReviewerBlockerProvider('missing_quote');
+    const result = await runWithProvider(provider);
+    expect(provider.calls).toBe(2);
+    expect(result.pack).toMatchObject({ status: 'failed', decision: null, error_code: 'writing_output_invalid' });
+    expect(result.pack.error_message_safe).toContain('reviewer_quote_not_found:wechat.abstract');
+    expect(result.diagnostics?.plagiarism_guard_executed).toBe(false);
+  });
+
+  it('87. discharges a Reviewer blocker only after exact quoted_text removal', async () => {
+    const provider = new ReviewerBlockerProvider('remove_quote');
+    const result = await runWithProvider(provider);
+    expect(result.pack).toMatchObject({ status: 'success', decision: 'READY_FOR_HUMAN_REVIEW', model: { calls: 3 }, audits: { style: { status: 'pass' }, plagiarism: { status: 'pass' } } });
+    expect(result.diagnostics).toMatchObject({ repair_executed: true, repair_target_count: 1, plagiarism_guard_executed: true, blocking_issues: [] });
+  });
+
+  it('88. does not add a fourth Reviewer after successful blocker discharge', async () => {
+    const provider = new ReviewerBlockerProvider('remove_quote');
+    const result = await runWithProvider(provider);
+    expect(provider.calls).toBe(3);
+    expect(result.pack.model.calls).toBe(3);
+  });
 });
+
+function runWithProvider(provider: FixtureWritingProvider) {
+  return runWritingBuild({
+    rootDir: process.cwd(), writingDate: '2026-08-14', dryRun: true, fixture: true, syntheticReadyFixture: true,
+    styleProfilePath: chain.profile, approvalReceiptPath: chain.receipt, bindingAttestationPath: chain.attestation,
+    allowProvisionalStyle: true, expectedStyleHashes: chain.hashes, provider, writeOutputs: false,
+  });
+}

@@ -150,6 +150,8 @@ export function applyUnitRepair(outputInput: WriterOutput, targetsInput: readonl
     for (const field of repairableFields) {
       if (!target.allowed_fields.includes(field) && JSON.stringify(replacement[field]) !== JSON.stringify(current[field])) fail(`repair_field_not_allowed:${field}`);
     }
+    const changedAllowedField = target.allowed_fields.some((field) => JSON.stringify(replacement[field]) !== JSON.stringify(current[field]));
+    if (!changedAllowedField) fail(`repair_target_unchanged:${patch.unit_id}`);
     const validateIds = (values: readonly string[], allowed: ReadonlySet<string>, code: string) => { if (values.some((value) => !allowed.has(value))) fail(code); };
     validateIds(replacement.claim_ids, options.allowedClaimIds, 'repair_claim_id_not_allowed');
     validateIds(replacement.experiment_refs, options.allowedExperimentRefs, 'repair_experiment_ref_not_allowed');
@@ -158,6 +160,7 @@ export function applyUnitRepair(outputInput: WriterOutput, targetsInput: readonl
     validateIds(replacement.style_rule_ids, options.allowedStyleRuleIds, 'repair_style_rule_id_not_allowed');
     patches.push({ ...current, ...replacement });
   }
+  for (const unitId of targets.keys()) if (!seen.has(unitId)) fail(`repair_target_missing:${unitId}`);
   const repaired = applyPublicContentUnitPatches(output, patches);
   if (repaired.article_type !== output.article_type) fail('repair_changed_article_type');
   if (repaired.x.format !== output.x.format) fail('repair_changed_x_format');

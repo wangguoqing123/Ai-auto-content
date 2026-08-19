@@ -24,7 +24,7 @@ import {
 } from './style-approval-resolver.js';
 import { buildWritingStyleRecipes } from './style-recipe.js';
 import { writeProductionWritingPack, writeSyntheticReviewPack, writeTemporaryWritingPack } from './storage.js';
-import { writingIssueSchema, writingPackSchema, writerOutputSchema, type WriterOutput, type WritingAudit, type WritingIssue, type WritingPack } from './schemas.js';
+import { writingIssueSchema, writingPackSchema, writerOutputSchema, type RepairOutput, type WriterOutput, type WritingAudit, type WritingIssue, type WritingPack } from './schemas.js';
 
 export interface WritingRunDiagnostics {
   audit_statuses: { evidence: string; experiment: string; product: string; first_person: string; style: string; plagiarism: string } | null;
@@ -186,6 +186,43 @@ function diagnosticsFor(audits: WritingAudit | null, blockers: readonly WritingI
   };
 }
 
+function reviewerBlockers(issues: readonly WritingIssue[]): WritingIssue[] {
+  return issues.filter(({ severity }) => severity === 'hard_blocker' || severity === 'blocking_style_issue');
+}
+
+function validateReviewerBlockers(output: WriterOutput, issues: readonly WritingIssue[]): string | null {
+  const units = new Map(enumeratePublicContentUnits(output).map((unit) => [unit.unit_id, unit]));
+  for (const issue of reviewerBlockers(issues)) {
+    const unit = units.get(issue.unit_id);
+    if (unit === undefined) return `reviewer_unit_missing:${issue.unit_id}`;
+    if (unit.surface !== issue.surface) return `reviewer_surface_mismatch:${issue.unit_id}`;
+    if (issue.quoted_text.trim() === '') return `reviewer_quoted_text_empty:${issue.unit_id}`;
+    if ([...issue.quoted_text].length > 240) return `reviewer_quoted_text_too_long:${issue.unit_id}`;
+    if (!unit.text.includes(issue.quoted_text)) return `reviewer_quote_not_found:${issue.unit_id}`;
+  }
+  return null;
+}
+
+function unresolvedReviewerBlockers(
+  before: WriterOutput,
+  after: WriterOutput,
+  issues: readonly WritingIssue[],
+  targetIds: ReadonlySet<string>,
+  repairedIds: ReadonlySet<string>,
+  deterministicPassed: boolean,
+): WritingIssue[] {
+  const beforeUnits = new Map(enumeratePublicContentUnits(before).map((unit) => [unit.unit_id, unit]));
+  const afterUnits = new Map(enumeratePublicContentUnits(after).map((unit) => [unit.unit_id, unit]));
+  return reviewerBlockers(issues).filter((issue) => {
+    const previous = beforeUnits.get(issue.unit_id);
+    const current = afterUnits.get(issue.unit_id);
+    if (!deterministicPassed || previous === undefined || current === undefined) return true;
+    if (!targetIds.has(issue.unit_id) || !repairedIds.has(issue.unit_id)) return true;
+    if (JSON.stringify(previous) === JSON.stringify(current)) return true;
+    return current.text.includes(issue.quoted_text);
+  });
+}
+
 export async function runWritingBuild(options: RunWritingBuildOptions): Promise<RunWritingBuildResult> {
   const rootDir = options.rootDir ?? process.cwd();
   const now = options.now ?? new Date();
@@ -256,13 +293,17 @@ export async function runWritingBuild(options: RunWritingBuildOptions): Promise<
   let rendered = renderWriterOutput(output, research);
   let qualityIssues = structuralIssues(output, rendered, articleType, xFormat, config.writing.minimum_wechat_chinese_chars, config.writing.maximum_wechat_chinese_chars, config.writing.maximum_x_chinese_chars);
   let audits = runDeterministicWritingAudits({ output, ...rendered, research, product, recipes, style, qualityIssues });
+  let reviewerIssues: WritingIssue[] = [];
   try {
     const reviewer = record(await provider.review({
       units: enumeratePublicContentUnits(output), audits, constraints: { article_type: articleType, x_format: xFormat, effective_cta_mode: ctaMode, human_gate_required: true, no_full_rewrite: true, stable_unit_location_required: true },
     }));
-    qualityIssues = [...qualityIssues, ...reviewer.issues];
+    reviewerIssues = reviewer.issues;
+    qualityIssues = [...qualityIssues, ...reviewerIssues];
   } catch (error) { return failedResult(base, error instanceof WritingProviderError ? error.code as WritingPack['error_code'] : 'writing_output_invalid', model(), packStyle, error instanceof WritingProviderError ? error.safeMessage : 'writing_output_invalid'); }
   audits = runDeterministicWritingAudits({ output, ...rendered, research, product, recipes, style, qualityIssues });
+  const invalidReviewerBlocker = validateReviewerBlockers(output, reviewerIssues);
+  if (invalidReviewerBlocker !== null) return failedResult(base, 'writing_output_invalid', model(), packStyle, `writing_output_invalid: ${invalidReviewerBlocker}`, diagnosticsFor(audits, reviewerBlockers(reviewerIssues), false, 0, false));
 
   let blockers = blockingAuditIssues(audits);
   let repairExecuted = false;
@@ -272,11 +313,13 @@ export async function runWritingBuild(options: RunWritingBuildOptions): Promise<
     repairTargetCount = plan.targets.length;
     if (plan.non_repairable.length > 0) return failedResult(base, 'writing_output_invalid', model(), packStyle, 'writing_output_invalid', diagnosticsFor(audits, plan.non_repairable, false, repairTargetCount, false));
     if (plan.targets.length === 0 || calls >= 3) return failedResult(base, 'writing_audit_failed', model(), packStyle, 'writing_audit_failed', diagnosticsFor(audits, blockers, false, repairTargetCount, false));
+    const beforeRepair = output;
+    let repairOutput: RepairOutput | null = null;
     try {
-      const repaired = record(await provider.repair({ targets: plan.targets, no_new_facts: true, no_full_rewrite: true, preserve_unit_identity: true }));
+      repairOutput = record(await provider.repair({ targets: plan.targets, no_new_facts: true, no_full_rewrite: true, preserve_unit_identity: true }));
       repairExecuted = true;
       const units = enumeratePublicContentUnits(output);
-      output = applyUnitRepair(output, plan.targets, repaired, {
+      output = applyUnitRepair(output, plan.targets, repairOutput, {
         allowedClaimIds: new Set(research.verified_claims.map(({ claim_id }) => claim_id)),
         allowedExperimentRefs: new Set(research.experiment?.results.map(({ variant_id }) => variant_id) ?? []),
         allowedProductClaimIds: new Set(product.claims.confirmed),
@@ -290,7 +333,17 @@ export async function runWritingBuild(options: RunWritingBuildOptions): Promise<
     rendered = renderWriterOutput(output, research);
     const remainingWarnings = qualityIssues.filter(({ severity }) => severity === 'warning' || severity === 'profile_preference');
     const newStructural = structuralIssues(output, rendered, articleType, xFormat, config.writing.minimum_wechat_chinese_chars, config.writing.maximum_wechat_chinese_chars, config.writing.maximum_x_chinese_chars);
-    audits = runDeterministicWritingAudits({ output, ...rendered, research, product, recipes, style, qualityIssues: [...remainingWarnings, ...newStructural] });
+    const deterministicAudits = runDeterministicWritingAudits({ output, ...rendered, research, product, recipes, style, qualityIssues: [...remainingWarnings, ...newStructural] });
+    const deterministicPassed = blockingAuditIssues(deterministicAudits).length === 0;
+    const unresolvedReviewer = unresolvedReviewerBlockers(
+      beforeRepair,
+      output,
+      reviewerIssues,
+      new Set(plan.targets.map(({ unit_id }) => unit_id)),
+      new Set(repairOutput?.repaired_units.map(({ unit_id }) => unit_id) ?? []),
+      deterministicPassed,
+    );
+    audits = runDeterministicWritingAudits({ output, ...rendered, research, product, recipes, style, qualityIssues: [...remainingWarnings, ...newStructural, ...unresolvedReviewer] });
     blockers = blockingAuditIssues(audits);
     if (blockers.length > 0) return failedResult(base, 'writing_audit_failed', model(), packStyle, 'writing_audit_failed', diagnosticsFor(audits, blockers, repairExecuted, repairTargetCount, false));
   }

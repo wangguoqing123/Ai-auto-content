@@ -115,3 +115,13 @@ Plagiarism Audit 现在明确区分 `not_run`、`pass`、`blocked`。Guard 未�
 离线回归已复现第二次真实失败：摘要与第三条 X 各一处 reversal，Raw Issues 为 `reversal_rhetoric × 2 + binary_contrast × 2`，Repair Targets 为 2；一次 Fixture Repair 同时修复两处，最终 Style Audit `pass`、Plagiarism Guard 实际运行并 `pass`，Writing Pack 达到 `READY_FOR_HUMAN_REVIEW`。完整回归为 68 个测试文件、997 项测试，18 份生成式 Schema 无漂移。
 
 本轮未调用真实 Codex，未访问 X、公众号、网页或 Browser Bridge，未生成图片、未发布、未写正式 Writing 数据，也未修改 Runtime、LaunchAgent、Provisional 审批链或校准 Corpus。工程离线门槛已经满足再次验证条件，但任何真实 Synthetic READY dry-run 仍需要新的明确授权。
+
+## Repair completion and Reviewer blocker preservation
+
+Unit Repair 的受信任边界现在要求 `repaired_units` 与 RepairPlan targets 的 `unit_id` 集合完全一致；漏 Target、额外 Target、重复 Target 均返回 `writing_output_invalid`。每个 Target 的 allowed fields 至少一项必须发生真实变化，否则以 `repair_target_unchanged:<unit_id>` 拒绝；缺失项以 `repair_target_missing:<unit_id>` 定位。
+
+Reviewer 的 hard blocker / blocking style issue 不再在 Repair 后被静默过滤。Pipeline 在调用 Repair 前验证 Reviewer `unit_id` 能解析到真实 Unit、surface 一致、quoted text 非空且不超过 240 字符，并确认它是 Repair 前 Unit 的精确子串；伪引用或空引用直接 `writing_output_invalid`，不进入 Repair 或 Guard。
+
+Repair 后只有在对应 Unit 属于 Target、Repair 完整返回、Unit 真实变化、原 quoted text 已消失且全部确定性 Audit 通过时，Reviewer blocker 才能 discharge。原 quote 残留时继续保留为 final quality issue，返回 `writing_audit_failed`；Plagiarism 保持 `not_run / null / null`，Guard 不执行。
+
+离线回归覆盖漏 Target、部分返回、原样返回、只改其他文字、空 quote、伪 quote 与精确移除成功路径。原摘要 + `x.thread.2` 回归仍由一次 Repair 完整修改两个 Targets，最终 Style/Plagiarism `pass`、`READY_FOR_HUMAN_REVIEW`、model calls=3。完整测试为 68 files / 1005 tests。本轮没有调用真实 Codex、平台、图片或发布能力。
