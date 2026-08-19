@@ -11,7 +11,7 @@ import { blockingAuditIssues, runDeterministicWritingAudits } from '../src/writi
 import { buildSyntheticReadyResearchPack } from '../src/writing/fixture.js';
 import { runWritingBuild } from '../src/writing/pipeline.js';
 import { applyUnitRepair, buildRepairPlan } from '../src/writing/repair.js';
-import { FixtureWritingProvider } from '../src/writing/provider.js';
+import { FixtureWritingProvider, WritingProviderError } from '../src/writing/provider.js';
 import { renderWriterOutput } from '../src/writing/render.js';
 import { loadWritingIntelligenceConfig } from '../src/writing/config.js';
 import { buildWritingStyleRecipes } from '../src/writing/style-recipe.js';
@@ -187,5 +187,34 @@ describe('Writing orchestration and safety', () => {
     };
     expect(visit(schema)).toBe(false);
     expect(JSON.stringify(schema)).not.toContain('"format":"uri"');
+  });
+
+  it('78. counts and measures a Writer attempt even when Provider output is invalid', async () => {
+    class InvalidWriterProvider extends FixtureWritingProvider {
+      override async write(): Promise<never> {
+        this.calls += 1;
+        throw new WritingProviderError(
+          'codex_output_invalid',
+          'codex_output_invalid: schema_validation_failed:x.thread.items.0:custom',
+          79,
+          { input_tokens: 100, output_tokens: 20, total_tokens: 120 },
+        );
+      }
+    }
+    const provider = new InvalidWriterProvider();
+    const result = await runWritingBuild({
+      rootDir: process.cwd(), writingDate: '2026-08-14', dryRun: true, fixture: true,
+      syntheticReadyFixture: true, ...pipelineStyle(), provider, writeOutputs: false,
+    });
+    expect(result.pack).toMatchObject({
+      status: 'failed', error_code: 'codex_output_invalid',
+      error_message_safe: 'codex_output_invalid: schema_validation_failed:x.thread.items.0:custom',
+      model: {
+        calls: 1,
+        duration_ms: 79,
+        usage: { input_tokens: 100, output_tokens: 20, total_tokens: 120 },
+      },
+    });
+    expect(provider.calls).toBe(1);
   });
 });

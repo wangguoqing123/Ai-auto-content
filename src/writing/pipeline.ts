@@ -282,10 +282,24 @@ export async function runWritingBuild(options: RunWritingBuildOptions): Promise<
   let duration = 0;
   let usage: WritingPack['model']['usage'] = null;
   const model = (): WritingPack['model'] => ({ provider: provider.providerName, model: provider.modelName, runtime_version: provider.runtimeVersion, calls, duration_ms: duration, usage });
-  const record = <T>(call: { output: T; durationMs: number; usage: WritingPack['model']['usage'] }) => { calls += 1; duration += call.durationMs; usage = usageAdd(usage, call.usage); return call.output; };
+  const attempt = async <T>(invoke: () => Promise<{ output: T; durationMs: number; usage: WritingPack['model']['usage'] }>): Promise<T> => {
+    calls += 1;
+    try {
+      const call = await invoke();
+      duration += call.durationMs;
+      usage = usageAdd(usage, call.usage);
+      return call.output;
+    } catch (error) {
+      if (error instanceof WritingProviderError) {
+        duration += error.durationMs;
+        usage = usageAdd(usage, error.usage);
+      }
+      throw error;
+    }
+  };
 
   let output: WriterOutput;
-  try { output = record(await provider.write(writerInput)); }
+  try { output = await attempt(() => provider.write(writerInput)); }
   catch (error) { return failedResult(base, error instanceof WritingProviderError ? error.code as WritingPack['error_code'] : 'writing_output_invalid', model(), packStyle, error instanceof WritingProviderError ? error.safeMessage : 'writing_output_invalid'); }
   if (calls > 3) return failedResult(base, 'writing_output_invalid', model(), packStyle);
   if (ctaMode === 'none') output = writerOutputSchema.parse({ ...output, cta: { mode: 'none', unit: { ...output.cta.unit, text: '' } } });
@@ -295,7 +309,7 @@ export async function runWritingBuild(options: RunWritingBuildOptions): Promise<
   let audits = runDeterministicWritingAudits({ output, ...rendered, research, product, recipes, style, qualityIssues });
   let reviewerIssues: WritingIssue[] = [];
   try {
-    const reviewer = record(await provider.review({
+    const reviewer = await attempt(() => provider.review({
       units: enumeratePublicContentUnits(output), audits, constraints: { article_type: articleType, x_format: xFormat, effective_cta_mode: ctaMode, human_gate_required: true, no_full_rewrite: true, stable_unit_location_required: true },
     }));
     reviewerIssues = reviewer.issues;
@@ -316,7 +330,7 @@ export async function runWritingBuild(options: RunWritingBuildOptions): Promise<
     const beforeRepair = output;
     let repairOutput: RepairOutput | null = null;
     try {
-      repairOutput = record(await provider.repair({ targets: plan.targets, no_new_facts: true, no_full_rewrite: true, preserve_unit_identity: true }));
+      repairOutput = await attempt(() => provider.repair({ targets: plan.targets, no_new_facts: true, no_full_rewrite: true, preserve_unit_identity: true }));
       repairExecuted = true;
       const units = enumeratePublicContentUnits(output);
       output = applyUnitRepair(output, plan.targets, repairOutput, {

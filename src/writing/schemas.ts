@@ -355,7 +355,7 @@ export const writingPackSchema = z.strictObject({
   if (pack.style?.provisional_style_used === true && pack.style.production_eligible) context.addIssue({ code: 'custom', message: 'Provisional style cannot be production eligible' });
 });
 
-export const writerOutputSchema = z.strictObject({
+const writerOutputShape = {
   article_type: articleTypeSchema,
   primary_title: publicTextUnitSchema,
   alternative_titles: z.array(publicTextUnitSchema).length(2),
@@ -370,7 +370,13 @@ export const writerOutputSchema = z.strictObject({
     thread: z.strictObject({ items: z.array(publicTextUnitSchema).max(7) }),
     debate_prompt: publicTextUnitSchema.nullable(),
   }),
-}).superRefine((output, context) => {
+} as const;
+
+// Provider IDs are untrusted placeholders. The application overwrites every
+// public unit_id deterministically before enforcing the internal contract.
+export const writerProviderOutputSchema = z.strictObject(writerOutputShape);
+
+export const writerOutputSchema = z.strictObject(writerOutputShape).superRefine((output, context) => {
   const expected = [
     [output.primary_title, 'wechat.primary_title'], [output.alternative_titles[0], 'wechat.alternative_title.0'],
     [output.alternative_titles[1], 'wechat.alternative_title.1'], [output.abstract, 'wechat.abstract'], [output.cta.unit, 'wechat.cta'],
@@ -413,6 +419,7 @@ export type XDraft = z.infer<typeof xDraftSchema>;
 export type WritingAudit = z.infer<typeof writingAuditSchema>;
 export type WritingIssue = z.infer<typeof writingIssueSchema>;
 export type WritingPack = z.infer<typeof writingPackSchema>;
+export type WriterProviderOutput = z.infer<typeof writerProviderOutputSchema>;
 export type WriterOutput = z.infer<typeof writerOutputSchema>;
 export type ReviewerOutput = z.infer<typeof reviewerOutputSchema>;
 export type RepairOutput = z.infer<typeof repairOutputSchema>;

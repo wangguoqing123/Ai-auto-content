@@ -1,11 +1,13 @@
 import { sha256, stableJson } from '../style-intelligence/hash.js';
 import {
   publicContentUnitSchema,
+  writerProviderOutputSchema,
   writerOutputSchema,
   type ContentBlock,
   type PublicContentSurface,
   type PublicContentUnit,
   type PublicTextUnit,
+  type WriterProviderOutput,
   type WriterOutput,
 } from './schemas.js';
 
@@ -25,6 +27,32 @@ function blockUnit(block: ContentBlock, index: number): PublicContentUnit {
     persona_fact_ids: block.persona_fact_ids,
     style_rule_ids: block.style_rule_ids,
     is_opinion: block.is_opinion,
+  });
+}
+
+function withStableId(unit: PublicTextUnit, unit_id: string): PublicTextUnit {
+  return { ...unit, unit_id };
+}
+
+export function assignStableWriterUnitIds(input: WriterProviderOutput): WriterOutput {
+  const output = writerProviderOutputSchema.parse(input);
+  return writerOutputSchema.parse({
+    ...output,
+    primary_title: withStableId(output.primary_title, 'wechat.primary_title'),
+    alternative_titles: [
+      withStableId(output.alternative_titles[0]!, 'wechat.alternative_title.0'),
+      withStableId(output.alternative_titles[1]!, 'wechat.alternative_title.1'),
+    ],
+    abstract: withStableId(output.abstract, 'wechat.abstract'),
+    cta: { ...output.cta, unit: withStableId(output.cta.unit, 'wechat.cta') },
+    x: {
+      ...output.x,
+      single_post: output.x.single_post === null ? null : withStableId(output.x.single_post, 'x.single_post'),
+      thread: {
+        items: output.x.thread.items.map((unit, index) => withStableId(unit, `x.thread.${index}`)),
+      },
+      debate_prompt: output.x.debate_prompt === null ? null : withStableId(output.x.debate_prompt, 'x.debate_prompt'),
+    },
   });
 }
 

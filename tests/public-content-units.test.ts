@@ -1,11 +1,18 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { FixtureWritingProvider } from '../src/writing/provider.js';
 import {
+  assignStableWriterUnitIds,
   applyPublicContentUnitPatches,
   enumeratePublicContentUnits,
   renderPublicContentUnits,
 } from '../src/writing/public-content-units.js';
-import { publicContentSurfaceSchema, writerOutputSchema, type PublicContentUnit, type WriterOutput } from '../src/writing/schemas.js';
+import {
+  publicContentSurfaceSchema,
+  writerOutputSchema,
+  writerProviderOutputSchema,
+  type PublicContentUnit,
+  type WriterOutput,
+} from '../src/writing/schemas.js';
 
 let output: WriterOutput;
 let units: PublicContentUnit[];
@@ -108,5 +115,18 @@ describe('Public Content Unit enumeration and restoration', () => {
     const next = applyPublicContentUnitPatches(output, [changed('wechat.cta', '新的轻 CTA。')]);
     expect(writerOutputSchema.safeParse(next).success).toBe(true);
     expect(enumeratePublicContentUnits(next)).toHaveLength(units.length);
+  });
+
+  it('18. replaces one-based Provider thread IDs with code-owned stable IDs', () => {
+    const providerOutput = structuredClone(output);
+    providerOutput.x.thread.items.forEach((unit, index) => { unit.unit_id = `x.thread.${index + 1}`; });
+    expect(writerProviderOutputSchema.safeParse(providerOutput).success).toBe(true);
+    expect(writerOutputSchema.safeParse(providerOutput).success).toBe(false);
+
+    const normalized = assignStableWriterUnitIds(providerOutput);
+    expect(normalized.x.thread.items.map(({ unit_id }) => unit_id)).toEqual(
+      normalized.x.thread.items.map((_unit, index) => `x.thread.${index}`),
+    );
+    expect(writerOutputSchema.safeParse(normalized).success).toBe(true);
   });
 });

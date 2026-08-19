@@ -5,9 +5,13 @@ import {
   CodexStructuredRunner,
   CodexStructuredRunnerError,
   CodexStructuredTimeoutError,
+  schemaValidationDiagnostic,
+  type CodexProcessRunner,
   type CodexStructuredUsage,
 } from '../local-agent/codex-structured-runner.js';
-import { repairOutputSchema, reviewerOutputSchema, writerOutputSchema, type RepairOutput, type ReviewerOutput, type WriterOutput } from './schemas.js';
+import { ZodError } from 'zod';
+import { assignStableWriterUnitIds } from './public-content-units.js';
+import { repairOutputSchema, reviewerOutputSchema, writerOutputSchema, writerProviderOutputSchema, type RepairOutput, type ReviewerOutput, type WriterOutput } from './schemas.js';
 
 export interface WritingProviderCall<T> { output: T; durationMs: number; usage: CodexStructuredUsage | null }
 export interface WritingProvider {
@@ -20,7 +24,12 @@ export interface WritingProvider {
 }
 
 export class WritingProviderError extends Error {
-  constructor(readonly code: string, readonly safeMessage: string = code) { super(code); this.name = 'WritingProviderError'; }
+  constructor(
+    readonly code: string,
+    readonly safeMessage: string = code,
+    readonly durationMs = 0,
+    readonly usage: CodexStructuredUsage | null = null,
+  ) { super(code); this.name = 'WritingProviderError'; }
 }
 
 const WRITER_PROMPT = `You are the evidence-constrained Chinese Writer for AI Auto Content.
@@ -51,10 +60,11 @@ Do not add a fact, product benefit, experience, case, experiment result, claim r
 Preserve meaning, evidence strength, limitations, and metadata unless that field is explicitly allowed. Do not repair plagiarism or protected-transfer findings by synonym replacement.
 Return only schema-valid JSON.`;
 
-function mapProviderError(error: unknown): never {
-  if (error instanceof CodexStructuredTimeoutError) throw new WritingProviderError('codex_timeout');
-  if (error instanceof CodexStructuredOutputError) throw new WritingProviderError('codex_output_invalid', error.safeDiagnostic === null ? 'codex_output_invalid' : `codex_output_invalid: ${error.safeDiagnostic}`);
-  if (error instanceof CodexStructuredRunnerError) throw new WritingProviderError(error.code, error.safeDiagnostic === null ? error.code : `${error.code}: ${error.safeDiagnostic}`);
+function mapProviderError(error: unknown, durationMs = 0, usage: CodexStructuredUsage | null = null): never {
+  if (error instanceof CodexStructuredTimeoutError) throw new WritingProviderError('codex_timeout', 'codex_timeout', durationMs, usage);
+  if (error instanceof CodexStructuredOutputError) throw new WritingProviderError('codex_output_invalid', error.safeDiagnostic === null ? 'codex_output_invalid' : `codex_output_invalid: ${error.safeDiagnostic}`, error.durationMs, error.usage);
+  if (error instanceof CodexStructuredRunnerError) throw new WritingProviderError(error.code, error.safeDiagnostic === null ? error.code : `${error.code}: ${error.safeDiagnostic}`, durationMs, usage);
+  if (error instanceof ZodError) throw new WritingProviderError('codex_output_invalid', `codex_output_invalid: ${schemaValidationDiagnostic(error.issues)}`, durationMs, usage);
   throw error;
 }
 
@@ -67,7 +77,7 @@ export class CodexCliWritingProvider implements WritingProvider {
     this.runtimeVersion = runner.runtimeVersion;
   }
 
-  static async create(options: { model: string; binPath?: string; env?: NodeJS.ProcessEnv; tempRoot?: string }): Promise<CodexCliWritingProvider> {
+  static async create(options: { model: string; binPath?: string; env?: NodeJS.ProcessEnv; tempRoot?: string; processRunner?: CodexProcessRunner }): Promise<CodexCliWritingProvider> {
     try {
       return new CodexCliWritingProvider(await CodexStructuredRunner.create({
         model: options.model,
@@ -75,13 +85,20 @@ export class CodexCliWritingProvider implements WritingProvider {
         env: options.env ?? process.env,
         tempRoot: options.tempRoot ?? path.join(os.homedir(), 'Library', 'Application Support', 'AiAutoContent', 'tmp', 'writing-provider'),
         timeoutMs: 5 * 60_000,
+        ...(options.processRunner === undefined ? {} : { processRunner: options.processRunner }),
       }));
     } catch (error) { return mapProviderError(error); }
   }
 
   async write(input: unknown) {
-    try { return await this.runner.run({ label: 'writing-writer', input, systemInstructions: WRITER_PROMPT, outputSchema: writerOutputSchema }); }
-    catch (error) { return mapProviderError(error); }
+    let durationMs = 0;
+    let usage: CodexStructuredUsage | null = null;
+    try {
+      const call = await this.runner.run({ label: 'writing-writer', input, systemInstructions: WRITER_PROMPT, outputSchema: writerProviderOutputSchema });
+      durationMs = call.durationMs;
+      usage = call.usage;
+      return { ...call, output: assignStableWriterUnitIds(call.output) };
+    } catch (error) { return mapProviderError(error, durationMs, usage); }
   }
 
   async review(input: unknown) {
