@@ -39,11 +39,19 @@ describe('Simple Writing providers', () => {
     expect(simpleWritingProviderSettingsFromEnvironment({})).toEqual({ model: 'gpt-5.6-sol' });
   });
 
-  it('states the fact, trend-signal, and structure-inspiration permission boundaries', () => {
+  it('states the editorial contract and source-role permission boundaries', () => {
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('正文前 20% 必须点明至少一份具体材料');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('当前只有摘要，无法判断采用规模、量化效果或完整案例方法');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('标题和摘要的内容承诺必须兑现');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('一个填写完成的模板或结果表格');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('允许作者判断，禁止虚构经历');
     expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('只能支持与已保存摘录范围一致的事实陈述');
     expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('单条信号不能证明普遍事实、行业趋势或确定结论');
     expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('不能作为事实来源');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('结尾最多两段，只保留一个具体行动，不复述全文摘要');
     expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('不得因为多个材料表达相似，就推断它们必然正确');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).not.toContain('RingCentral');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).not.toContain('别再只让 AI 给建议');
   });
 
   it('reuses the Structured Runner for one valid Codex CLI Writer call', async () => {

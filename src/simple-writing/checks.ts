@@ -23,6 +23,10 @@ const safetyPhrases = [
   '退款政策', '365 元', '365元', '499 元', '499元',
 ] as const;
 
+const promisedArtifactTerms = [
+  '执行卡', '任务卡', '模板', '清单', '表格', '可直接复制',
+] as const;
+
 const hardFormatMarkers: Array<{ code: string; pattern: RegExp; label: string }> = [
   { code: 'local_absolute_path', pattern: /\/(?:Users|home|tmp|private|Volumes|Applications)\//u, label: '本机绝对路径' },
   { code: 'input_hash_exposed', pattern: /input_hash/iu, label: 'input_hash' },
@@ -59,6 +63,23 @@ function urlsIn(markdown: string): string[] {
 
 function chineseCharacters(value: string): number {
   return value.match(/[\p{Script=Han}]/gu)?.length ?? 0;
+}
+
+function hasMarkdownTable(value: string): boolean {
+  const lines = value.split(/\r?\n/u);
+  for (let index = 1; index < lines.length; index += 1) {
+    const line = lines[index]?.trim() ?? '';
+    const cells = line.replace(/^\|/u, '').replace(/\|$/u, '').split('|').map((cell) => cell.trim());
+    if (cells.length >= 2 && cells.every((cell) => /^:?-{3,}:?$/u.test(cell))
+      && (lines[index - 1]?.includes('|') ?? false)) return true;
+  }
+  return false;
+}
+
+function hasCopyableArtifact(value: string): boolean {
+  const fencedBlock = /```[\s\S]*?```|~~~[\s\S]*?~~~/u.test(value);
+  const checkboxes = value.match(/^\s*-\s+\[ \]\s+\S.*$/gmu)?.length ?? 0;
+  return fencedBlock || checkboxes >= 3 || hasMarkdownTable(value);
 }
 
 export function runSimpleWritingChecks(
@@ -125,6 +146,18 @@ export function runSimpleWritingChecks(
     check('basic_format', 'article_short', `正文含 ${count} 个中文字符，少于建议的 1000 个。`));
   if (count > 3_000) pushUnique(warnings, warningKeys,
     check('basic_format', 'article_long', `正文含 ${count} 个中文字符，多于建议的 3000 个。`));
+  const promisedArtifacts = promisedArtifactTerms.filter((term) => [
+    output.primary_title,
+    ...output.alternative_titles,
+    output.abstract,
+  ].some((text) => text.includes(term)));
+  if (promisedArtifacts.length > 0 && !hasCopyableArtifact(output.article_markdown)) {
+    pushUnique(warnings, warningKeys, check(
+      'basic_format',
+      'promised_artifact_missing',
+      `标题或摘要承诺了可复制成品（${promisedArtifacts.join('、')}），但正文没有 fenced code block、至少三条 checkbox 或 Markdown 表格。`,
+    ));
+  }
   for (const { field, text } of publicFields) {
     for (const marker of hardFormatMarkers) {
       if (marker.pattern.test(text)) {

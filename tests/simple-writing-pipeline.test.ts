@@ -1,4 +1,4 @@
-import { access, mkdtemp, readdir, rm } from 'node:fs/promises';
+import { access, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -164,6 +164,86 @@ describe('Simple Writing one-call pipeline', () => {
     expect(completed.result.pack.checks?.warnings).toContainEqual(expect.objectContaining({
       code: 'article_short', message: expect.stringContaining('999'),
     }));
+  });
+
+  it('warns but stays ready when a promised task card has no copyable artifact', async () => {
+    const base = fixtureOutput();
+    const output = {
+      ...base,
+      primary_title: '给你一张可以复用的任务执行卡',
+      alternative_titles: ['把任务说明写具体', '从需求走到验收结果'],
+      abstract: '解释怎样定义一个可以检查的任务。',
+      article_markdown: '这是一篇只有解释段落、没有代码块、表格或勾选清单的合成正文。',
+    };
+    const completed = await run({ provider: new FixtureSimpleWritingProvider(output) });
+    expect(completed.result.pack.decision).toBe('READY_FOR_HUMAN_REVIEW');
+    expect(completed.result.pack.checks?.warnings).toContainEqual(expect.objectContaining({
+      category: 'basic_format', code: 'promised_artifact_missing',
+    }));
+    expect(await readFile(completed.result.files?.reviewNotes ?? '', 'utf8')).toContain('promised_artifact_missing');
+  });
+
+  it('accepts a promised task card with a fenced Markdown template', async () => {
+    const base = fixtureOutput();
+    const output = {
+      ...base,
+      primary_title: '一张可直接复制的任务执行卡',
+      alternative_titles: ['把任务写成可验收结果', '从输入走到人工确认'],
+      abstract: '正文提供完整模板。',
+      article_markdown: `下面是完整模板：
+
+\`\`\`markdown
+# 任务执行卡
+- 目标：
+- 必要输入：
+- 执行步骤：
+- 交付物：
+- 验收标准：
+- 失败处理：
+- 人工确认边界：
+\`\`\``,
+    };
+    const completed = await run({ provider: new FixtureSimpleWritingProvider(output) });
+    expect(completed.result.pack.checks?.warnings).not.toContainEqual(expect.objectContaining({ code: 'promised_artifact_missing' }));
+  });
+
+  it('accepts a promised checklist with at least three Markdown checkboxes', async () => {
+    const base = fixtureOutput();
+    const output = {
+      ...base,
+      primary_title: '任务验收清单',
+      alternative_titles: ['检查任务输入', '检查任务结果'],
+      abstract: '提供一份可以勾选的检查项。',
+      article_markdown: '- [ ] 输入资料完整\n- [ ] 交付物字段齐全\n- [ ] 人工确认边界明确',
+    };
+    const completed = await run({ provider: new FixtureSimpleWritingProvider(output) });
+    expect(completed.result.pack.checks?.warnings).not.toContainEqual(expect.objectContaining({ code: 'promised_artifact_missing' }));
+  });
+
+  it('accepts a promised table with a Markdown header separator', async () => {
+    const base = fixtureOutput();
+    const output = {
+      ...base,
+      primary_title: '用一张表格检查任务结果',
+      alternative_titles: ['检查负责人和时间', '暴露待确认信息'],
+      abstract: '正文给出结果表格。',
+      article_markdown: '| 待办 | 负责人 | 状态 |\n|---|---|---|\n| 整理清单 | 李明 | 通过 |',
+    };
+    const completed = await run({ provider: new FixtureSimpleWritingProvider(output) });
+    expect(completed.result.pack.checks?.warnings).not.toContainEqual(expect.objectContaining({ code: 'promised_artifact_missing' }));
+  });
+
+  it('does not require an artifact when titles and abstract make no artifact promise', async () => {
+    const base = fixtureOutput();
+    const output = {
+      ...base,
+      primary_title: '先把任务范围说清楚',
+      alternative_titles: ['输入不足时先停下来', '怎样暴露待确认信息'],
+      abstract: '解释任务定义为什么影响最终结果。',
+      article_markdown: '这是一篇普通说明文章，没有承诺提供独立成品。',
+    };
+    const completed = await run({ provider: new FixtureSimpleWritingProvider(output) });
+    expect(completed.result.pack.checks?.warnings).not.toContainEqual(expect.objectContaining({ code: 'promised_artifact_missing' }));
   });
 
   it('hard-fails a local absolute path', async () => {
