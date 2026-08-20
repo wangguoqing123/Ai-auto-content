@@ -26,16 +26,23 @@ export interface SimpleWritingTopic {
   topic_signature: string | null;
 }
 
+export type SimpleWritingSourceRole = 'fact_source' | 'trend_signal' | 'structure_inspiration';
+
 export interface SimpleWritingMaterial {
   material_id: string;
   source_name: string;
   source_type: string;
+  source_role: SimpleWritingSourceRole;
   title: string;
   published_at: string | null;
   canonical_url: string;
   excerpt: string;
   content_scope: string;
   source_status: string;
+}
+
+function isSimpleWritingSourceRole(value: string): value is SimpleWritingSourceRole {
+  return value === 'fact_source' || value === 'trend_signal' || value === 'structure_inspiration';
 }
 
 export interface SimpleWritingInput {
@@ -114,11 +121,13 @@ export async function loadSimpleWritingInput(
   const materialInput = await buildTopicMaterialInput(rootDir, writingDate, topicConfig);
   const materials = topic.selected_material_ids.flatMap((materialId): SimpleWritingMaterial[] => {
     const card = materialInput.materialById.get(materialId);
-    if (card === undefined || card.canonical_url === null || card.excerpt.trim() === '') return [];
+    if (card === undefined || card.canonical_url === null || card.excerpt.trim() === ''
+      || !isSimpleWritingSourceRole(card.role)) return [];
     return [{
       material_id: card.material_id,
       source_name: card.author_name.trim() || card.source_platform,
       source_type: card.source_platform,
+      source_role: card.role,
       title: card.title,
       published_at: card.published_at,
       canonical_url: card.canonical_url,
@@ -143,9 +152,9 @@ const fixtureTopic: SimpleWritingTopic = {
   why_now: '合成素材显示，明确的输入和检查点比继续追加空泛建议更有用。',
   proof_format: '一张合成任务卡和逐项验收清单',
   fact_source_ids: ['mat_111111111111'],
-  trend_signal_ids: [],
-  structure_inspiration_ids: [],
-  selected_material_ids: ['mat_111111111111'],
+  trend_signal_ids: ['mat_222222222222'],
+  structure_inspiration_ids: ['mat_333333333333'],
+  selected_material_ids: ['mat_111111111111', 'mat_222222222222', 'mat_333333333333'],
   topic_signature: '1'.repeat(64),
 };
 
@@ -153,11 +162,38 @@ const fixtureMaterial: SimpleWritingMaterial = {
   material_id: 'mat_111111111111',
   source_name: 'Simple Writing Fixture',
   source_type: 'rss',
+  source_role: 'fact_source',
   title: 'Synthetic workflow guide with inputs, steps, and acceptance checks',
   published_at: '2026-08-13T02:00:00.000Z',
   canonical_url: 'https://example.com/synthetic-workflow-guide',
   excerpt: 'This synthetic fixture says a repeatable workflow records its inputs, ordered steps, and acceptance checks.',
   content_scope: 'fact_source_persisted_excerpt',
+  source_status: 'resolved',
+};
+
+const fixtureTrendMaterial: SimpleWritingMaterial = {
+  material_id: 'mat_222222222222',
+  source_name: 'Synthetic Discussion Fixture',
+  source_type: 'twitter',
+  source_role: 'trend_signal',
+  title: 'Synthetic discussion about unclear AI workflow acceptance criteria',
+  published_at: '2026-08-13T03:00:00.000Z',
+  canonical_url: 'https://example.com/synthetic-discussion-signal',
+  excerpt: 'This synthetic discussion is one signal that some users struggle to define when an AI task is complete.',
+  content_scope: 'trend_signal_persisted_excerpt',
+  source_status: 'ugc_signal_only;no_velocity_claim',
+};
+
+const fixtureStructureMaterial: SimpleWritingMaterial = {
+  material_id: 'mat_333333333333',
+  source_name: 'Synthetic Structure Fixture',
+  source_type: 'weixin',
+  source_role: 'structure_inspiration',
+  title: 'Synthetic article outline organized as problem, action, and acceptance check',
+  published_at: '2026-08-13T04:00:00.000Z',
+  canonical_url: 'https://example.com/synthetic-structure-reference',
+  excerpt: 'This synthetic reference organizes a tutorial as problem, action sequence, acceptance checks, and boundaries.',
+  content_scope: 'structure_inspiration_persisted_excerpt',
   source_status: 'resolved',
 };
 
@@ -174,7 +210,9 @@ export function buildFixtureSimpleWritingInput(
     input: {
       writing_date: writingDate,
       topic: fixtureTopic,
-      materials: scenario === 'no-sources' ? [] : [fixtureMaterial],
+      materials: scenario === 'no-sources'
+        ? []
+        : [fixtureMaterial, fixtureTrendMaterial, fixtureStructureMaterial],
     },
   };
 }

@@ -83,6 +83,7 @@ function renderSources(materials: SimpleWritingMaterial[]): string {
 
 - 素材 ID：${material.material_id}
 - 来源：${material.source_name}（${material.source_type}）
+- 素材角色：${material.source_role}
 - 发布时间：${material.published_at ?? '未知'}
 - 原始链接：${material.canonical_url}
 - 内容范围：${material.content_scope}

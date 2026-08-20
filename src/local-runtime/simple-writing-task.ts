@@ -159,6 +159,9 @@ export async function runSimpleWritingTask(
   const triggerMode = options.triggerMode ?? 'scheduled';
   const current = zonedDateAndMinute(now, config.timezone);
   const schedule = config.simple_writing;
+  if (triggerMode === 'scheduled' && !schedule.enabled) {
+    return result('DISABLED', 'not_due', 0, current.date);
+  }
   if (triggerMode === 'scheduled'
     && (current.minute < minutes(schedule.window_start) || current.minute > minutes(schedule.window_end))) {
     return result('NOT_DUE', 'not_due', 0, current.date);

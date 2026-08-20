@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- 发布前收紧 Simple Writing：Scheduled 唯一激活门禁默认 `enabled=false`，关闭时在状态、锁、Provider、草稿和通知前返回 `DISABLED`；Manual Fixture 不受影响。四类检查覆盖主标题、备用标题、摘要和正文，Writer Input 显式区分 fact、trend signal 与 structure inspiration 的使用权限。
 - 增加极简 Simple Writing v1：复用现有 Topic Decision、72 小时素材 Loader 和只读 Codex Structured Runner，固定为 Topic → Sources → One Writer → 四类代码检查 → Human Review；正常最多一次 Writer 调用，没有 Reviewer、Repair 或多 Audit 编排。
 - 草稿只写入 Runtime clone 外的 0700/0600 本机私有目录，成功生成 `article.md`、`sources.md`、`review-notes.md` 和 `simple-writing-pack.json`；Warnings 不阻塞人工审核，任何 hard failure 都不自动重写或重跑。
 - 增加 14:30—22:00 Simple Writing Scheduler 代码与离线 Fixture；本轮没有真实 Writing Codex 调用、平台访问、图片、发布、正式 Writing 数据、生产 Runtime 修改或 LaunchAgent 安装/reload。

@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { access, mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -25,6 +25,10 @@ async function environment() {
   };
 }
 
+function enableScheduledWriting(config: Awaited<ReturnType<typeof loadLocalRuntimeConfig>>): void {
+  config.simple_writing.enabled = true;
+}
+
 function fixtureScenario(scenario: 'ready' | 'no-publish' | 'waiting' | 'no-sources') {
   return (options: Parameters<typeof runSimpleWritingBuild>[0], dependencies?: Parameters<typeof runSimpleWritingBuild>[1]) => runSimpleWritingBuild({
     ...options,
@@ -34,8 +38,32 @@ function fixtureScenario(scenario: 'ready' | 'no-publish' | 'waiting' | 'no-sour
 }
 
 describe('local Simple Writing scheduler task', () => {
+  it('returns DISABLED before state, lock, pipeline, output, or notification work', async () => {
+    const env = await environment();
+    const readState = vi.fn(async () => null);
+    const acquireLock = vi.fn(async () => { throw new Error('lock must not be acquired'); });
+    const runWriting = vi.fn(async () => { throw new Error('pipeline must not run'); });
+    const notify = vi.fn(async () => true);
+    const result = await runSimpleWritingTask({
+      repositoryRoot: process.cwd(), now: new Date('2026-08-14T06:30:00.000Z'),
+      fixture: true, dryRun: true, paths: env.paths, config: env.config,
+      outputRoot: env.outputRoot, triggerMode: 'scheduled',
+    }, { readState, acquireLock, runWriting, notify });
+    expect(result).toMatchObject({
+      outcome: 'DISABLED', status: 'not_due', exitCode: 0,
+      modelCalls: 0, writingDecision: null, outputDirectory: null,
+    });
+    expect(readState).not.toHaveBeenCalled();
+    expect(acquireLock).not.toHaveBeenCalled();
+    expect(runWriting).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
+    await expect(access(path.join(env.paths.stateDirectory, 'simple-writing-state.json'))).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(access(env.outputRoot)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
   it('is NOT_DUE at 14:29 Asia/Shanghai', async () => {
     const env = await environment();
+    enableScheduledWriting(env.config);
     const result = await runSimpleWritingTask({
       repositoryRoot: process.cwd(), now: new Date('2026-08-14T06:29:00.000Z'),
       fixture: true, dryRun: true, paths: env.paths, config: env.config,
@@ -44,8 +72,9 @@ describe('local Simple Writing scheduler task', () => {
     expect(result).toMatchObject({ outcome: 'NOT_DUE', status: 'not_due', modelCalls: 0 });
   });
 
-  it('runs one Fixture Writer at the inclusive 14:30 boundary and records the minimal state', async () => {
+  it('runs one enabled Fixture Writer at the inclusive 14:30 boundary and records the minimal state', async () => {
     const env = await environment();
+    enableScheduledWriting(env.config);
     const result = await runSimpleWritingTask({
       repositoryRoot: process.cwd(), now: new Date('2026-08-14T06:30:00.000Z'),
       fixture: true, dryRun: true, paths: env.paths, config: env.config,
@@ -61,8 +90,22 @@ describe('local Simple Writing scheduler task', () => {
     expect(state).toMatchObject({ status: 'ready_for_human_review', model_attempted: true, model_calls: 1, error_code: null });
   });
 
+  it('allows an explicit manual Fixture while scheduled execution remains disabled', async () => {
+    const env = await environment();
+    const result = await runSimpleWritingTask({
+      repositoryRoot: process.cwd(), now: new Date('2026-08-14T06:30:00.000Z'),
+      fixture: true, dryRun: true, paths: env.paths, config: env.config,
+      outputRoot: env.outputRoot, triggerMode: 'manual',
+    });
+    expect(env.config.simple_writing.enabled).toBe(false);
+    expect(result).toMatchObject({
+      outcome: 'COMPLETED', writingDecision: 'READY_FOR_HUMAN_REVIEW', modelCalls: 1,
+    });
+  });
+
   it('maps NO_PUBLISH to NO_CONTENT with zero model calls', async () => {
     const env = await environment();
+    enableScheduledWriting(env.config);
     const result = await runSimpleWritingTask({
       repositoryRoot: process.cwd(), now: new Date('2026-08-14T06:30:00.000Z'),
       fixture: true, dryRun: true, paths: env.paths, config: env.config,
@@ -73,6 +116,7 @@ describe('local Simple Writing scheduler task', () => {
 
   it('keeps WAITING_FOR_TOPIC retryable without calling the model', async () => {
     const env = await environment();
+    enableScheduledWriting(env.config);
     const runWriting = vi.fn(fixtureScenario('waiting'));
     const options = {
       repositoryRoot: process.cwd(), now: new Date('2026-08-14T06:30:00.000Z'),
@@ -86,6 +130,7 @@ describe('local Simple Writing scheduler task', () => {
 
   it('maps an empty source set to BLOCKED_NO_SOURCES without calling the model', async () => {
     const env = await environment();
+    enableScheduledWriting(env.config);
     const result = await runSimpleWritingTask({
       repositoryRoot: process.cwd(), now: new Date('2026-08-14T06:30:00.000Z'),
       fixture: true, dryRun: true, paths: env.paths, config: env.config,
@@ -96,6 +141,7 @@ describe('local Simple Writing scheduler task', () => {
 
   it('never makes a second Writer attempt on the same day after a model failure', async () => {
     const env = await environment();
+    enableScheduledWriting(env.config);
     const runWriting = vi.fn((
       options: Parameters<typeof runSimpleWritingBuild>[0],
       dependencies?: Parameters<typeof runSimpleWritingBuild>[1],
@@ -118,6 +164,7 @@ describe('local Simple Writing scheduler task', () => {
 
   it('is NOT_DUE after the inclusive 22:00 window', async () => {
     const env = await environment();
+    enableScheduledWriting(env.config);
     const result = await runSimpleWritingTask({
       repositoryRoot: process.cwd(), now: new Date('2026-08-14T14:01:00.000Z'),
       fixture: true, dryRun: true, paths: env.paths, config: env.config,

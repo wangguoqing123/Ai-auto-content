@@ -36,6 +36,7 @@ describe('Simple Writing private storage', () => {
     const sources = await readFile(run.files?.sources ?? '', 'utf8');
     expect(article).not.toContain('mat_111111111111');
     expect(sources).toContain('mat_111111111111');
+    expect(sources).toContain('素材角色：fact_source');
     expect(sources).toContain('https://example.com/synthetic-workflow-guide');
   });
 

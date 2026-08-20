@@ -13,7 +13,9 @@ const schedule = z.object({
   max_attempts: z.number().int().min(1).max(2),
 });
 
-const simpleWritingSchedule = schedule.omit({ max_attempts: true });
+const simpleWritingSchedule = schedule.omit({ max_attempts: true }).extend({
+  enabled: z.boolean().default(false),
+});
 
 const localRuntimeConfigSchema = z.object({
   version: z.literal(1),
@@ -32,6 +34,7 @@ const localRuntimeConfigSchema = z.object({
     max_attempts: 2,
   }),
   simple_writing: simpleWritingSchedule.default({
+    enabled: false,
     target_time: '14:30',
     window_start: '14:30',
     window_end: '22:00',

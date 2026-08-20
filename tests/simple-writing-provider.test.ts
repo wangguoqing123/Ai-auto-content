@@ -6,6 +6,7 @@ import { buildFixtureSimpleWritingInput } from '../src/simple-writing/input.js';
 import {
   CodexCliSimpleWritingProvider,
   FixtureSimpleWritingProvider,
+  SIMPLE_WRITING_SYSTEM_PROMPT,
   simpleWritingProviderSettingsFromEnvironment,
 } from '../src/simple-writing/provider.js';
 
@@ -38,6 +39,13 @@ describe('Simple Writing providers', () => {
     expect(simpleWritingProviderSettingsFromEnvironment({})).toEqual({ model: 'gpt-5.6-sol' });
   });
 
+  it('states the fact, trend-signal, and structure-inspiration permission boundaries', () => {
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('只能支持与已保存摘录范围一致的事实陈述');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('单条信号不能证明普遍事实、行业趋势或确定结论');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('不能作为事实来源');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('不得因为多个材料表达相似，就推断它们必然正确');
+  });
+
   it('reuses the Structured Runner for one valid Codex CLI Writer call', async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), 'simple-writing-provider-'));
     roots.push(root);
@@ -57,6 +65,12 @@ describe('Simple Writing providers', () => {
     ]);
     const schema = JSON.parse(await readFile(path.join(callDirectory, 'output-schema.json'), 'utf8')) as Record<string, unknown>;
     expect(JSON.stringify(schema)).not.toContain('prefixItems');
+    const writtenInput = JSON.parse(await readFile(path.join(callDirectory, 'input.json'), 'utf8')) as {
+      materials: Array<{ source_role: string }>;
+    };
+    expect(writtenInput.materials.map(({ source_role }) => source_role)).toEqual([
+      'fact_source', 'trend_signal', 'structure_inspiration',
+    ]);
   });
 
   it('turns invalid Structured Runner output into one invalid result for the pipeline to hard-fail', async () => {

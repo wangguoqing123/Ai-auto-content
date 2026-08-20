@@ -20,6 +20,7 @@ research_pack:
   max_attempts: 2
 
 simple_writing:
+  enabled: false
   target_time: "14:30"
   window_start: "14:30"
   window_end: "22:00"

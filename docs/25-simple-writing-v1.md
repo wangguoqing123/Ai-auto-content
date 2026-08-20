@@ -38,6 +38,7 @@ Simple Writing 不重新访问网页、X、公众号或 Browser Bridge。Writer 
 - `material_id`
 - `source_name`
 - `source_type`
+- `source_role`（`fact_source | trend_signal | structure_inspiration`）
 - `title`
 - `published_at`
 - `canonical_url`
@@ -46,6 +47,14 @@ Simple Writing 不重新访问网页、X、公众号或 Browser Bridge。Writer 
 - `source_status`
 
 Topic 不存在、`NO_PUBLISH` 或没有可用关联素材时，不创建真实 Provider，也不读取 Writer 模型环境。
+
+三类素材权限固定为：
+
+- `fact_source` 只支持已保存摘录范围内的事实陈述，不得扩大结论。
+- `trend_signal` 只能说明出现了讨论、关注、痛点或需求信号，不能把单条讨论写成普遍事实或行业趋势。
+- `structure_inspiration` 只能帮助组织内容，不能作为事实依据，也不能照搬表达、声音、观点或比喻。
+
+来源状态或内容范围存在限制时，Writer 必须保留限制，并把无法确认的内容写入 `uncertain_points`。多个材料表达相似也不能推出它们必然正确。
 
 ## 3. 四个业务决定
 
@@ -103,9 +112,9 @@ human_review_notes
 `runSimpleWritingChecks()` 是普通函数，不是 Audit Engine。
 
 1. Output：严格 Schema、正文和标题完整性；失败为 hard failure。
-2. Source Integrity：未知 source ID、输入之外的 URL 为 hard failure。
-3. Basic Safety：明显第一人称实测、客户学员、保证结果、名额涨价、价格和退款短语只产生 warning。
-4. Basic Format：少于 1000 或多于 3000 个中文字符只 warning；内部字段、素材 ID 和本机绝对路径为 hard failure。
+2. Source Integrity：主标题、两个备用标题、摘要和正文中的未知 URL，以及未知 source ID，均为 hard failure。
+3. Basic Safety：主标题、两个备用标题、摘要和正文中的明显第一人称实测、客户学员、保证结果、名额涨价、价格和退款短语只产生 warning。
+4. Basic Format：公开标题、摘要和正文中的内部字段、素材 ID、本机绝对路径为 hard failure；少于 1000 或多于 3000 个中文字符只检查 `article_markdown` 并产生 warning。
 
 Warnings 会写入 `review-notes.md`，但不阻塞 `READY_FOR_HUMAN_REVIEW`。
 
@@ -156,7 +165,11 @@ Fixture 使用合成 Topic、合成素材和合成文章，不读取真实 Codex
 
 ## 9. Scheduler
 
-仓库代码新增 `simple_writing` 窗口：北京时间 14:30—22:00。状态单独保存在：
+仓库代码包含 `simple_writing` 窗口：北京时间 14:30—22:00，但配置固定默认 `enabled=false`。Scheduled 入口关闭时立即返回 `DISABLED`，不读取 Topic 或 Runtime State，不获取 Provider、不写 attempt/草稿、不通知。合并 PR 不等于生产激活。
+
+只有未来人工明确把 `config/local-runtime.yaml` 的 `simple_writing.enabled` 改为 `true`，并另行更新生产 Runtime 后，Scheduled 入口才可能执行。`npm run simple-writing:build` 和 `local:writing` 的显式 Manual 调用不受这个 Scheduled 开关影响。
+
+启用后，状态单独保存在：
 
 ```text
 ~/Library/Application Support/AiAutoContent/state/simple-writing-state.json

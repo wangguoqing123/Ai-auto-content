@@ -24,7 +24,7 @@ export interface RuntimeScheduleConfig {
   max_attempts: number;
 }
 
-export type SimpleWritingScheduleConfig = Omit<RuntimeScheduleConfig, 'max_attempts'>;
+export type SimpleWritingScheduleConfig = Omit<RuntimeScheduleConfig, 'max_attempts'> & { enabled: boolean };
 
 export interface LocalRuntimeConfig {
   version: 1;
@@ -118,7 +118,7 @@ export interface RuntimePaths {
 }
 
 export interface RuntimeExecutionResult {
-  outcome: 'NOT_DUE' | 'WAITING_FOR_TOPIC' | 'BLOCKED_NO_SOURCES' | 'ALREADY_RESEARCHED' | 'ALREADY_COMPLETED' | 'MAX_ATTEMPTS_REACHED' | 'LOCK_HELD' | 'COMPLETED' | 'FAILED';
+  outcome: 'DISABLED' | 'NOT_DUE' | 'WAITING_FOR_TOPIC' | 'BLOCKED_NO_SOURCES' | 'ALREADY_RESEARCHED' | 'ALREADY_COMPLETED' | 'MAX_ATTEMPTS_REACHED' | 'LOCK_HELD' | 'COMPLETED' | 'FAILED';
   status: RuntimeTaskStatus;
   exitCode: number;
   date: string;

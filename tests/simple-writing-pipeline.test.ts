@@ -46,6 +46,16 @@ describe('Simple Writing one-call pipeline', () => {
     expect(loaded.input.topic.fact_source_ids).toEqual(['mat_e063daae6225', 'mat_9bafa93fe08b']);
     expect(loaded.input.materials.length).toBeGreaterThan(0);
     expect(loaded.input.materials.every(({ excerpt, canonical_url }) => excerpt.length > 0 && canonical_url.startsWith('http'))).toBe(true);
+    expect(new Set(loaded.input.materials.map(({ source_role }) => source_role))).toEqual(new Set(['fact_source', 'trend_signal']));
+  });
+
+  it('preserves fact, trend, and structure source roles in Writer input', () => {
+    const prepared = buildFixtureSimpleWritingInput('2026-08-14', 'ready');
+    expect(prepared.state).toBe('ready');
+    if (prepared.state !== 'ready') return;
+    expect(prepared.input.materials.map(({ source_role }) => source_role)).toEqual([
+      'fact_source', 'trend_signal', 'structure_inspiration',
+    ]);
   });
 
   it('calls one Writer, returns READY_FOR_HUMAN_REVIEW, and writes exactly four files', async () => {
@@ -94,6 +104,36 @@ describe('Simple Writing one-call pipeline', () => {
     expect(completed.result.pack).toMatchObject({ status: 'failed', error_code: 'unknown_external_url' });
   });
 
+  it('hard-fails an unknown URL in the abstract and writes no success files', async () => {
+    const output = { ...fixtureOutput(), abstract: '摘要引用了未知地址 https://unknown.example/abstract' };
+    const completed = await run({ provider: new FixtureSimpleWritingProvider(output) });
+    expect(completed.result.pack).toMatchObject({ status: 'failed', decision: null, error_code: 'unknown_external_url' });
+    expect(completed.result.pack.checks?.hard_failures).toContainEqual(expect.objectContaining({
+      code: 'unknown_external_url', message: expect.stringContaining('abstract'),
+    }));
+    expect(completed.result.files_written).toBe(false);
+    await expect(access(path.join(completed.root, 'output'))).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('warns on a high-risk phrase in the primary title without blocking the draft', async () => {
+    const output = { ...fixtureOutput(), primary_title: '我实测：把 AI 任务改成可验收流程' };
+    const completed = await run({ provider: new FixtureSimpleWritingProvider(output) });
+    expect(completed.result.pack.decision).toBe('READY_FOR_HUMAN_REVIEW');
+    expect(completed.result.pack.checks?.warnings).toContainEqual(expect.objectContaining({
+      code: 'high_risk_phrase', message: expect.stringContaining('primary_title'),
+    }));
+  });
+
+  it('hard-fails a local path in an alternative title', async () => {
+    const base = fixtureOutput();
+    const output = { ...base, alternative_titles: ['/Users/example/private.txt', base.alternative_titles[1]] };
+    const completed = await run({ provider: new FixtureSimpleWritingProvider(output) });
+    expect(completed.result.pack).toMatchObject({ status: 'failed', decision: null, error_code: 'local_absolute_path' });
+    expect(completed.result.pack.checks?.hard_failures).toContainEqual(expect.objectContaining({
+      code: 'local_absolute_path', message: expect.stringContaining('alternative_title_0'),
+    }));
+  });
+
   it.each(['我实测', '365 元'])('keeps the draft ready but warns on %s', async (phrase) => {
     const base = fixtureOutput();
     const output = { ...base, article_markdown: `${base.article_markdown}\n\n${phrase}只用于测试 warning。` };
@@ -109,6 +149,21 @@ describe('Simple Writing one-call pipeline', () => {
     const completed = await run({ provider: new FixtureSimpleWritingProvider(output) });
     expect(completed.result.pack.decision).toBe('READY_FOR_HUMAN_REVIEW');
     expect(completed.result.pack.checks?.warnings).toContainEqual(expect.objectContaining({ code: 'article_short' }));
+  });
+
+  it('calculates recommended length from article_markdown only', async () => {
+    const output = {
+      ...fixtureOutput(),
+      primary_title: '题'.repeat(60),
+      alternative_titles: ['备'.repeat(60), '选'.repeat(60)],
+      abstract: '摘'.repeat(300),
+      article_markdown: '文'.repeat(999),
+    };
+    const completed = await run({ provider: new FixtureSimpleWritingProvider(output) });
+    expect(completed.result.pack.decision).toBe('READY_FOR_HUMAN_REVIEW');
+    expect(completed.result.pack.checks?.warnings).toContainEqual(expect.objectContaining({
+      code: 'article_short', message: expect.stringContaining('999'),
+    }));
   });
 
   it('hard-fails a local absolute path', async () => {
