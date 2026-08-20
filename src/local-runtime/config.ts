@@ -13,6 +13,8 @@ const schedule = z.object({
   max_attempts: z.number().int().min(1).max(2),
 });
 
+const simpleWritingSchedule = schedule.omit({ max_attempts: true });
+
 const localRuntimeConfigSchema = z.object({
   version: z.literal(1),
   timezone: z.literal('Asia/Shanghai'),
@@ -28,6 +30,11 @@ const localRuntimeConfigSchema = z.object({
     window_start: '13:30',
     window_end: '21:00',
     max_attempts: 2,
+  }),
+  simple_writing: simpleWritingSchedule.default({
+    target_time: '14:30',
+    window_start: '14:30',
+    window_end: '22:00',
   }),
   scheduler: z.object({
     check_interval_seconds: z.number().int().min(60),

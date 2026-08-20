@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- 增加极简 Simple Writing v1：复用现有 Topic Decision、72 小时素材 Loader 和只读 Codex Structured Runner，固定为 Topic → Sources → One Writer → 四类代码检查 → Human Review；正常最多一次 Writer 调用，没有 Reviewer、Repair 或多 Audit 编排。
+- 草稿只写入 Runtime clone 外的 0700/0600 本机私有目录，成功生成 `article.md`、`sources.md`、`review-notes.md` 和 `simple-writing-pack.json`；Warnings 不阻塞人工审核，任何 hard failure 都不自动重写或重跑。
+- 增加 14:30—22:00 Simple Writing Scheduler 代码与离线 Fixture；本轮没有真实 Writing Codex 调用、平台访问、图片、发布、正式 Writing 数据、生产 Runtime 修改或 LaunchAgent 安装/reload。
 - 固定 vendored human-writing 1.1.0（`4fda173f3fef7fb808f3eba991eeb2528ea4b189`）与 no-ai-slop（`d30eddb9e04562234f2070b5ee63ca4649d9a05e`），保留 MIT License、上游 URL、逐文件 SHA-256 和已知可执行文件 allowlist；CI 不联网下载 Skill。
 - 增加本机 0700/0600 私有 style corpus，支持 Markdown、纯文本和 JSONL 导入；完整文章、反馈和 Profile 缓存不进入 Git，也不自动抓取作者内容。
 - 增加严格 Style Profile 与 Style Recipe Schema，分离内容、语言和转化模式，计算确定性节奏指标，并限制 owner/reference/platform 权重与最多两个参考 Profile。

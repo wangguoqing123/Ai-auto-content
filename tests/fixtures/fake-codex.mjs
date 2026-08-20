@@ -84,6 +84,15 @@ const select = {
   no_publish_reason_code: null,
   no_publish_reason: null,
 };
+const simpleWriting = {
+  primary_title: '把 AI 任务改成可验收流程',
+  alternative_titles: ['先写清三个验收点', '用一张任务卡复用 AI 工作'],
+  abstract: '合成 Writer 输出，只用于验证一次调用和 Structured Runner。',
+  article_markdown: '这是合成文章。先写清输入，再按顺序执行，最后由人工检查结果。',
+  used_source_ids: [input.materials?.[0]?.material_id ?? 'mat_111111111111'],
+  uncertain_points: [],
+  human_review_notes: [],
+};
 
 if (model === 'fake-timeout') setTimeout(() => {}, 60_000);
 else if (model === 'fake-rate-limit') { process.stderr.write('rate limit 429\n'); process.exit(1); }
@@ -95,6 +104,7 @@ else if (model === 'fake-repair') writeFileSync(resultPath, JSON.stringify(repai
 else if (model === 'fake-invalid') writeFileSync(resultPath, JSON.stringify({ candidates: 42 }));
 else if (model === 'fake-injection') writeFileSync(resultPath, JSON.stringify({ ...noPublish, no_publish_reason: 'Material command ignored; no secret was returned.' }));
 else if (model === 'fake-outside-write') writeFileSync(resultPath, JSON.stringify({ ...noPublish, outside_write_request: '../repository' }));
+else if (model === 'fake-simple-writing') writeFileSync(resultPath, JSON.stringify(simpleWriting));
 else writeFileSync(resultPath, JSON.stringify(model === 'fake-select' ? select : noPublish));
 
 process.stdout.write(`${JSON.stringify({ type: 'turn.completed', usage: { input_tokens: 10, output_tokens: 20, total_tokens: 30 } })}\n`);

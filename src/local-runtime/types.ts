@@ -15,7 +15,7 @@ export const runtimeTaskStatuses = [
 
 export type RuntimeTaskStatus = typeof runtimeTaskStatuses[number];
 export type CompletedCollectionStatus = 'success' | 'partial_success';
-export type RuntimeTaskName = 'morning' | 'topic_selection' | 'research_pack';
+export type RuntimeTaskName = 'morning' | 'topic_selection' | 'research_pack' | 'simple_writing';
 
 export interface RuntimeScheduleConfig {
   target_time: string;
@@ -24,12 +24,15 @@ export interface RuntimeScheduleConfig {
   max_attempts: number;
 }
 
+export type SimpleWritingScheduleConfig = Omit<RuntimeScheduleConfig, 'max_attempts'>;
+
 export interface LocalRuntimeConfig {
   version: 1;
   timezone: 'Asia/Shanghai';
   morning: RuntimeScheduleConfig;
   topic_selection: RuntimeScheduleConfig;
   research_pack: RuntimeScheduleConfig;
+  simple_writing: SimpleWritingScheduleConfig;
   scheduler: { check_interval_seconds: number };
   runtime: {
     auto_launch_chrome: boolean;
@@ -115,7 +118,7 @@ export interface RuntimePaths {
 }
 
 export interface RuntimeExecutionResult {
-  outcome: 'NOT_DUE' | 'WAITING_FOR_TOPIC' | 'ALREADY_RESEARCHED' | 'ALREADY_COMPLETED' | 'MAX_ATTEMPTS_REACHED' | 'LOCK_HELD' | 'COMPLETED' | 'FAILED';
+  outcome: 'NOT_DUE' | 'WAITING_FOR_TOPIC' | 'BLOCKED_NO_SOURCES' | 'ALREADY_RESEARCHED' | 'ALREADY_COMPLETED' | 'MAX_ATTEMPTS_REACHED' | 'LOCK_HELD' | 'COMPLETED' | 'FAILED';
   status: RuntimeTaskStatus;
   exitCode: number;
   date: string;
@@ -127,4 +130,6 @@ export interface RuntimeExecutionResult {
   topicDecision?: 'SELECT_TOPIC' | 'NO_PUBLISH' | null;
   modelCalls?: number;
   researchDecision?: 'READY_FOR_WRITING' | 'RESEARCH_INCOMPLETE' | 'NO_TOPIC' | null;
+  writingDecision?: 'READY_FOR_HUMAN_REVIEW' | 'NO_CONTENT' | 'WAITING_FOR_TOPIC' | 'BLOCKED_NO_SOURCES' | null;
+  outputDirectory?: string | null;
 }
