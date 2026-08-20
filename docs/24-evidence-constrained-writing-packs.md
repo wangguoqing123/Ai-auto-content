@@ -1,7 +1,7 @@
 ---
 title: 基于证据、已批准风格规则与 Human Send Gate 的写作包
 version: 1.0.0
-updated_at: 2026-08-18
+updated_at: 2026-08-20
 status: implemented_pending_live_validation
 ---
 
@@ -125,3 +125,17 @@ Reviewer 的 hard blocker / blocking style issue 不再在 Repair 后被静默�
 Repair 后只有在对应 Unit 属于 Target、Repair 完整返回、Unit 真实变化、原 quoted text 已消失且全部确定性 Audit 通过时，Reviewer blocker 才能 discharge。原 quote 残留时继续保留为 final quality issue，返回 `writing_audit_failed`；Plagiarism 保持 `not_run / null / null`，Guard 不执行。
 
 离线回归覆盖漏 Target、部分返回、原样返回、只改其他文字、空 quote、伪 quote 与精确移除成功路径。原摘要 + `x.thread.2` 回归仍由一次 Repair 完整修改两个 Targets，最终 Style/Plagiarism `pass`、`READY_FOR_HUMAN_REVIEW`、model calls=3。完整测试为 68 files / 1005 tests。本轮没有调用真实 Codex、平台、图片或发布能力。
+
+## Third Synthetic READY audit hardening
+
+第三次真实 Synthetic READY Writing 在 Head `c8aed879c30c181c3970a45b2eabc79e805af0b8` 上只执行 1 次，Writer、Reviewer、Repair 共 3 次真实调用。原始结果保持 `status=failed`、`decision=null`、`error_code=writing_audit_failed`。Repair 后 Evidence、Experiment、Product 与 Style 已 pass，但 final quality issues 仍保留 `factual_unit_without_claim × 16`、`required_disclosure_missing × 3`、`reversal_rhetoric × 6`；这 25 条的 code/Unit/surface 与 Reviewer blockers 完全对应，不是 post-repair 确定性 Audit 的现存问题。
+
+Pipeline 现在在 Reviewer 前保存 Evidence、Experiment、Product、First-person、Style 与 Structural 的确定性 blockers，并以 `issue_code + unit_id + surface` 建立稳定 Key。Reviewer echo 只有在对应 Unit 属于 Repair Target、Repair 完整返回、allowed field 真实变化且 Repair 后相同确定性 Key 消失时 discharge；metadata-only 修复不要求正文变化，`required_disclosure_missing` 插入后 quote 应当存在，Style echo 以 Repair 后 Style Audit 为准。Reviewer-only 问题仍要求 exact quote 局部消失。每条 Reviewer Issue 独立判断，无关 blocker 不会让已解决 echo 复活；Guard 仍只在 post-repair deterministic blockers 和 unresolved Reviewer blockers 都为 0 后运行。
+
+`RepairTarget.issue_details` 逐条保存 `issue_code`、severity、`rule_origin`、`source_commit`、`quoted_text` 与 `repair_constraint`。同 Unit 仍只有一个 Target，但同 code 的多个不同 quote 和 human-writing/no-ai-slop 的跨 Skill origin 全部保留；只去重完全相同的 code/origin/quote/constraint。Repair Prompt 明确允许 metadata-only 修复，要求插入缺失 disclosure，并只对 Reviewer-only text issue 局部改写 exact quote；allowed fields、一次 Repair、无新事实和禁止全文重写边界不变。
+
+First-person Audit 不再用任意 `includes('我')` 直接判定单数第一人称。中性教程引导“我们先提取字段，再逐项验收”跳过；“我们实测”仍要求 persona/project evidence；“我们认为”仍要求 `is_opinion=true`；`我(?!们)` 的事实、批准观点形式与其他 fail-closed 边界保持。对第三次保存稿的只读分类结果为：中性“我们” 0、集体事实 0、集体观点 0、独立“我” 19。
+
+在没有执行 Codex、没有初始化 `CodexCliWritingProvider` 的条件下，使用三份保存的 Writer/Reviewer/Repair result 做了一次 `/tmp` 零模型离线重放。25 条 Reviewer echo 已清零，Evidence/Experiment/Product/Style 均为 `pass`；19 条独立“我”仍触发 `unmarked_first_person_opinion`，所以 replay 仍是 `status=failed`、`decision=null`、`writing_audit_failed`。First-person 未清零，Plagiarism 保持 `not_run / null / null`，Guard 未执行；该 replay 不能冒充原 live success，也不能进入人工写作效果审核。
+
+完整离线验证为 69 个测试文件、1020 项测试，Writing Skill 为 2 Skills / 14 files / 23 audited rules，JSON Schema 为 18 files。正式 Research Fixture 仍返回 `BLOCKED_BY_RESEARCH / model.calls=0`；Synthetic READY Fixture 仍以最多 3 次 Provider call 完成一次 Repair、实际运行 Guard 并达到 `READY_FOR_HUMAN_REVIEW`。本轮真实 Writing 次数与真实 Codex Writing 调用均为 0，未访问平台、未生成图片、未发布、未写正式 Writing 数据。

@@ -158,6 +158,32 @@ describe('Public-surface deterministic Audits', () => {
     const units = enumeratePublicContentUnits(base.output).filter(({ surface }) => surface !== 'wechat_block');
     for (const unit of units) expect(unit).toEqual(expect.objectContaining({ claim_ids: expect.any(Array), experiment_refs: expect.any(Array), product_claim_ids: expect.any(Array), persona_fact_ids: expect.any(Array), style_rule_ids: expect.any(Array), is_opinion: expect.any(Boolean) }));
   });
+
+  it('39a. allows neutral collective instructional “我们” language', () => {
+    const output = patch(base.output, 'wechat.abstract', { text: '我们先提取字段，再逐项验收。', is_opinion: false, persona_fact_ids: [] });
+    expect(audit(output).first_person).toMatchObject({ status: 'pass', issues: [], sentences: [] });
+  });
+
+  it('39b. blocks collective factual experience without persona evidence', () => {
+    const output = patch(base.output, 'wechat.abstract', { text: '我们实测这个方法有效。', is_opinion: false, persona_fact_ids: [] });
+    expect(blockingAuditIssues(audit(output))).toContainEqual(expect.objectContaining({ issue_code: 'unsupported_first_person_fact', unit_id: 'wechat.abstract' }));
+  });
+
+  it('39c. requires collective judgment to be marked as opinion', () => {
+    const unmarked = patch(base.output, 'wechat.abstract', { text: '我们认为先保留缺口更稳妥。', is_opinion: false, persona_fact_ids: [] });
+    const marked = patch(base.output, 'wechat.abstract', { text: '我们认为先保留缺口更稳妥。', is_opinion: true, persona_fact_ids: [] });
+    expect(blockingAuditIssues(audit(unmarked))).toContainEqual(expect.objectContaining({ issue_code: 'unmarked_first_person_opinion', unit_id: 'wechat.abstract' }));
+    expect(audit(marked).first_person.status).toBe('pass');
+  });
+
+  it('39d. preserves singular first-person fact and opinion boundaries', () => {
+    const factual = patch(base.output, 'wechat.abstract', { text: '我实测这个方法有效。', is_opinion: false, persona_fact_ids: [] });
+    const unmarkedOpinion = patch(base.output, 'wechat.abstract', { text: '我的判断是先保留缺口。', is_opinion: false, persona_fact_ids: [] });
+    const markedOpinion = patch(base.output, 'wechat.abstract', { text: '我的判断是先保留缺口。', is_opinion: true, persona_fact_ids: [] });
+    expect(blockingAuditIssues(audit(factual))).toContainEqual(expect.objectContaining({ issue_code: 'unsupported_first_person_fact' }));
+    expect(blockingAuditIssues(audit(unmarkedOpinion))).toContainEqual(expect.objectContaining({ issue_code: 'unmarked_first_person_opinion' }));
+    expect(audit(markedOpinion).first_person.status).toBe('pass');
+  });
 });
 
 function writerOutputSchemaForTest(output: WriterOutput): WriterOutput { return output; }

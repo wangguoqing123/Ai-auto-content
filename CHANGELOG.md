@@ -29,6 +29,15 @@
 - 修复 Reviewer blocker preservation：Repair 前验证 stable Unit 与 exact quoted text；Repair 后只有完整 Target、真实变化、quote 消失和确定性 Audit 全过才 discharge。quote 残留继续 `writing_audit_failed`，终局 Guard 保持 `not_run`。
 - 新增 8 项 Target omission / unchanged / Reviewer quote discharge 回归；完整离线回归更新为 68 files / 1005 tests。本轮未调用真实 Codex、未访问平台、未生成图片或发布。
 
+### Third Synthetic READY audit hardening
+
+- 第三次真实 Synthetic READY Writing 的原始结果保持 `status=failed`、`decision=null`、`error_code=writing_audit_failed`；Evidence 与 Style 已 pass 后，仍错误保留 `factual_unit_without_claim × 16`、`required_disclosure_missing × 3`、`reversal_rhetoric × 6` 共 25 条 Reviewer echo。
+- Reviewer discharge 改为按 `issue_code + unit_id + surface` 独立判断：确定性 Issue 的 Reviewer 回显由 Repair 后对应确定性 Audit 决定；Reviewer-only 文本问题仍要求完整 Target、真实变化与 exact quote 消失。无关 Unit 的 blocker 不再让已解决 echo 复活，Guard 仍只在两类 blocker 都清零后运行。
+- Repair Target 新增逐条 `issue_details`，保留 severity、origin、source commit、quoted text 与 constraint；同 Unit 的多个 quote 和跨 Skill origin 不丢失，仅去重完全相同的 code/origin/quote/constraint。
+- First-person Audit 区分中性教程引导、集体事实、集体观点和 `我(?!们)` 单数边界；中性“我们”不再误报，集体事实仍需 persona evidence，集体观点仍需 `is_opinion=true`。
+- 零模型离线重放清除了上述 25 条 Reviewer echo，但保存稿仍有 `unmarked_first_person_opinion × 19`；只读分类均落在独立“我”，不是“我们”。因此 replay 仍为 `writing_audit_failed`，Plagiarism Guard 保持 `not_run`，不能进入人工写作效果审核。
+- 完整离线回归为 69 files / 1020 tests；本轮没有新模型调用、真实 Writing、平台访问、图片、发布或正式 Writing 数据写入。
+
 - 固定 vendored human-writing 1.1.0（`4fda173f3fef7fb808f3eba991eeb2528ea4b189`）与 no-ai-slop（`d30eddb9e04562234f2070b5ee63ca4649d9a05e`），保留 MIT License、上游 URL、逐文件 SHA-256 和已知可执行文件 allowlist；CI 不联网下载 Skill。
 - 增加本机 0700/0600 私有 style corpus，支持 Markdown、纯文本和 JSONL 导入；完整文章、反馈和 Profile 缓存不进入 Git，也不自动抓取作者内容。
 - 增加严格 Style Profile 与 Style Recipe Schema，分离内容、语言和转化模式，计算确定性节奏指标，并限制 owner/reference/platform 权重与最多两个参考 Profile。

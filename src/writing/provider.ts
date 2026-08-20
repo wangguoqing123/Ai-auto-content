@@ -54,8 +54,9 @@ Mark human-writing or prose problems that need a local block repair as blocking_
 quoted_text must be an exact short excerpt. unit_id and surface must identify the exact public unit; never use rendered line numbers. Preserve rule_origin and source_commit.
 If the output complies, return an empty issues array. Return only schema-valid JSON.`;
 
-const REPAIR_PROMPT = `Repair only the listed public content units and resolve every constraint for each unit in one patch.
+const REPAIR_PROMPT = `Repair only the listed public content units and resolve every issue_details entry for each unit in one patch.
 Return each unit_id at most once with the supplied original_sha256 and one replacement. Modify only allowed_fields. Do not modify unlisted units, unit_id, surface, X format or item count, title count, article_type, or block_type.
+Treat each issue_detail independently. A metadata issue may be repaired only by changing allowed metadata; do not force a text change. For required_disclosure_missing, insert the missing disclosure exactly as required by repair_constraint. For a Reviewer-only text issue, locally rewrite the exact quoted_text so it no longer remains.
 Do not add a fact, product benefit, experience, case, experiment result, claim reference, or style rule outside the supplied allowlists. Do not perform a full rewrite.
 Preserve meaning, evidence strength, limitations, and metadata unless that field is explicitly allowed. Do not repair plagiarism or protected-transfer findings by synonym replacement.
 Return only schema-valid JSON.`;

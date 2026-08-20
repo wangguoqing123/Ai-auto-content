@@ -117,13 +117,21 @@ function productAudit(output: WriterOutput, units: readonly PublicContentUnit[],
 function firstPersonAudit(units: readonly PublicContentUnit[]) {
   const issues: WritingIssue[] = [];
   const sentences: Array<{ sentence: string; type: 'opinion' | 'factual'; evidence_refs: string[]; allowed: boolean }> = [];
-  const factualPattern = /我(?:测试了|实测|最近用了|做过|发现|的用户|的学员)/u;
-  const opinionPattern = /我(?:的判断是|更建议|不会|认为)/u;
+  const singularPattern = /我(?!们)/u;
+  const singularFactualPattern = /我(?:测试了|实测|最近用了|做过|发现|的用户|的学员)/u;
+  const singularOpinionPattern = /我(?:的判断是|更建议|不会|认为)/u;
+  const collectiveFactualPattern = /我们(?:测试了|实测|最近用了|做过|发现|的用户|的学员)/u;
+  const collectiveOpinionPattern = /我们(?:的判断是|更建议|不会|认为)/u;
   for (const unit of nonEmpty(units)) {
-    for (const sentence of unit.text.split(/(?<=[。！？])/u).map((value) => value.trim()).filter((value) => value.includes('我'))) {
-      const type = factualPattern.test(sentence) ? 'factual' as const : 'opinion' as const;
+    for (const sentence of unit.text.split(/(?<=[。！？])/u).map((value) => value.trim())) {
+      const singular = singularPattern.test(sentence);
+      const collectiveFactual = collectiveFactualPattern.test(sentence);
+      const collectiveOpinion = collectiveOpinionPattern.test(sentence);
+      if (!singular && !collectiveFactual && !collectiveOpinion) continue;
+      const type = singularFactualPattern.test(sentence) || collectiveFactual ? 'factual' as const : 'opinion' as const;
       const evidence = [...unit.persona_fact_ids, ...unit.claim_ids, ...unit.experiment_refs];
-      const allowed = type === 'opinion' ? unit.is_opinion && opinionPattern.test(sentence) : unit.persona_fact_ids.length > 0;
+      const approvedOpinion = singularOpinionPattern.test(sentence) || collectiveOpinion;
+      const allowed = type === 'opinion' ? unit.is_opinion && approvedOpinion : unit.persona_fact_ids.length > 0;
       sentences.push({ sentence, type, evidence_refs: evidence, allowed });
       if (!allowed) issues.push(issue(type === 'factual' ? 'unsupported_first_person_fact' : 'unmarked_first_person_opinion', unit, sentence, type === 'factual' ? 'Remove the personal fact or attach real persona/project evidence.' : 'Mark genuine judgment as opinion and use an approved form.'));
     }

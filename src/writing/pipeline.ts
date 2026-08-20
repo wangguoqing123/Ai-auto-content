@@ -14,7 +14,7 @@ import { CodexCliWritingProvider, FixtureWritingProvider, WritingProviderError, 
 import { loadReferenceGuardInputsReadOnly } from './reference-guard.js';
 import { renderWriterOutput } from './render.js';
 import { enumeratePublicContentUnits } from './public-content-units.js';
-import { applyUnitRepair, buildRepairPlan, RepairContractError } from './repair.js';
+import { applyUnitRepair, buildRepairPlan, RepairContractError, type RepairTarget } from './repair.js';
 import { evaluateResearchGate } from './research-gate.js';
 import {
   resolvedWritingStyleSnapshot,
@@ -190,15 +190,27 @@ function reviewerBlockers(issues: readonly WritingIssue[]): WritingIssue[] {
   return issues.filter(({ severity }) => severity === 'hard_blocker' || severity === 'blocking_style_issue');
 }
 
-function validateReviewerBlockers(output: WriterOutput, issues: readonly WritingIssue[]): string | null {
+function issueMatchKey(issue: Pick<WritingIssue, 'issue_code' | 'unit_id' | 'surface'>): string {
+  return `${issue.issue_code}\n${issue.unit_id}\n${issue.surface}`;
+}
+
+function validateReviewerBlockers(output: WriterOutput, issues: readonly WritingIssue[], preReviewerDeterministicBlockers: readonly WritingIssue[]): string | null {
   const units = new Map(enumeratePublicContentUnits(output).map((unit) => [unit.unit_id, unit]));
+  const deterministicQuotesByKey = new Map<string, Set<string>>();
+  for (const issue of preReviewerDeterministicBlockers) {
+    const key = issueMatchKey(issue);
+    const quotes = deterministicQuotesByKey.get(key) ?? new Set<string>();
+    quotes.add(issue.quoted_text);
+    deterministicQuotesByKey.set(key, quotes);
+  }
   for (const issue of reviewerBlockers(issues)) {
     const unit = units.get(issue.unit_id);
     if (unit === undefined) return `reviewer_unit_missing:${issue.unit_id}`;
     if (unit.surface !== issue.surface) return `reviewer_surface_mismatch:${issue.unit_id}`;
     if (issue.quoted_text.trim() === '') return `reviewer_quoted_text_empty:${issue.unit_id}`;
     if ([...issue.quoted_text].length > 240) return `reviewer_quoted_text_too_long:${issue.unit_id}`;
-    if (!unit.text.includes(issue.quoted_text)) return `reviewer_quote_not_found:${issue.unit_id}`;
+    const matchesDeterministicQuote = deterministicQuotesByKey.get(issueMatchKey(issue))?.has(issue.quoted_text) === true;
+    if (!matchesDeterministicQuote && !unit.text.includes(issue.quoted_text)) return `reviewer_quote_not_found:${issue.unit_id}`;
   }
   return null;
 }
@@ -207,18 +219,25 @@ function unresolvedReviewerBlockers(
   before: WriterOutput,
   after: WriterOutput,
   issues: readonly WritingIssue[],
-  targetIds: ReadonlySet<string>,
+  targets: readonly RepairTarget[],
   repairedIds: ReadonlySet<string>,
-  deterministicPassed: boolean,
+  preReviewerDeterministicBlockers: readonly WritingIssue[],
+  postRepairDeterministicBlockers: readonly WritingIssue[],
 ): WritingIssue[] {
   const beforeUnits = new Map(enumeratePublicContentUnits(before).map((unit) => [unit.unit_id, unit]));
   const afterUnits = new Map(enumeratePublicContentUnits(after).map((unit) => [unit.unit_id, unit]));
+  const targetsById = new Map(targets.map((target) => [target.unit_id, target]));
+  const preRepairKeys = new Set(preReviewerDeterministicBlockers.map(issueMatchKey));
+  const postRepairKeys = new Set(postRepairDeterministicBlockers.map(issueMatchKey));
   return reviewerBlockers(issues).filter((issue) => {
     const previous = beforeUnits.get(issue.unit_id);
     const current = afterUnits.get(issue.unit_id);
-    if (!deterministicPassed || previous === undefined || current === undefined) return true;
-    if (!targetIds.has(issue.unit_id) || !repairedIds.has(issue.unit_id)) return true;
-    if (JSON.stringify(previous) === JSON.stringify(current)) return true;
+    const target = targetsById.get(issue.unit_id);
+    if (previous === undefined || current === undefined || target === undefined || !repairedIds.has(issue.unit_id)) return true;
+    const allowedFieldChanged = target.allowed_fields.some((field) => JSON.stringify(previous[field]) !== JSON.stringify(current[field]));
+    if (!allowedFieldChanged) return true;
+    const key = issueMatchKey(issue);
+    if (preRepairKeys.has(key)) return postRepairKeys.has(key);
     return current.text.includes(issue.quoted_text);
   });
 }
@@ -307,6 +326,7 @@ export async function runWritingBuild(options: RunWritingBuildOptions): Promise<
   let rendered = renderWriterOutput(output, research);
   let qualityIssues = structuralIssues(output, rendered, articleType, xFormat, config.writing.minimum_wechat_chinese_chars, config.writing.maximum_wechat_chinese_chars, config.writing.maximum_x_chinese_chars);
   let audits = runDeterministicWritingAudits({ output, ...rendered, research, product, recipes, style, qualityIssues });
+  const preReviewerDeterministicBlockers = blockingAuditIssues(audits);
   let reviewerIssues: WritingIssue[] = [];
   try {
     const reviewer = await attempt(() => provider.review({
@@ -316,7 +336,7 @@ export async function runWritingBuild(options: RunWritingBuildOptions): Promise<
     qualityIssues = [...qualityIssues, ...reviewerIssues];
   } catch (error) { return failedResult(base, error instanceof WritingProviderError ? error.code as WritingPack['error_code'] : 'writing_output_invalid', model(), packStyle, error instanceof WritingProviderError ? error.safeMessage : 'writing_output_invalid'); }
   audits = runDeterministicWritingAudits({ output, ...rendered, research, product, recipes, style, qualityIssues });
-  const invalidReviewerBlocker = validateReviewerBlockers(output, reviewerIssues);
+  const invalidReviewerBlocker = validateReviewerBlockers(output, reviewerIssues, preReviewerDeterministicBlockers);
   if (invalidReviewerBlocker !== null) return failedResult(base, 'writing_output_invalid', model(), packStyle, `writing_output_invalid: ${invalidReviewerBlocker}`, diagnosticsFor(audits, reviewerBlockers(reviewerIssues), false, 0, false));
 
   let blockers = blockingAuditIssues(audits);
@@ -348,14 +368,15 @@ export async function runWritingBuild(options: RunWritingBuildOptions): Promise<
     const remainingWarnings = qualityIssues.filter(({ severity }) => severity === 'warning' || severity === 'profile_preference');
     const newStructural = structuralIssues(output, rendered, articleType, xFormat, config.writing.minimum_wechat_chinese_chars, config.writing.maximum_wechat_chinese_chars, config.writing.maximum_x_chinese_chars);
     const deterministicAudits = runDeterministicWritingAudits({ output, ...rendered, research, product, recipes, style, qualityIssues: [...remainingWarnings, ...newStructural] });
-    const deterministicPassed = blockingAuditIssues(deterministicAudits).length === 0;
+    const postRepairDeterministicBlockers = blockingAuditIssues(deterministicAudits);
     const unresolvedReviewer = unresolvedReviewerBlockers(
       beforeRepair,
       output,
       reviewerIssues,
-      new Set(plan.targets.map(({ unit_id }) => unit_id)),
+      plan.targets,
       new Set(repairOutput?.repaired_units.map(({ unit_id }) => unit_id) ?? []),
-      deterministicPassed,
+      preReviewerDeterministicBlockers,
+      postRepairDeterministicBlockers,
     );
     audits = runDeterministicWritingAudits({ output, ...rendered, research, product, recipes, style, qualityIssues: [...remainingWarnings, ...newStructural, ...unresolvedReviewer] });
     blockers = blockingAuditIssues(audits);

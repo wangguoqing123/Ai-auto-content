@@ -142,6 +142,54 @@ class ReviewerBlockerProvider extends FixtureWritingProvider {
   }
 }
 
+type DeterministicEchoMode = 'metadata_only' | 'missing_disclosure' | 'style_echo' | 'deterministic_still_present' | 'unrelated_blocker';
+class DeterministicEchoProvider extends FixtureWritingProvider {
+  private writtenOutput: WriterOutput | null = null;
+  constructor(readonly mode: DeterministicEchoMode) { super(); }
+  override async write(input: unknown) {
+    const call = await super.write(input);
+    const output = structuredClone(call.output);
+    if (this.mode === 'metadata_only' || this.mode === 'deterministic_still_present' || this.mode === 'unrelated_blocker') {
+      output.abstract.claim_ids = [];
+    }
+    if (this.mode === 'missing_disclosure') {
+      const boundary = output.blocks.find(({ block_id }) => block_id === 'block_limitations')!;
+      boundary.text = boundary.text.replace('只有一个合成样例。', '');
+    }
+    if (this.mode === 'style_echo') output.abstract.text = '这不是摘要，而是一次认知升级。';
+    if (this.mode === 'unrelated_blocker') output.x.thread.items[1]!.text = '这不是步骤，而是一次认知升级。';
+    this.writtenOutput = writerOutputSchema.parse(output);
+    return { ...call, output: this.writtenOutput };
+  }
+  override async review(): Promise<WritingProviderCall<{ issues: WritingIssue[] }>> {
+    this.calls += 1;
+    const output = this.writtenOutput!;
+    const issue = this.mode === 'missing_disclosure'
+      ? writingIssueSchema.parse({ issue_code: 'required_disclosure_missing', severity: 'hard_blocker', unit_id: 'wechat.block.block_limitations', surface: 'wechat_block', rule_origin: 'quality_reviewer', source_commit: 'fixture-reviewer', quoted_text: '只有一个合成样例。', repair_constraint: '插入缺失的披露。' })
+      : this.mode === 'style_echo'
+        ? writingIssueSchema.parse({ issue_code: 'reversal_rhetoric', severity: 'blocking_style_issue', unit_id: 'wechat.abstract', surface: 'wechat_abstract', rule_origin: 'quality_reviewer', source_commit: 'fixture-reviewer', quoted_text: '这不是摘要，而是', repair_constraint: '直接陈述支持的内容。' })
+        : writingIssueSchema.parse({ issue_code: 'factual_unit_without_claim', severity: 'hard_blocker', unit_id: 'wechat.abstract', surface: 'wechat_abstract', rule_origin: 'quality_reviewer', source_commit: 'fixture-reviewer', quoted_text: output.abstract.text, repair_constraint: '补充合法 claim_ids。' });
+    return { output: { issues: [issue] }, durationMs: 5, usage: null };
+  }
+  override async repair(inputValue: unknown): Promise<WritingProviderCall<RepairOutput>> {
+    this.calls += 1;
+    const input = inputValue as { targets: RepairTarget[] };
+    return {
+      output: repairOutputSchema.parse({ repaired_units: input.targets.map((target) => {
+        if (target.unit_id === 'wechat.abstract') {
+          if (this.mode === 'style_echo') return replacement(target, { text: '摘要直接说明如何保留缺口并逐项验收。' });
+          if (this.mode === 'deterministic_still_present') return replacement(target, { text: `${target.current_unit.text} 仍需核验。` });
+          return replacement(target, { claim_ids: ['claim_fixture_tasks'] });
+        }
+        if (target.unit_id === 'wechat.block.block_limitations') return replacement(target, { text: `只有一个合成样例。${target.current_unit.text}` });
+        return replacement(target, { text: `${target.current_unit.text} 仍保留原问题。` });
+      }) }),
+      durationMs: 5,
+      usage: null,
+    };
+  }
+}
+
 beforeAll(async () => {
   chain = await createStyleChainFixture();
   base = await setup();
@@ -186,6 +234,30 @@ describe('Surface-aware Repair planning and contract', () => {
     const plan = buildRepairPlan(base.output, [publicIssue(unit), publicIssue(unit, 'faux_insight', 'human-writing', '真正的关键')]);
     expect(plan.targets).toHaveLength(1);
     expect(plan.targets[0]!.issue_codes).toEqual(expect.arrayContaining(['reversal_rhetoric', 'faux_insight']));
+  });
+
+  it('45a. preserves every distinct quoted_text and cross-Skill origin in one Target', () => {
+    const unit = enumeratePublicContentUnits(base.output).find(({ unit_id }) => unit_id === 'wechat.abstract')!;
+    const issues = [
+      publicIssue(unit, 'reversal_rhetoric', 'human-writing', '片段一'),
+      publicIssue(unit, 'reversal_rhetoric', 'human-writing', '片段二'),
+      publicIssue(unit, 'reversal_rhetoric', 'human-writing', '片段三'),
+      publicIssue(unit, 'binary_contrast', 'no-ai-slop', '片段一'),
+    ];
+    const target = buildRepairPlan(base.output, issues).targets[0]!;
+    expect(target.issue_details).toHaveLength(4);
+    expect(target.issue_details.filter(({ issue_code }) => issue_code === 'reversal_rhetoric').map(({ quoted_text }) => quoted_text)).toEqual(['片段一', '片段二', '片段三']);
+    expect(target.issue_details).toEqual(expect.arrayContaining([
+      expect.objectContaining({ issue_code: 'reversal_rhetoric', rule_origin: 'human-writing', source_commit: 'human-writing-fixture', quoted_text: '片段一', repair_constraint: '直接表达支持的意思。' }),
+      expect.objectContaining({ issue_code: 'binary_contrast', rule_origin: 'no-ai-slop', source_commit: 'no-ai-slop-fixture', quoted_text: '片段一', repair_constraint: '直接表达支持的意思。' }),
+    ]));
+  });
+
+  it('45b. deduplicates only completely identical Issue details', () => {
+    const unit = enumeratePublicContentUnits(base.output).find(({ unit_id }) => unit_id === 'wechat.abstract')!;
+    const duplicated = publicIssue(unit);
+    const target = buildRepairPlan(base.output, [duplicated, duplicated]).targets[0]!;
+    expect(target.issue_details).toHaveLength(1);
   });
 
   it('46. allows a scoped Repair to modify wechat.abstract', () => {
@@ -447,6 +519,41 @@ describe('Surface-aware Repair planning and contract', () => {
     const result = await runWithProvider(provider);
     expect(provider.calls).toBe(3);
     expect(result.pack.model.calls).toBe(3);
+  });
+
+  it('89. discharges a deterministic Evidence echo after metadata-only claim_ids Repair', async () => {
+    const provider = new DeterministicEchoProvider('metadata_only');
+    const result = await runWithProvider(provider);
+    expect(result.pack).toMatchObject({ status: 'success', decision: 'READY_FOR_HUMAN_REVIEW', model: { calls: 3 }, audits: { evidence: { status: 'pass' }, plagiarism: { status: 'pass' } } });
+    expect(result.diagnostics).toMatchObject({ plagiarism_guard_executed: true, blocking_issues: [] });
+  });
+
+  it('90. discharges required_disclosure_missing after the quoted disclosure is inserted', async () => {
+    const provider = new DeterministicEchoProvider('missing_disclosure');
+    const result = await runWithProvider(provider);
+    expect(result.pack).toMatchObject({ status: 'success', decision: 'READY_FOR_HUMAN_REVIEW', audits: { evidence: { status: 'pass' }, experiment: { status: 'pass' }, plagiarism: { status: 'pass' } } });
+    expect(result.pack.master_draft?.rendered_markdown).toContain('只有一个合成样例。');
+    expect(result.diagnostics?.plagiarism_guard_executed).toBe(true);
+  });
+
+  it('91. discharges a deterministic Style echo when post-Repair Style Audit clears the Unit', async () => {
+    const result = await runWithProvider(new DeterministicEchoProvider('style_echo'));
+    expect(result.pack).toMatchObject({ status: 'success', decision: 'READY_FOR_HUMAN_REVIEW', audits: { style: { status: 'pass' }, plagiarism: { status: 'pass' } } });
+  });
+
+  it('92. preserves a deterministic echo when the same Issue key remains after Repair', async () => {
+    const result = await runWithProvider(new DeterministicEchoProvider('deterministic_still_present'));
+    expect(result.pack).toMatchObject({ status: 'failed', decision: null, error_code: 'writing_audit_failed' });
+    expect(result.diagnostics).toMatchObject({ plagiarism_guard_executed: false, audit_statuses: { evidence: 'blocked', plagiarism: 'not_run' } });
+    expect(result.diagnostics?.blocking_issues.filter(({ issue_code, unit_id }) => issue_code === 'factual_unit_without_claim' && unit_id === 'wechat.abstract')).toHaveLength(2);
+  });
+
+  it('93. discharges each Reviewer echo independently when an unrelated Unit is still blocked', async () => {
+    const result = await runWithProvider(new DeterministicEchoProvider('unrelated_blocker'));
+    expect(result.pack).toMatchObject({ status: 'failed', decision: null, error_code: 'writing_audit_failed' });
+    expect(result.diagnostics?.blocking_issues).toEqual(expect.arrayContaining([expect.objectContaining({ issue_code: 'reversal_rhetoric', unit_id: 'x.thread.1' })]));
+    expect(result.diagnostics?.blocking_issues).not.toEqual(expect.arrayContaining([expect.objectContaining({ issue_code: 'factual_unit_without_claim', unit_id: 'wechat.abstract' })]));
+    expect(result.diagnostics?.plagiarism_guard_executed).toBe(false);
   });
 });
 

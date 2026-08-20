@@ -14,12 +14,22 @@ export interface RepairIssueGroup {
   constraints: string[];
 }
 
+export interface RepairIssueDetail {
+  issue_code: string;
+  severity: WritingIssue['severity'];
+  rule_origin: string;
+  source_commit: string;
+  quoted_text: string;
+  repair_constraint: string;
+}
+
 export interface RepairTarget {
   unit_id: string;
   surface: PublicContentUnit['surface'];
   original_sha256: string;
   current_unit: PublicContentUnit;
   issue_codes: string[];
+  issue_details: RepairIssueDetail[];
   constraints: string[];
   allowed_fields: RepairableField[];
 }
@@ -70,6 +80,7 @@ export function buildRepairPlan(output: WriterOutput, issues: readonly WritingIs
   const nonRepairable: WritingIssue[] = [];
   const groupMap = new Map<string, RepairIssueGroup>();
   const fieldsByUnit = new Map<string, RepairableField[]>();
+  const detailsByUnit = new Map<string, RepairIssueDetail[]>();
   for (const issue of issues) {
     const classification = classifyRepairability(issue);
     const unit = units.get(issue.unit_id);
@@ -92,6 +103,20 @@ export function buildRepairPlan(output: WriterOutput, issues: readonly WritingIs
     current.constraints = unique([...current.constraints, issue.repair_constraint]);
     groupMap.set(key, current);
     fieldsByUnit.set(issue.unit_id, unique([...(fieldsByUnit.get(issue.unit_id) ?? []), ...classification.allowed_fields]));
+    const detail: RepairIssueDetail = {
+      issue_code: issue.issue_code,
+      severity: issue.severity,
+      rule_origin: issue.rule_origin,
+      source_commit: issue.source_commit,
+      quoted_text: issue.quoted_text,
+      repair_constraint: issue.repair_constraint,
+    };
+    const existingDetails = detailsByUnit.get(issue.unit_id) ?? [];
+    const duplicate = existingDetails.some((value) => value.issue_code === detail.issue_code
+      && value.rule_origin === detail.rule_origin
+      && value.quoted_text === detail.quoted_text
+      && value.repair_constraint === detail.repair_constraint);
+    if (!duplicate) detailsByUnit.set(issue.unit_id, [...existingDetails, detail]);
   }
   const groups = [...groupMap.values()];
   const targetMap = new Map<string, RepairTarget>();
@@ -104,6 +129,7 @@ export function buildRepairPlan(output: WriterOutput, issues: readonly WritingIs
       original_sha256: publicContentUnitSha256(unit),
       current_unit: unit,
       issue_codes: unique([...(existing?.issue_codes ?? []), ...group.issue_codes]),
+      issue_details: detailsByUnit.get(group.unit_id) ?? [],
       constraints: unique([...(existing?.constraints ?? []), ...group.constraints]),
       allowed_fields: fieldsByUnit.get(group.unit_id) ?? [],
     });
