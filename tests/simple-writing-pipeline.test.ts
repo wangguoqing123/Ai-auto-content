@@ -177,25 +177,37 @@ describe('Simple Writing one-call pipeline', () => {
     ]));
   });
 
-  it('keeps a short article as a warning instead of blocking the draft', async () => {
-    const output = { ...fixtureOutput(), article_markdown: '这是一个合成短草稿，只验证长度 warning。' };
-    const completed = await run({ provider: new FixtureSimpleWritingProvider(output) });
-    expect(completed.result.pack.decision).toBe('READY_FOR_HUMAN_REVIEW');
-    expect(completed.result.pack.checks?.warnings).toContainEqual(expect.objectContaining({ code: 'article_short' }));
-  });
-
-  it('calculates recommended length from article_markdown only', async () => {
+  it('warns at 499 Chinese characters without blocking the draft', async () => {
     const output = {
       ...fixtureOutput(),
       primary_title: '题'.repeat(60),
       alternative_titles: ['备'.repeat(60), '选'.repeat(60)],
       abstract: '摘'.repeat(300),
-      article_markdown: '文'.repeat(999),
+      article_markdown: '文'.repeat(499),
     };
     const completed = await run({ provider: new FixtureSimpleWritingProvider(output) });
     expect(completed.result.pack.decision).toBe('READY_FOR_HUMAN_REVIEW');
     expect(completed.result.pack.checks?.warnings).toContainEqual(expect.objectContaining({
-      code: 'article_short', message: expect.stringContaining('999'),
+      code: 'article_short', message: expect.stringContaining('499'),
+    }));
+  });
+
+  it.each([500, 1_500])('does not warn on length at %i Chinese characters', async (count) => {
+    const output = { ...fixtureOutput(), article_markdown: '文'.repeat(count) };
+    const completed = await run({ provider: new FixtureSimpleWritingProvider(output) });
+    expect(completed.result.pack.decision).toBe('READY_FOR_HUMAN_REVIEW');
+    expect(completed.result.pack.checks?.warnings).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'article_short' }),
+      expect.objectContaining({ code: 'article_long' }),
+    ]));
+  });
+
+  it('warns at 1501 Chinese characters without blocking the draft', async () => {
+    const output = { ...fixtureOutput(), article_markdown: '文'.repeat(1_501) };
+    const completed = await run({ provider: new FixtureSimpleWritingProvider(output) });
+    expect(completed.result.pack.decision).toBe('READY_FOR_HUMAN_REVIEW');
+    expect(completed.result.pack.checks?.warnings).toContainEqual(expect.objectContaining({
+      code: 'article_long', message: expect.stringContaining('1501'),
     }));
   });
 

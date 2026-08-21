@@ -142,10 +142,10 @@ export function runSimpleWritingChecks(
   }
 
   const count = chineseCharacters(output.article_markdown);
-  if (count < 1_000) pushUnique(warnings, warningKeys,
-    check('basic_format', 'article_short', `正文含 ${count} 个中文字符，少于建议的 1000 个。`));
-  if (count > 3_000) pushUnique(warnings, warningKeys,
-    check('basic_format', 'article_long', `正文含 ${count} 个中文字符，多于建议的 3000 个。`));
+  if (count < 500) pushUnique(warnings, warningKeys,
+    check('basic_format', 'article_short', `正文含 ${count} 个中文字符，少于容忍下限 500 个。`));
+  if (count > 1_500) pushUnique(warnings, warningKeys,
+    check('basic_format', 'article_long', `正文含 ${count} 个中文字符，多于容忍上限 1500 个。`));
   const promisedArtifacts = promisedArtifactTerms.filter((term) => [
     output.primary_title,
     ...output.alternative_titles,

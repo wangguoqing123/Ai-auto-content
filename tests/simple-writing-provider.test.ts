@@ -40,16 +40,25 @@ describe('Simple Writing providers', () => {
   });
 
   it('states the editorial contract and source-role permission boundaries', () => {
-    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('正文前 20% 必须点明至少一份具体材料');
-    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('当前只有摘要，无法判断采用规模、量化效果或完整案例方法');
-    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('标题和摘要的内容承诺必须兑现');
-    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('一个填写完成的模板或结果表格');
-    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('允许作者判断，禁止虚构经历');
-    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('只能支持与已保存摘录范围一致的事实陈述');
-    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('单条信号不能证明普遍事实、行业趋势或确定结论');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('一篇文章只讲一个观点');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('内容不追求面面俱到');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('最多使用一个核心例子');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('删掉后不影响核心观点，就不要写');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('不主动补齐完整流程');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('700—1200 个中文字符');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('最多两个二级标题');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('观点讲清楚后立即结束');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('像在微信里给一个朋友讲清楚一个发现');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('fact_source 只能支持已保存摘录范围内的事实');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('trend_signal 只能说明出现了讨论或需求信号');
     expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('不能作为事实来源');
-    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('结尾最多两段，只保留一个具体行动，不复述全文摘要');
-    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('不得因为多个材料表达相似，就推断它们必然正确');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('不虚构数字、经历、客户、学员、效果和产品权益');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('不自动写价格');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).toContain('供人工审核');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).not.toContain('标题和摘要的内容承诺必须兑现');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).not.toContain('包含目标、必要输入、执行步骤、交付物、验收标准、失败处理和人工确认边界');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).not.toContain('教程类文章至少展示原始模糊任务、改写后的任务、一个填写完成的模板或结果表格');
+    expect(SIMPLE_WRITING_SYSTEM_PROMPT).not.toContain('为了满足合同而生成完整操作手册');
     expect(SIMPLE_WRITING_SYSTEM_PROMPT).not.toContain('RingCentral');
     expect(SIMPLE_WRITING_SYSTEM_PROMPT).not.toContain('别再只让 AI 给建议');
   });

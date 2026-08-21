@@ -43,7 +43,6 @@ describe('Simple Writing private storage', () => {
   it('writes warnings and the fixed unpublished reminder to review-notes.md', async () => {
     const run = await fixture();
     const notes = await readFile(run.files?.reviewNotes ?? '', 'utf8');
-    expect(notes).toContain('article_short');
     expect(notes).toContain('promised_artifact_missing');
     expect(notes).toContain('这是 AI 生成草稿，尚未发布，请人工检查事实、表达、标题和引用来源。');
   });
