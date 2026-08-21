@@ -100,10 +100,6 @@ function noModelResult(pack: SimpleWritingPack): RunSimpleWritingBuildResult {
   return { pack: validated(pack), files_written: false, output_directory: null, files: null };
 }
 
-function providerFailureCode(error: unknown): string {
-  return error instanceof SimpleWritingProviderError ? error.code : 'writer_failed';
-}
-
 async function defaultProvider(
   options: RunSimpleWritingBuildOptions,
 ): Promise<SimpleWritingProvider> {
@@ -246,7 +242,10 @@ export async function runSimpleWritingBuild(
       });
     }
   } catch (error) {
-    const durationMs = Math.max(0, Math.round(performance.now() - attemptedAt));
+    const providerError = error instanceof SimpleWritingProviderError ? error : null;
+    const durationMs = providerError === null
+      ? Math.max(0, Math.round(performance.now() - attemptedAt))
+      : Math.max(0, Math.round(providerError.durationMs));
     return noModelResult({
       ...base,
       status: 'failed',
@@ -259,10 +258,10 @@ export async function runSimpleWritingBuild(
         runtime_version: runtimeVersion,
         calls: 1,
         duration_ms: durationMs,
-        usage: null,
+        usage: providerError?.usage ?? null,
       },
-      error_code: providerFailureCode(error),
-      error_message_safe: 'Writer failed. The model was not retried.',
+      error_code: providerError?.code ?? 'writer_failed',
+      error_message_safe: providerError?.safeMessage ?? 'Writer failed. The model was not retried.',
     });
   }
 }

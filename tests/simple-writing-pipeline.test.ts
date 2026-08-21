@@ -7,6 +7,8 @@ import { runSimpleWritingBuild } from '../src/simple-writing/pipeline.js';
 import {
   buildFixtureSimpleWriterOutput,
   FixtureSimpleWritingProvider,
+  SimpleWritingProviderError,
+  type SimpleWritingProvider,
 } from '../src/simple-writing/provider.js';
 
 const roots: string[] = [];
@@ -20,7 +22,7 @@ function fixtureOutput() {
 
 async function run(options: {
   scenario?: 'ready' | 'no-publish' | 'waiting' | 'no-sources';
-  provider?: FixtureSimpleWritingProvider;
+  provider?: SimpleWritingProvider;
 } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'simple-writing-pipeline-'));
   roots.push(root);
@@ -87,6 +89,37 @@ describe('Simple Writing one-call pipeline', () => {
     expect(completed.write).toHaveBeenCalledTimes(1);
     expect(completed.result.pack).toMatchObject({
       status: 'failed', decision: null, error_code: 'output_schema_invalid', model: { calls: 1 },
+    });
+    expect(completed.result.files_written).toBe(false);
+  });
+
+  it('preserves Provider Structured Output diagnostics, duration, and usage', async () => {
+    const provider: SimpleWritingProvider = {
+      providerName: 'codex_cli',
+      modelName: 'gpt-5.6-sol',
+      runtimeVersion: 'codex-cli fixture',
+      write: async () => {
+        throw new SimpleWritingProviderError(
+          'codex_output_invalid',
+          'codex_output_invalid: markdown_wrapper',
+          1234,
+          { input_tokens: 100, output_tokens: 20, total_tokens: 120 },
+        );
+      },
+    };
+    const completed = await run({ provider });
+    expect(completed.write).toHaveBeenCalledTimes(1);
+    expect(completed.result.pack).toMatchObject({
+      status: 'failed',
+      decision: null,
+      output: null,
+      checks: null,
+      error_code: 'codex_output_invalid',
+      error_message_safe: 'codex_output_invalid: markdown_wrapper',
+      model: {
+        provider: 'codex_cli', model: 'gpt-5.6-sol', calls: 1, duration_ms: 1234,
+        usage: { input_tokens: 100, output_tokens: 20, total_tokens: 120 },
+      },
     });
     expect(completed.result.files_written).toBe(false);
   });

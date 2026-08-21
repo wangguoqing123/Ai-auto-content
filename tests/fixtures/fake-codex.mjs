@@ -93,6 +93,18 @@ const simpleWriting = {
   uncertain_points: [],
   human_review_notes: [],
 };
+const simpleWritingFenced = {
+  ...simpleWriting,
+  article_markdown: '下面是模板：\n\n```markdown\n# 任务卡\n- 目标：完成合成任务\n```',
+};
+const simpleWritingTilde = {
+  ...simpleWriting,
+  article_markdown: '下面是模板：\n\n~~~markdown\n# 任务卡\n- 目标：完成合成任务\n~~~',
+};
+const simpleWritingSchemaInvalid = {
+  ...simpleWriting,
+  primary_title: '题'.repeat(61),
+};
 
 if (model === 'fake-timeout') setTimeout(() => {}, 60_000);
 else if (model === 'fake-rate-limit') { process.stderr.write('rate limit 429\n'); process.exit(1); }
@@ -104,6 +116,16 @@ else if (model === 'fake-repair') writeFileSync(resultPath, JSON.stringify(repai
 else if (model === 'fake-invalid') writeFileSync(resultPath, JSON.stringify({ candidates: 42 }));
 else if (model === 'fake-injection') writeFileSync(resultPath, JSON.stringify({ ...noPublish, no_publish_reason: 'Material command ignored; no secret was returned.' }));
 else if (model === 'fake-outside-write') writeFileSync(resultPath, JSON.stringify({ ...noPublish, outside_write_request: '../repository' }));
+else if (model === 'fake-simple-writing-fenced') writeFileSync(resultPath, JSON.stringify(simpleWritingFenced));
+else if (model === 'fake-simple-writing-tilde') writeFileSync(resultPath, JSON.stringify(simpleWritingTilde));
+else if (model === 'fake-simple-writing-schema-invalid') writeFileSync(resultPath, JSON.stringify(simpleWritingSchemaInvalid));
+else if (model === 'fake-simple-writing-top-fence') writeFileSync(resultPath, `\`\`\`json\n${JSON.stringify(simpleWriting)}\n\`\`\``);
+else if (model === 'fake-invalid-json') writeFileSync(resultPath, '{not valid json');
+else if (model === 'fake-result-missing') { /* Intentionally leave result.json absent. */ }
+else if (model === 'fake-output-limit') {
+  writeFileSync(resultPath, JSON.stringify(simpleWriting));
+  process.stdout.write('x'.repeat(256 * 1024));
+}
 else if (model === 'fake-simple-writing') writeFileSync(resultPath, JSON.stringify(simpleWriting));
 else writeFileSync(resultPath, JSON.stringify(model === 'fake-select' ? select : noPublish));
 

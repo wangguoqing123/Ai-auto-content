@@ -81,17 +81,20 @@ describe('Simple Writing providers', () => {
     ]);
   });
 
-  it('turns invalid Structured Runner output into one invalid result for the pipeline to hard-fail', async () => {
+  it('throws a safe Provider error with Structured Runner metadata', async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), 'simple-writing-provider-invalid-'));
     roots.push(root);
     const provider = await CodexCliSimpleWritingProvider.create({
       binPath: fakeCodex,
-      model: 'fake-invalid',
+      model: 'fake-simple-writing-schema-invalid',
       tempRoot: path.join(root, 'calls'),
       env: { HOME: os.homedir(), PATH: process.env.PATH },
     });
-    await expect(provider.write(input())).resolves.toMatchObject({
-      output: { __provider_error: 'codex_output_invalid' },
+    await expect(provider.write(input())).rejects.toMatchObject({
+      name: 'SimpleWritingProviderError',
+      code: 'codex_output_invalid',
+      safeMessage: 'codex_output_invalid: schema_validation_failed:primary_title:too_big',
+      usage: { input_tokens: 10, output_tokens: 20, total_tokens: 30 },
     });
     await expect(readdir(path.join(root, 'calls'))).resolves.toHaveLength(1);
   });

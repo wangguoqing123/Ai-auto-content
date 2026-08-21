@@ -24,8 +24,13 @@ export interface SimpleWritingProvider {
 }
 
 export class SimpleWritingProviderError extends Error {
-  constructor(readonly code: string) {
-    super(code);
+  constructor(
+    readonly code: string,
+    readonly safeMessage: string = code,
+    readonly durationMs: number = 0,
+    readonly usage: CodexStructuredUsage | null = null,
+  ) {
+    super(safeMessage);
     this.name = 'SimpleWritingProviderError';
   }
 }
@@ -155,11 +160,15 @@ export class CodexCliSimpleWritingProvider implements SimpleWritingProvider {
       });
     } catch (error) {
       if (error instanceof CodexStructuredOutputError) {
-        return {
-          output: { __provider_error: 'codex_output_invalid' },
-          durationMs: error.durationMs,
-          usage: error.usage,
-        };
+        const safeMessage = error.safeDiagnostic === null
+          ? 'codex_output_invalid'
+          : `codex_output_invalid: ${error.safeDiagnostic}`.slice(0, 500);
+        throw new SimpleWritingProviderError(
+          'codex_output_invalid',
+          safeMessage,
+          error.durationMs,
+          error.usage,
+        );
       }
       return mapProviderError(error);
     }
