@@ -7,6 +7,14 @@ status: implemented_live_provider_verified_pending_real_corpus
 
 # 写作 Skill 编排与风格智能 v0
 
+## PR #8 Approval Chain 与 Writer 边界
+
+当前私有 Profile 已由用户确认为 Provisional，但仍不是 production。Legacy Receipt 通过 `approval-binding-attestation.v1.json` 绑定 Profile 与 Summary；该 Attestation 只补齐旧 Receipt 缺少 Profile Hash 的技术链，不要求重新填写审批表，也不代表重新审批。
+
+Resolver 验证完成后只给 Writer 一个 WeakMap 保护的、筛选后 Style 句柄。`OCV-09`、`CON-05` 关闭，`OCV-10` deleted；Pending、deleted 和 210 条原始规则都不进入模型。Owner Scope 是 `owner_shortform_social_proxy`；公众号不能声称已经学会七天假的长文风格。
+
+human-writing 的 pre-draft 只含材料门槛、说话位置、中文正向写法、文章推进与当前文体结构；revision rules 只在初稿后加载。no-ai-slop 只返回 detect-only issue，Quality Reviewer 同样不能返回全文。一次 Repair 只修改命中 Block，之后重跑全部确定性检查，最多 3 次 Codex 调用。
+
 本阶段只建立写作前的规则、风格和审查底盘。离线 CI 继续只使用合成 Fixture；另在用户明确授权下，以项目自有合成语料完成了一次本机真实 Codex Provider 集成验证。仍未导入七天假或参考作者的真实语料，没有生成公众号正文、X 内容或图片，也没有发布。
 
 ## 1. 固定 Skill 与可审计适配

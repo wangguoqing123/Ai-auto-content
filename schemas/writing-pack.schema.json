@@ -1,0 +1,1809 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/writing-pack.schema.json",
+  "title": "Evidence-constrained Writing Pack",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "number",
+      "const": 1
+    },
+    "writing_date": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^writing_[0-9T_-]+Z$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "failed"
+      ]
+    },
+    "decision": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "READY_FOR_HUMAN_REVIEW",
+            "BLOCKED_BY_RESEARCH",
+            "NO_CONTENT",
+            "WAITING_FOR_RESEARCH",
+            "WAITING_FOR_APPROVED_STYLE"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "input_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "synthetic_fixture": {
+      "type": "boolean"
+    },
+    "not_for_publication": {
+      "type": "boolean"
+    },
+    "research": {
+      "type": "object",
+      "properties": {
+        "research_run_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "research_input_hash": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "research_decision": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "READY_FOR_WRITING",
+                "RESEARCH_INCOMPLETE",
+                "NO_TOPIC"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "topic_signature": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "research_run_id",
+        "research_input_hash",
+        "research_decision",
+        "topic_signature"
+      ],
+      "additionalProperties": false
+    },
+    "style": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "style_status": {
+              "type": "string",
+              "enum": [
+                "provisional_approved_with_pending_items",
+                "approved"
+              ]
+            },
+            "approval_chain_status": {
+              "type": "string",
+              "enum": [
+                "valid_v2_receipt",
+                "valid_legacy_receipt_with_binding_attestation"
+              ]
+            },
+            "provisional_style_used": {
+              "type": "boolean"
+            },
+            "production_eligible": {
+              "type": "boolean"
+            },
+            "profile_ids": {
+              "type": "object",
+              "properties": {
+                "owner": {
+                  "type": "string"
+                },
+                "reference": {
+                  "type": "string"
+                },
+                "provisional": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "owner",
+                "reference",
+                "provisional"
+              ],
+              "additionalProperties": false
+            },
+            "profile_versions": {
+              "type": "object",
+              "properties": {
+                "provisional": {
+                  "type": "number",
+                  "const": 1
+                }
+              },
+              "required": [
+                "provisional"
+              ],
+              "additionalProperties": false
+            },
+            "profile_hashes": {
+              "type": "object",
+              "properties": {
+                "owner": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "reference": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "provisional": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              },
+              "required": [
+                "owner",
+                "reference",
+                "provisional"
+              ],
+              "additionalProperties": false
+            },
+            "receipt_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "attestation_sha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "decision_set_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "recipe_hash": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "selected_rule_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+              }
+            },
+            "excluded_rule_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+              }
+            },
+            "deleted_rule_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+              }
+            },
+            "owner_profile_scope": {
+              "type": "string",
+              "const": "owner_shortform_social_proxy"
+            },
+            "platform_fidelity": {
+              "type": "string",
+              "const": "proxy"
+            },
+            "confidence": {
+              "type": "string",
+              "const": "medium"
+            }
+          },
+          "required": [
+            "style_status",
+            "approval_chain_status",
+            "provisional_style_used",
+            "production_eligible",
+            "profile_ids",
+            "profile_versions",
+            "profile_hashes",
+            "receipt_sha256",
+            "attestation_sha256",
+            "decision_set_sha256",
+            "recipe_hash",
+            "selected_rule_ids",
+            "excluded_rule_ids",
+            "deleted_rule_ids",
+            "owner_profile_scope",
+            "platform_fidelity",
+            "confidence"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "master_draft": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "article_type": {
+              "type": "string",
+              "enum": [
+                "tutorial",
+                "analysis",
+                "case_breakdown",
+                "opinion",
+                "checklist"
+              ]
+            },
+            "blocks": {
+              "minItems": 1,
+              "maxItems": 30,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "block_id": {
+                    "type": "string",
+                    "pattern": "^block_[a-z0-9_-]{1,60}$"
+                  },
+                  "block_type": {
+                    "type": "string",
+                    "enum": [
+                      "hook",
+                      "problem",
+                      "analysis",
+                      "step",
+                      "example",
+                      "evidence",
+                      "acceptance",
+                      "failure",
+                      "boundary",
+                      "cta"
+                    ]
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 6000
+                  },
+                  "claim_ids": {
+                    "maxItems": 8,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^claim_[a-z0-9_-]{1,60}$"
+                    }
+                  },
+                  "experiment_refs": {
+                    "maxItems": 2,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "baseline_chat_request",
+                        "structured_task_card"
+                      ]
+                    }
+                  },
+                  "product_claim_ids": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 200
+                    }
+                  },
+                  "persona_fact_ids": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 200
+                    }
+                  },
+                  "style_rule_ids": {
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+                    }
+                  },
+                  "is_opinion": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "block_id",
+                  "block_type",
+                  "text",
+                  "claim_ids",
+                  "experiment_refs",
+                  "product_claim_ids",
+                  "persona_fact_ids",
+                  "style_rule_ids",
+                  "is_opinion"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "rendered_markdown": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50000
+            }
+          },
+          "required": [
+            "article_type",
+            "blocks",
+            "rendered_markdown"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "wechat": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "primary_title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "alternative_titles": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                }
+              ]
+            },
+            "abstract": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "article_type": {
+              "type": "string",
+              "enum": [
+                "tutorial",
+                "analysis",
+                "case_breakdown",
+                "opinion",
+                "checklist"
+              ]
+            },
+            "blocks": {
+              "minItems": 1,
+              "maxItems": 30,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "block_id": {
+                    "type": "string",
+                    "pattern": "^block_[a-z0-9_-]{1,60}$"
+                  },
+                  "block_type": {
+                    "type": "string",
+                    "enum": [
+                      "hook",
+                      "problem",
+                      "analysis",
+                      "step",
+                      "example",
+                      "evidence",
+                      "acceptance",
+                      "failure",
+                      "boundary",
+                      "cta"
+                    ]
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 6000
+                  },
+                  "claim_ids": {
+                    "maxItems": 8,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^claim_[a-z0-9_-]{1,60}$"
+                    }
+                  },
+                  "experiment_refs": {
+                    "maxItems": 2,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "baseline_chat_request",
+                        "structured_task_card"
+                      ]
+                    }
+                  },
+                  "product_claim_ids": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 200
+                    }
+                  },
+                  "persona_fact_ids": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 200
+                    }
+                  },
+                  "style_rule_ids": {
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+                    }
+                  },
+                  "is_opinion": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "block_id",
+                  "block_type",
+                  "text",
+                  "claim_ids",
+                  "experiment_refs",
+                  "product_claim_ids",
+                  "persona_fact_ids",
+                  "style_rule_ids",
+                  "is_opinion"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "article_markdown": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50000
+            },
+            "chinese_character_count": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "source_notes": {
+              "maxItems": 8,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "url": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "support_status": {
+                    "type": "string",
+                    "enum": [
+                      "direct",
+                      "partial"
+                    ]
+                  },
+                  "scope_limit": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                },
+                "required": [
+                  "title",
+                  "url",
+                  "support_status",
+                  "scope_limit"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "cta": {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "light"
+                  ]
+                },
+                "text": {
+                  "type": "string",
+                  "maxLength": 1000
+                }
+              },
+              "required": [
+                "mode",
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "visual_slots": {
+              "maxItems": 10,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "slot_id": {
+                    "type": "string",
+                    "pattern": "^visual_[a-z0-9_-]{1,60}$"
+                  },
+                  "location": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "visual_type": {
+                    "type": "string",
+                    "enum": [
+                      "cover",
+                      "process_diagram",
+                      "checklist",
+                      "comparison",
+                      "screenshot",
+                      "result_card"
+                    ]
+                  },
+                  "required_evidence_refs": {
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    }
+                  },
+                  "caption": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "generation_status": {
+                    "type": "string",
+                    "const": "not_started"
+                  }
+                },
+                "required": [
+                  "slot_id",
+                  "location",
+                  "purpose",
+                  "visual_type",
+                  "required_evidence_refs",
+                  "caption",
+                  "generation_status"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "primary_title",
+            "alternative_titles",
+            "abstract",
+            "article_type",
+            "blocks",
+            "article_markdown",
+            "chinese_character_count",
+            "source_notes",
+            "cta",
+            "visual_slots"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "x": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "format": {
+              "type": "string",
+              "enum": [
+                "single_post",
+                "thread",
+                "debate_prompt"
+              ]
+            },
+            "single_post": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "thread": {
+              "maxItems": 7,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              }
+            },
+            "debate_prompt": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "format",
+            "single_post",
+            "thread",
+            "debate_prompt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "audits": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "evidence": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pass",
+                    "blocked"
+                  ]
+                },
+                "issues": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "issue_code": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "severity": {
+                        "type": "string",
+                        "enum": [
+                          "hard_blocker",
+                          "blocking_style_issue",
+                          "warning",
+                          "profile_preference"
+                        ]
+                      },
+                      "unit_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "surface": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "wechat_primary_title",
+                              "wechat_alternative_title",
+                              "wechat_abstract",
+                              "wechat_block",
+                              "wechat_cta",
+                              "x_single_post",
+                              "x_thread_item",
+                              "x_debate_prompt"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "writing_contract",
+                              "visual_slots",
+                              "writing_pack"
+                            ]
+                          }
+                        ]
+                      },
+                      "rule_origin": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "source_commit": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "quoted_text": {
+                        "type": "string",
+                        "maxLength": 1000
+                      },
+                      "repair_constraint": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      }
+                    },
+                    "required": [
+                      "issue_code",
+                      "severity",
+                      "unit_id",
+                      "surface",
+                      "rule_origin",
+                      "source_commit",
+                      "quoted_text",
+                      "repair_constraint"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "checked_items": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  }
+                },
+                "required_claim_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "used_claim_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "status",
+                "issues",
+                "checked_items",
+                "required_claim_ids",
+                "used_claim_ids"
+              ],
+              "additionalProperties": false
+            },
+            "experiment": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pass",
+                    "blocked"
+                  ]
+                },
+                "issues": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "issue_code": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "severity": {
+                        "type": "string",
+                        "enum": [
+                          "hard_blocker",
+                          "blocking_style_issue",
+                          "warning",
+                          "profile_preference"
+                        ]
+                      },
+                      "unit_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "surface": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "wechat_primary_title",
+                              "wechat_alternative_title",
+                              "wechat_abstract",
+                              "wechat_block",
+                              "wechat_cta",
+                              "x_single_post",
+                              "x_thread_item",
+                              "x_debate_prompt"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "writing_contract",
+                              "visual_slots",
+                              "writing_pack"
+                            ]
+                          }
+                        ]
+                      },
+                      "rule_origin": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "source_commit": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "quoted_text": {
+                        "type": "string",
+                        "maxLength": 1000
+                      },
+                      "repair_constraint": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      }
+                    },
+                    "required": [
+                      "issue_code",
+                      "severity",
+                      "unit_id",
+                      "surface",
+                      "rule_origin",
+                      "source_commit",
+                      "quoted_text",
+                      "repair_constraint"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "checked_items": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  }
+                }
+              },
+              "required": [
+                "status",
+                "issues",
+                "checked_items"
+              ],
+              "additionalProperties": false
+            },
+            "product": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pass",
+                    "blocked"
+                  ]
+                },
+                "issues": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "issue_code": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "severity": {
+                        "type": "string",
+                        "enum": [
+                          "hard_blocker",
+                          "blocking_style_issue",
+                          "warning",
+                          "profile_preference"
+                        ]
+                      },
+                      "unit_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "surface": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "wechat_primary_title",
+                              "wechat_alternative_title",
+                              "wechat_abstract",
+                              "wechat_block",
+                              "wechat_cta",
+                              "x_single_post",
+                              "x_thread_item",
+                              "x_debate_prompt"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "writing_contract",
+                              "visual_slots",
+                              "writing_pack"
+                            ]
+                          }
+                        ]
+                      },
+                      "rule_origin": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "source_commit": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "quoted_text": {
+                        "type": "string",
+                        "maxLength": 1000
+                      },
+                      "repair_constraint": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      }
+                    },
+                    "required": [
+                      "issue_code",
+                      "severity",
+                      "unit_id",
+                      "surface",
+                      "rule_origin",
+                      "source_commit",
+                      "quoted_text",
+                      "repair_constraint"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "checked_items": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  }
+                },
+                "requested_cta_mode": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "light",
+                        "club"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "effective_cta_mode": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "light"
+                  ]
+                }
+              },
+              "required": [
+                "status",
+                "issues",
+                "checked_items",
+                "requested_cta_mode",
+                "effective_cta_mode"
+              ],
+              "additionalProperties": false
+            },
+            "first_person": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pass",
+                    "blocked"
+                  ]
+                },
+                "issues": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "issue_code": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "severity": {
+                        "type": "string",
+                        "enum": [
+                          "hard_blocker",
+                          "blocking_style_issue",
+                          "warning",
+                          "profile_preference"
+                        ]
+                      },
+                      "unit_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "surface": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "wechat_primary_title",
+                              "wechat_alternative_title",
+                              "wechat_abstract",
+                              "wechat_block",
+                              "wechat_cta",
+                              "x_single_post",
+                              "x_thread_item",
+                              "x_debate_prompt"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "writing_contract",
+                              "visual_slots",
+                              "writing_pack"
+                            ]
+                          }
+                        ]
+                      },
+                      "rule_origin": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "source_commit": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "quoted_text": {
+                        "type": "string",
+                        "maxLength": 1000
+                      },
+                      "repair_constraint": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      }
+                    },
+                    "required": [
+                      "issue_code",
+                      "severity",
+                      "unit_id",
+                      "surface",
+                      "rule_origin",
+                      "source_commit",
+                      "quoted_text",
+                      "repair_constraint"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "checked_items": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  }
+                },
+                "sentences": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "sentence": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "opinion",
+                          "factual"
+                        ]
+                      },
+                      "evidence_refs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "allowed": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "sentence",
+                      "type",
+                      "evidence_refs",
+                      "allowed"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "status",
+                "issues",
+                "checked_items",
+                "sentences"
+              ],
+              "additionalProperties": false
+            },
+            "style": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pass",
+                    "blocked"
+                  ]
+                },
+                "issues": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "issue_code": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "severity": {
+                        "type": "string",
+                        "enum": [
+                          "hard_blocker",
+                          "blocking_style_issue",
+                          "warning",
+                          "profile_preference"
+                        ]
+                      },
+                      "unit_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "surface": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "wechat_primary_title",
+                              "wechat_alternative_title",
+                              "wechat_abstract",
+                              "wechat_block",
+                              "wechat_cta",
+                              "x_single_post",
+                              "x_thread_item",
+                              "x_debate_prompt"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "writing_contract",
+                              "visual_slots",
+                              "writing_pack"
+                            ]
+                          }
+                        ]
+                      },
+                      "rule_origin": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "source_commit": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "quoted_text": {
+                        "type": "string",
+                        "maxLength": 1000
+                      },
+                      "repair_constraint": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      }
+                    },
+                    "required": [
+                      "issue_code",
+                      "severity",
+                      "unit_id",
+                      "surface",
+                      "rule_origin",
+                      "source_commit",
+                      "quoted_text",
+                      "repair_constraint"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "checked_items": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  }
+                }
+              },
+              "required": [
+                "status",
+                "issues",
+                "checked_items"
+              ],
+              "additionalProperties": false
+            },
+            "plagiarism": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "not_run",
+                    "pass",
+                    "blocked"
+                  ]
+                },
+                "issues": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "issue_code": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "severity": {
+                        "type": "string",
+                        "enum": [
+                          "hard_blocker",
+                          "blocking_style_issue",
+                          "warning",
+                          "profile_preference"
+                        ]
+                      },
+                      "unit_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "surface": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "wechat_primary_title",
+                              "wechat_alternative_title",
+                              "wechat_abstract",
+                              "wechat_block",
+                              "wechat_cta",
+                              "x_single_post",
+                              "x_thread_item",
+                              "x_debate_prompt"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "writing_contract",
+                              "visual_slots",
+                              "writing_pack"
+                            ]
+                          }
+                        ]
+                      },
+                      "rule_origin": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "source_commit": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "quoted_text": {
+                        "type": "string",
+                        "maxLength": 1000
+                      },
+                      "repair_constraint": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      }
+                    },
+                    "required": [
+                      "issue_code",
+                      "severity",
+                      "unit_id",
+                      "surface",
+                      "rule_origin",
+                      "source_commit",
+                      "quoted_text",
+                      "repair_constraint"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "checked_items": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  }
+                },
+                "protected_transfer_detected": {
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reference_overlap_detected": {
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "status",
+                "issues",
+                "checked_items",
+                "protected_transfer_detected",
+                "reference_overlap_detected"
+              ],
+              "additionalProperties": false
+            },
+            "unknowns": {
+              "maxItems": 100,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              }
+            },
+            "quality_issues": {
+              "maxItems": 100,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "issue_code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "severity": {
+                    "type": "string",
+                    "enum": [
+                      "hard_blocker",
+                      "blocking_style_issue",
+                      "warning",
+                      "profile_preference"
+                    ]
+                  },
+                  "unit_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "surface": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "wechat_primary_title",
+                          "wechat_alternative_title",
+                          "wechat_abstract",
+                          "wechat_block",
+                          "wechat_cta",
+                          "x_single_post",
+                          "x_thread_item",
+                          "x_debate_prompt"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "writing_contract",
+                          "visual_slots",
+                          "writing_pack"
+                        ]
+                      }
+                    ]
+                  },
+                  "rule_origin": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "source_commit": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "quoted_text": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "repair_constraint": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  }
+                },
+                "required": [
+                  "issue_code",
+                  "severity",
+                  "unit_id",
+                  "surface",
+                  "rule_origin",
+                  "source_commit",
+                  "quoted_text",
+                  "repair_constraint"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "evidence",
+            "experiment",
+            "product",
+            "first_person",
+            "style",
+            "plagiarism",
+            "unknowns",
+            "quality_issues"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "human_gate": {
+      "type": "object",
+      "properties": {
+        "required": {
+          "type": "boolean",
+          "const": true
+        },
+        "status": {
+          "type": "string",
+          "const": "unreviewed"
+        },
+        "automated_publish_allowed": {
+          "type": "boolean",
+          "const": false
+        }
+      },
+      "required": [
+        "required",
+        "status",
+        "automated_publish_allowed"
+      ],
+      "additionalProperties": false
+    },
+    "model": {
+      "type": "object",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "runtime_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 300
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "calls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "usage": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "input_tokens": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "output_tokens": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "total_tokens": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "input_tokens",
+                "output_tokens",
+                "total_tokens"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "provider",
+        "model",
+        "runtime_version",
+        "calls",
+        "duration_ms",
+        "usage"
+      ],
+      "additionalProperties": false
+    },
+    "error_code": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "style_approval_chain_invalid",
+            "protected_transfer_detected",
+            "reference_overlap_detected",
+            "writing_audit_failed",
+            "writing_output_invalid",
+            "configuration_invalid",
+            "file_read_failed",
+            "file_write_failed",
+            "codex_not_installed",
+            "codex_not_authenticated",
+            "codex_non_interactive_unavailable",
+            "codex_timeout",
+            "codex_rate_limited",
+            "codex_output_invalid",
+            "codex_process_failed",
+            "codex_sandbox_unavailable"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "error_message_safe": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 1000
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+    }
+  },
+  "required": [
+    "version",
+    "writing_date",
+    "run_id",
+    "status",
+    "decision",
+    "input_hash",
+    "synthetic_fixture",
+    "not_for_publication",
+    "research",
+    "style",
+    "master_draft",
+    "wechat",
+    "x",
+    "audits",
+    "human_gate",
+    "model",
+    "error_code",
+    "error_message_safe",
+    "created_at"
+  ],
+  "additionalProperties": false
+}
