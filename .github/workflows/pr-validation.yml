@@ -47,6 +47,9 @@ jobs:
       - name: Run offline research fixture
         run: npm run research:build -- --fixture --date=2026-08-14
 
+      - name: Run offline Writing Pack fixture
+        run: npm run writing:build -- --fixture --date=2026-08-14
+
       - name: Run offline Style Profile distillation fixture
         run: npm run style:distill -- --fixture
 

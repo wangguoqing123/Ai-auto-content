@@ -7,6 +7,12 @@ status: implemented_not_installed
 
 # Mac 本机采集、选题与研究调度器
 
+## Writing Task
+
+Writing 检查窗口为北京时间 14:30—22:00、每天最多 2 次。它复用同一个轻量 Scheduler，但不会自动读取或传入 Provisional Style 路径，也不会通过环境变量静默开启 Provisional。Research 未完成时返回 `blocked_by_research` / `waiting_for_research`；Research READY 但没有 approved Profile 时返回 `waiting_for_approved_style`，`modelCalls=0`。
+
+PR #8 只提交 Task 与状态结构，不修改生产 Runtime clone、LaunchAgent 或外部配置，不执行安装与 reload。
+
 ## 运行逻辑
 
 LaunchAgent 不是只在 08:00 触发一次，而是 `RunAtLoad=true`、`StartInterval=900`。每次启动只做一次轻量 due check：

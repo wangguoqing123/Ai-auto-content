@@ -7,6 +7,14 @@ status: implemented_live_validation_verified_pending_local_activation
 
 # 自动研究、证据核验与安全实验包 v0
 
+## Writing Research Gate
+
+Writing 只消费严格 Schema-valid 的 Research Pack：missing/failed → `WAITING_FOR_RESEARCH`；`NO_TOPIC` → `NO_CONTENT`；`RESEARCH_INCOMPLETE` → `BLOCKED_BY_RESEARCH`；只有 `READY_FOR_WRITING` 进入 Style Resolver。前三条路径 `model.calls=0`，且发生在 Style Hash、Codex 模型配置和 Provider 初始化之前。
+
+Evidence Audit 只允许 direct Claim 作为事实；partial 必须保留“目前能确认的是”和 scope，不能进入标题核心、强结论或强 CTA；unsupported 禁止使用。实验数字从已保存结果读取，正文必须同时说明单样例、每组一次、未测模型波动和不可外推。
+
+项目自有 `synthetic-ready-research-pack` 只包含去敏合成会议记录、三项待办/负责人、两项截止时间、一项缺验收标准、合成实验与限制，不含第三方完整内容、真实人物、真实公司数据或真实销售信息。
+
 ## 1. 唯一职责
 
 研究层只接受当天严格合法的 Topic Decision：

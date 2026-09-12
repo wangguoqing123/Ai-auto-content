@@ -8,6 +8,12 @@ machine_source: config/content-fit.yaml
 
 # 内容与获客策略
 
+## Writing Pack v0 补充
+
+`SELECT_TOPIC` 不能直接生成正文。只有 Research Pack 明确 `READY_FOR_WRITING`，且 Style Approval Chain 合法，才允许生成一篇公众号和一个 X 版本；全部结果进入 Human Send Gate，由人决定是否发送。`RESEARCH_INCOMPLETE` 必须停止在 `BLOCKED_BY_RESEARCH`。
+
+当前 Owner Style 只代表短内容代理语料，不代表原生 X 或公众号长文。公众号结构由 article type、human-writing、WeChat 平台规则与获准 Reference Technique 共同承担；Reference 不提供声音、身份、经历、事实或 preferred terms。
+
 ## 1. 内容系统的目标
 
 内容系统不是“每天自动发几篇”，而是自动发现真实问题，完成可靠研究和必要验证，生产能帮助用户、建立信任并自然承接真实产品的内容。
