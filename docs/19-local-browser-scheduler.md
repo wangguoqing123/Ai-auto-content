@@ -1,11 +1,11 @@
 ---
-title: Mac 本机采集、选题与研究调度器
-version: 1.2.0
-updated_at: 2026-08-14
+title: Mac 本机采集、选题、研究与极简写作调度器
+version: 1.3.0
+updated_at: 2026-08-20
 status: implemented_not_installed
 ---
 
-# Mac 本机采集、选题与研究调度器
+# Mac 本机采集、选题、研究与极简写作调度器
 
 ## 运行逻辑
 
@@ -26,11 +26,16 @@ LaunchAgent 不是只在 08:00 触发一次，而是 `RunAtLoad=true`、`StartIn
 + 今天 research_pack 未 success
 + attempts < 2
 → 读取 Topic；只抓指定 fact_source；执行研究与安全文本实验
+
+上海时间在 14:30—22:00
++ Topic 已 SELECT_TOPIC 且有持久化关联素材
++ 今天尚未尝试 Writer
+→ 一次 Writer 调用；写本机私有草稿；等待人工审核
 ```
 
 调度检查先判断时间窗口：其他时间始终输出 `NOT_DUE`，不会因为已达到最大尝试次数而重复通知。窗口内当天完成输出 `ALREADY_COMPLETED`；活锁输出 `LOCK_HELD`。三者都返回 0，不访问平台。
 
-`local:scheduler -- --once` 依次检查 Morning、Topic Selection、Research Pack。三个 manual 命令可在窗口外执行一次，但正式运行仍服从活锁、当天完成和最多 2 次尝试。状态分别保存在 `tasks.morning`、`tasks.topic_selection` 和 `tasks.research_pack`。
+仓库中的 `local:scheduler -- --once` 依次检查 Morning、Topic Selection、Research Pack、Simple Writing。Simple Writing 使用独立最小状态，不继承 Research 的 attempts：只要当天已经尝试 Writer，无论成功或失败都不再调用第二次；Topic 未到或素材暂时为空时仍可在窗口内稍后检查。当前生产 Runtime 尚未安装这段新接线。
 
 Research Topic 不存在时返回 `WAITING_FOR_TOPIC`、exit 0，不创建状态或增加失败次数；`NO_PUBLISH` 直接完成 `NO_TOPIC`；相同 hash 返回 `ALREADY_RESEARCHED`，不重复抓取、调用 Codex 或运行实验。
 
@@ -70,6 +75,16 @@ Research Topic 不存在时返回 `WAITING_FOR_TOPIC`、exit 0，不创建状态
 7. 只暂存 `data/research-packs/**`、`data/research-runs/**`、`reports/research/**`，标题固定 `chore(research): build evidence pack YYYY-MM-DD`。
 8. 更新 Research 状态并发送只含决定、Topic 标题和是否完成实验的安全通知。
 
+## Simple Writing 顺序
+
+1. 判断 14:30—22:00 窗口，回读独立的 Simple Writing 状态。
+2. Topic 不存在返回 `WAITING_FOR_TOPIC`；`NO_PUBLISH` 返回 `NO_CONTENT`；两者都不创建 Writer。
+3. `SELECT_TOPIC` 复用现有 72 小时素材 Loader，只选择 Topic 引用且已保存、非空、可追溯的素材。
+4. 没有素材返回 `BLOCKED_NO_SOURCES`，不调用模型。
+5. 有素材时使用共用 Structured Runner 调用一次 Writer；失败、超时或非法输出都计为一次，当天不重试。
+6. 只运行 Output、Source Integrity、Basic Safety、Basic Format 四类普通代码检查，没有 Reviewer 或 Repair。
+7. 无 hard failure 时写入 Runtime clone 外的 0700/0600 私有目录，并提示人工审核；不执行 Git、图片或发布。
+
 ## 命令
 
 ```bash
@@ -77,6 +92,7 @@ npm run local:check
 npm run local:morning -- --dry-run
 npm run local:topic -- --dry-run
 npm run local:research -- --dry-run
+npm run local:writing -- --fixture --dry-run --now=2026-08-14T06:30:00.000Z
 npm run local:scheduler -- --once
 npm run local:scheduler -- --once --fixture --dry-run --now=2026-08-14T05:00:00.000Z
 npm run local:install -- --dry-run
@@ -84,7 +100,7 @@ npm run local:uninstall -- --dry-run
 npm run launchd:render
 ```
 
-`local:morning -- --dry-run` 会访问真实平台；`local:research -- --dry-run` 只访问 Topic 指定官方来源，禁止 X、公众号和 Browser Collector。二者都不写状态、正式数据、报告或 Git。`--fixture --dry-run` 完全离线。
+`local:morning -- --dry-run` 会访问真实平台；`local:research -- --dry-run` 只访问 Topic 指定官方来源，禁止 X、公众号和 Browser Collector。`local:writing -- --fixture --dry-run` 使用合成 Topic、素材和文章，只写临时目录，不读取真实 Codex 环境。CI 中的全部 Simple Writing 验证都使用这个离线 Fixture。
 
 PR 合并后，用户确认 Chrome、Bridge、登录态和 Git 鉴权可用，再显式安装：
 
@@ -107,7 +123,7 @@ npm run local:uninstall -- --uninstall
 
 ## 状态与通知
 
-状态文件：`~/Library/Application Support/AiAutoContent/state/scheduler-state.json`。损坏状态不会被静默覆盖；旧状态缺少 Topic 或 Research task 时会安全补成未到期状态。
+Morning、Topic 和 Research 状态文件：`~/Library/Application Support/AiAutoContent/state/scheduler-state.json`。Simple Writing 独立状态文件：`~/Library/Application Support/AiAutoContent/state/simple-writing-state.json`，只记录 date、status、model_attempted、model_calls、output_directory、error_code 和 updated_at。损坏状态不会被静默覆盖。
 
 pending 恢复返回其中所有采集日期。恢复日期包含当天时，Morning 以当天外部状态确认结果并跳过平台，避免重复采集；仅包含历史日期时，仍继续执行当天共享健康检查和双平台 Pipeline。
 
@@ -130,4 +146,4 @@ pending 恢复返回其中所有采集日期。恢复日期包含当天时，Mor
 
 ## 当前安装状态
 
-本 PR 只提交代码和配置；没有 bootstrap、reload 或修改当前生产 LaunchAgent/Runtime clone，也没有执行 Browser Collector。Research 合并后仍需用户显式更新本机 Runtime 与 LaunchAgent。
+本 PR 只提交代码、配置和离线 Fixture；没有 bootstrap、reload 或修改当前生产 LaunchAgent/Runtime clone，也没有执行 Browser Collector 或真实 Writing Codex。是否激活 Simple Writing Scheduler，必须等人工验收和合并后另行决定。

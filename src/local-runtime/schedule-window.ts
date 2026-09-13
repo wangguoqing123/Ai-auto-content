@@ -30,7 +30,7 @@ export function scheduleDecision(
   config: LocalRuntimeConfig,
   state: SchedulerTaskState | null,
   triggerMode: TriggerMode = 'scheduled',
-  task: RuntimeTaskName = 'morning',
+  task: Exclude<RuntimeTaskName, 'simple_writing'> = 'morning',
 ): { decision: ScheduleDecision; date: string } {
   const current = zonedDateAndMinute(now, config.timezone);
   const today = state?.date === current.date ? state : null;

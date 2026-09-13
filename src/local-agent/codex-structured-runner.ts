@@ -39,12 +39,16 @@ export interface CodexStructuredUsage {
 }
 
 export class CodexStructuredOutputError extends Error {
+  readonly safeDiagnostic: string | null;
+
   constructor(
     readonly durationMs: number,
     readonly usage: CodexStructuredUsage | null,
+    safeDiagnostic: string | null = null,
   ) {
     super('codex_output_invalid');
     this.name = 'CodexStructuredOutputError';
+    this.safeDiagnostic = safeDiagnostic === null ? null : safeDiagnostic.slice(0, 500);
   }
 }
 
@@ -245,6 +249,25 @@ function safeLabel(value: string): string {
   return normalized.slice(0, 40) || 'structured';
 }
 
+function schemaValidationDiagnostic(issues: ReadonlyArray<{ path?: PropertyKey[]; code?: string }>): string {
+  const unique = new Set<string>();
+  for (const issue of issues) {
+    const rawPath = (issue.path ?? []).map(String).join('.') || '<root>';
+    const safePath = rawPath.replace(/[^a-zA-Z0-9_.<>-]/gu, '_').slice(0, 120);
+    const safeCode = (issue.code ?? 'unknown').replace(/[^a-z0-9_-]/giu, '_').slice(0, 60);
+    unique.add(`${safePath}:${safeCode}`);
+    if (unique.size >= 20) break;
+  }
+  const prefix = 'schema_validation_failed:';
+  let diagnostic = prefix;
+  for (const issue of unique) {
+    const candidate = diagnostic === prefix ? `${prefix}${issue}` : `${diagnostic},${issue}`;
+    if (candidate.length > 500) break;
+    diagnostic = candidate;
+  }
+  return diagnostic === prefix ? `${prefix}<root>:unknown` : diagnostic;
+}
+
 export class CodexStructuredRunner {
   readonly modelName: string;
   readonly runtimeVersion: string;
@@ -344,23 +367,54 @@ export class CodexStructuredRunner {
     const durationMs = Date.now() - startedAt;
     const usage = usageFromEvents(processResult.stdout);
     if (processResult.timedOut) throw new CodexStructuredTimeoutError();
-    if (processResult.outputLimitExceeded) throw new CodexStructuredOutputError(durationMs, usage);
+    if (processResult.outputLimitExceeded) {
+      throw new CodexStructuredOutputError(durationMs, usage, 'output_limit_exceeded');
+    }
     if (processResult.exitCode !== 0) {
       const message = processResult.stderr || processResult.stdout;
-      if (isStructuredOutputFailure(message)) throw new CodexStructuredOutputError(durationMs, usage);
+      if (isStructuredOutputFailure(message)) {
+        throw new CodexStructuredOutputError(durationMs, usage, 'structured_output_process_failed');
+      }
       throw new CodexStructuredRunnerError(classifyFailure(message));
     }
     try {
-      const file = await stat(resultPath);
-      if (file.size > this.options.maxOutputBytes) throw new CodexStructuredOutputError(durationMs, usage);
-      const raw = await readFile(resultPath, 'utf8');
-      if (/```/.test(raw)) throw new CodexStructuredOutputError(durationMs, usage);
-      const parsed = options.outputSchema.safeParse(JSON.parse(raw) as unknown);
-      if (!parsed.success) throw new CodexStructuredOutputError(durationMs, usage);
+      let file;
+      try {
+        file = await stat(resultPath);
+      } catch (error) {
+        const diagnostic = (error as NodeJS.ErrnoException).code === 'ENOENT' ? 'result_missing' : 'result_read_failed';
+        throw new CodexStructuredOutputError(durationMs, usage, diagnostic);
+      }
+      if (file.size > this.options.maxOutputBytes) {
+        throw new CodexStructuredOutputError(durationMs, usage, 'result_too_large');
+      }
+      let raw: string;
+      try {
+        raw = await readFile(resultPath, 'utf8');
+      } catch (error) {
+        const diagnostic = (error as NodeJS.ErrnoException).code === 'ENOENT' ? 'result_missing' : 'result_read_failed';
+        throw new CodexStructuredOutputError(durationMs, usage, diagnostic);
+      }
+      let value: unknown;
+      try {
+        value = JSON.parse(raw) as unknown;
+      } catch {
+        const trimmed = raw.trim();
+        const wrapped = trimmed.startsWith('```') || trimmed.startsWith('~~~');
+        throw new CodexStructuredOutputError(durationMs, usage, wrapped ? 'markdown_wrapper' : 'invalid_json');
+      }
+      const parsed = options.outputSchema.safeParse(value);
+      if (!parsed.success) {
+        throw new CodexStructuredOutputError(
+          durationMs,
+          usage,
+          schemaValidationDiagnostic(parsed.error.issues),
+        );
+      }
       return { output: parsed.data, durationMs, usage, exitStatus: 'success' };
     } catch (error) {
       if (error instanceof CodexStructuredOutputError) throw error;
-      throw new CodexStructuredOutputError(durationMs, usage);
+      throw new CodexStructuredOutputError(durationMs, usage, 'result_read_failed');
     }
   }
 }
