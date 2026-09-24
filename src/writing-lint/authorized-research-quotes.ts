@@ -68,6 +68,14 @@ export async function loadAuthorizedResearchQuotes(
   options: LoadAuthorizedResearchQuoteOptions = {},
 ): Promise<ResolvedAuthorizedQuotes> {
   const pack = readyPack(JSON.parse(await readFile(filename, 'utf8')));
+  return resolveAuthorizedResearchQuotes(pack, options);
+}
+
+export function resolveAuthorizedResearchQuotes(
+  researchPack: unknown,
+  options: LoadAuthorizedResearchQuoteOptions = {},
+): ResolvedAuthorizedQuotes {
+  const pack = readyPack(researchPack);
   const allowedPartial = new Set(options.allowPartialClaimIds ?? []);
   const quotes = pack.verified_claims.flatMap((claim) => {
     if (claim.support_status === 'unsupported') return [];

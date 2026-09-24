@@ -7,6 +7,10 @@ status: implemented_live_model_dry_run_verified_pending_local_activation
 
 # 每日内容智能判断与自主选题 v0
 
+## 与 Writing Pack 的边界
+
+Topic 的高分、用户偏好或 CTA 计划都不能绕过 Research Decision。Topic 只提供主题、内容 pillar、目标模块和 CTA 上限；Writer 只能继承并降级 CTA，不能升级。CON-05 关闭期间，`club` 也只能降为无产品销售承接的 none/light 行动。
+
 ## 1. 目标和边界
 
 每日选题器只回答两个问题：今天是否值得进入内容研究，以及值得研究哪一个母题。成功运行的业务决定只有：

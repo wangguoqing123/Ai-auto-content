@@ -19,7 +19,10 @@ export const codexStructuredErrorCodes = [
 export type CodexStructuredErrorCode = typeof codexStructuredErrorCodes[number];
 
 export class CodexStructuredRunnerError extends Error {
-  constructor(readonly code: Exclude<CodexStructuredErrorCode, 'codex_timeout' | 'codex_output_invalid'>) {
+  constructor(
+    readonly code: Exclude<CodexStructuredErrorCode, 'codex_timeout' | 'codex_output_invalid'>,
+    readonly safeDiagnostic: string | null = null,
+  ) {
     super(code);
     this.name = 'CodexStructuredRunnerError';
   }
@@ -42,6 +45,7 @@ export class CodexStructuredOutputError extends Error {
   constructor(
     readonly durationMs: number,
     readonly usage: CodexStructuredUsage | null,
+    readonly safeDiagnostic: string | null = null,
   ) {
     super('codex_output_invalid');
     this.name = 'CodexStructuredOutputError';
@@ -198,8 +202,52 @@ function classifyFailure(stderr: string): Exclude<CodexStructuredErrorCode, 'cod
   return 'codex_process_failed';
 }
 
+function sanitizeDiagnostic(value: string): string {
+  return value
+    .replace(/\/Users\/[^/\s]+/gu, '/Users/[redacted]')
+    .replace(/(?:Bearer\s+|gho_|ghp_|github_pat_|sk-)[A-Za-z0-9._-]+/giu, '[redacted credential]')
+    .replace(/([?&](?:token|code|session|cookie|pass_ticket|auth)[^=]*)=[^&\s]+/giu, '$1=[redacted]')
+    .replace(/\s+/gu, ' ')
+    .trim()
+    .slice(0, 500);
+}
+
+function safeFailureDiagnostic(result: CodexProcessResult): string | null {
+  const messages: string[] = [];
+  if (result.stderr.trim() !== '') messages.push(result.stderr);
+  for (const line of result.stdout.split(/\r?\n/u).filter(Boolean)) {
+    try {
+      const event = JSON.parse(line) as Record<string, unknown>;
+      const error = event.error;
+      if (typeof error === 'string') messages.push(error);
+      else if (error !== null && typeof error === 'object') {
+        const message = (error as Record<string, unknown>).message;
+        if (typeof message === 'string') messages.push(message);
+      }
+      if (typeof event.message === 'string' && /error|failed|invalid|unavailable|denied|limit/iu.test(event.message)) messages.push(event.message);
+    } catch {
+      // stdout may contain non-error telemetry; never retain it as a diagnostic.
+    }
+  }
+  const safe = sanitizeDiagnostic(messages.join('\n'));
+  return safe === '' ? null : safe;
+}
+
+export function schemaValidationDiagnostic(
+  issues: readonly { path: PropertyKey[]; code: string }[],
+): string {
+  const safe = issues.slice(0, 20).map(({ path: issuePath, code }) => {
+    const pathLabel = issuePath.length === 0
+      ? 'root'
+      : issuePath.map((part) => String(part).replace(/[^a-z0-9_-]/giu, '_')).join('.');
+    const codeLabel = code.replace(/[^a-z0-9_-]/giu, '_');
+    return `${pathLabel}:${codeLabel}`;
+  });
+  return `schema_validation_failed:${[...new Set(safe)].join(',')}`.slice(0, 500);
+}
+
 function isStructuredOutputFailure(message: string): boolean {
-  return /output schema|structured output|invalid json|failed to parse (?:the )?(?:final )?output|result\.json/i.test(message);
+  return /output schema|structured output|invalid[_ ]json(?:[_ ]schema)?|failed to parse (?:the )?(?:final )?output|result\.json/i.test(message);
 }
 
 function parseVersion(output: string): string {
@@ -344,23 +392,27 @@ export class CodexStructuredRunner {
     const durationMs = Date.now() - startedAt;
     const usage = usageFromEvents(processResult.stdout);
     if (processResult.timedOut) throw new CodexStructuredTimeoutError();
-    if (processResult.outputLimitExceeded) throw new CodexStructuredOutputError(durationMs, usage);
+    if (processResult.outputLimitExceeded) throw new CodexStructuredOutputError(durationMs, usage, 'provider_output_limit_exceeded');
     if (processResult.exitCode !== 0) {
-      const message = processResult.stderr || processResult.stdout;
-      if (isStructuredOutputFailure(message)) throw new CodexStructuredOutputError(durationMs, usage);
-      throw new CodexStructuredRunnerError(classifyFailure(message));
+      const message = `${processResult.stderr}\n${processResult.stdout}`;
+      if (isStructuredOutputFailure(message)) throw new CodexStructuredOutputError(durationMs, usage, safeFailureDiagnostic(processResult));
+      throw new CodexStructuredRunnerError(classifyFailure(message), safeFailureDiagnostic(processResult));
     }
-    try {
-      const file = await stat(resultPath);
-      if (file.size > this.options.maxOutputBytes) throw new CodexStructuredOutputError(durationMs, usage);
-      const raw = await readFile(resultPath, 'utf8');
-      if (/```/.test(raw)) throw new CodexStructuredOutputError(durationMs, usage);
-      const parsed = options.outputSchema.safeParse(JSON.parse(raw) as unknown);
-      if (!parsed.success) throw new CodexStructuredOutputError(durationMs, usage);
-      return { output: parsed.data, durationMs, usage, exitStatus: 'success' };
-    } catch (error) {
-      if (error instanceof CodexStructuredOutputError) throw error;
-      throw new CodexStructuredOutputError(durationMs, usage);
+    let file;
+    try { file = await stat(resultPath); }
+    catch { throw new CodexStructuredOutputError(durationMs, usage, 'result_file_unavailable'); }
+    if (file.size > this.options.maxOutputBytes) throw new CodexStructuredOutputError(durationMs, usage, 'result_file_too_large');
+    let raw: string;
+    try { raw = await readFile(resultPath, 'utf8'); }
+    catch { throw new CodexStructuredOutputError(durationMs, usage, 'result_file_unavailable'); }
+    if (/```/.test(raw)) throw new CodexStructuredOutputError(durationMs, usage, 'result_markdown_fence_rejected');
+    let decoded: unknown;
+    try { decoded = JSON.parse(raw) as unknown; }
+    catch { throw new CodexStructuredOutputError(durationMs, usage, 'result_json_invalid'); }
+    const parsed = options.outputSchema.safeParse(decoded);
+    if (!parsed.success) {
+      throw new CodexStructuredOutputError(durationMs, usage, schemaValidationDiagnostic(parsed.error.issues));
     }
+    return { output: parsed.data, durationMs, usage, exitStatus: 'success' };
   }
 }

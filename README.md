@@ -6,9 +6,9 @@
 
 > 系统每天运行，但不要求每天发布。没有足够高质量的题目时，后续选题阶段必须允许输出 `NO_PUBLISH`。
 
-## 当前阶段：真实 Provider 已用合成语料验证，等待真实私有语料
+## 当前阶段：Provisional Profile 等待写作效果审核
 
-产品真相层、素材采集、每日选题和研究已经进入 production。风格智能 v0 固定 human-writing 与 no-ai-slop，并用可审计 Adaptation Map 连接内部规则；本机私有语料具备逐篇来源、权利依据和显式模型处理授权，Style Recipe 的权重会真实改变带来源的 `selected_rules`，Research Quote 只能从 READY_FOR_WRITING Pack 严格解析，公共参考在获准 Distill 时自动生成本机 Protected Transfer Index。2026-08-15 已使用项目自有合成 Owner/Reference 语料完成一次真实本机 Codex Provider 验证；尚未导入七天假与参考作者的真实语料，也没有声称已经学会七天假的风格。本阶段不生成正文、X 内容、图片或发布包。
+产品真相层、素材采集、每日选题和研究已经进入 production。写作包 v0 只在 Research Pack 为 `READY_FOR_WRITING` 后解析本机 Style Approval Chain；当前旧 Receipt 通过 Binding Attestation 技术补链，状态为 `valid_legacy_receipt_with_binding_attestation`，不等于重新审批或 production approved。Provisional Profile 只能在显式传入三个 Style 路径、`--allow-provisional-style` 与 dry-run / Synthetic READY Fixture 时使用。Scheduler 只接受未来的 approved Profile，Human Send Gate 永远开启。
 
 > 本机 Codex CLI 不是离线模型。只有同一 Profile 的全部语料在 CLI 或可信本地 Manifest 中明确 `model_processing=allowed` 才可发送给 Codex 服务；任一文档 denied 时连 Codex CLI 版本、帮助或登录探测都不会触发，也不要求 `STYLE_CODEX_MODEL`。JSONL 正文不能决定或覆盖 rights/consent。Protected Index 只供 Reviewer 使用，绝不进入 Writer。
 
@@ -20,8 +20,8 @@ Corpus Root、Corpus 内文件和 Source File 都拒绝 symlink，并用 `realpa
 | 产品真相层 | `production` |
 | 每日选题 | `production` |
 | 研究与实验 | `production` |
-| 风格智能 | `implemented_live_provider_verified_pending_real_corpus` |
-| 写作 | `not_started` |
+| 风格智能 | `provisional_profile_pending_writing_validation` |
+| 写作 | `implemented_pending_live_validation` |
 | 配图 | `not_started` |
 | 发布 | `not_started` |
 
@@ -31,7 +31,7 @@ Corpus Root、Corpus 内文件和 Source File 都拒绝 symlink，并用 `realpa
 
 验证显式清除 API/GitHub Token 环境，没有访问平台或网页；合成 Corpus、Profile、Index、Codex 结果和临时脚本都没有进入 Git。该结果只把风格智能推进到 `implemented_live_provider_verified_pending_real_corpus`，不是 production，仍等待真实语料及其逐篇来源、权利和模型处理授权。
 
-Cloud Collector 与 Mac Local Runtime 是两个独立运行通道。Cloud 在 GitHub Actions 每天北京时间 09:00 运行；本机 LaunchAgent 每 15 分钟做一次轻量到期检查：07:30—12:00 执行 X/微信公众号 Morning，13:00—18:00 执行 Topic Selection，13:30—21:00 执行 Research Pack。三个任务分别保存状态且每天最多尝试 2 次。
+Cloud Collector 与 Mac Local Runtime 是两个独立运行通道。Cloud 在 GitHub Actions 每天北京时间 09:00 运行；本机 LaunchAgent 每 15 分钟做一次轻量到期检查：07:30—12:00 执行 X/微信公众号 Morning，13:00—18:00 执行 Topic Selection，13:30—21:00 执行 Research Pack，14:30—22:00 检查 Writing Pack。Writing Scheduler 不自动消费 Provisional Profile，本 PR 不安装或 reload LaunchAgent。
 
 | 模块 | 状态 | 是否每日运行 |
 |---|---|---|
@@ -74,6 +74,7 @@ npm run collect:fixture
 npm run topic:select -- --fixture --date=2026-08-14
 npm run topic:inspect-input -- --date=2026-08-14
 npm run research:build -- --fixture --date=2026-08-14
+npm run writing:build -- --fixture --date=2026-08-14
 npm run style:distill -- --fixture
 npm run style:protected:inspect -- --profile-id <id>
 npm run style:lint -- --fixture
@@ -106,6 +107,7 @@ npm run local:check
 npm run local:morning -- --dry-run
 npm run local:topic -- --dry-run
 npm run local:research -- --dry-run
+npm run local:writing -- --dry-run
 npm run local:scheduler -- --once
 npm run local:install -- --dry-run
 npm run local:uninstall -- --dry-run
@@ -155,6 +157,7 @@ config/product.yaml                 唯一机器可读产品事实与 claim 真�
 config/content-fit.yaml             学习阶段、内容承接、适配上限与 CTA 策略
 config/topic-intelligence.yaml      72 小时输入、预算、门槛、历史和模型调用上限
 config/research-intelligence.yaml   公共抓取、引用、Codex、实验与调度上限
+config/writing-intelligence.yaml    写作调用、平台权重、字数、价格和调度上限
 config/experiment-task-catalog.yaml 三个项目自带合成 text_to_text 实验任务
 data/materials/YYYY-MM-DD.jsonl     最近 7 天内及隔离区 RSS 素材
 data/browser-materials/YYYY-MM-DD.jsonl  浏览器非 dry-run 素材
@@ -170,6 +173,10 @@ reports/topics/YYYY-MM-DD.md        单一最终母题或 NO_PUBLISH 日报
 data/research-packs/YYYY-MM-DD/     Research Pack、短引用来源清单与合成实验结果
 data/research-runs/research_*.json  每次研究运行的安全审计记录
 reports/research/YYYY-MM-DD.md      不含正文的研究与实验报告
+data/writing-packs/YYYY-MM-DD/      未来仅 approved Style 正式写入的母稿、公众号和单一 X 包
+data/writing-runs/writing_*.json    未来 approved Style 的写作安全审计记录
+reports/writing/YYYY-MM-DD.md       未来 approved Style 的 Human Gate 报告
+~/Library/Application Support/AiAutoContent/writing-review/  0700/0600 本机 Synthetic 写作效果审阅包
 ~/Library/Application Support/AiAutoContent/style-corpus/  0700/0600 本机私有语料、反馈和 Profile 缓存，不进入 Git
 ```
 
@@ -191,8 +198,12 @@ reports/research/YYYY-MM-DD.md      不含正文的研究与实验报告
 - `schemas/style-distillation-bundle.schema.json`：单次 Distill 同时返回 Profile Fragment 与受保护候选的严格契约。
 - `schemas/protected-transfer-index.schema.json`：本机 Reviewer Index 的来源、精确子串与 hash 契约。
 - `schemas/style-recipe.schema.json`：Owner/Reference/平台权重、动态文体选择和 fallback 契约，对应 `styleRecipeSchema`。
+- `schemas/writing-pack.schema.json`：Research、Style、结构化 Blocks、公众号、单一 X、六类审计与 Human Gate 契约。
+- `schemas/provisional-style-profile.schema.json`：当前私有 Provisional Overlay 的严格只读契约。
+- `schemas/style-approval-receipt.schema.json`：Receipt v1/v2 契约。
+- `schemas/style-approval-binding-attestation.schema.json`：Legacy Receipt 技术补链契约。
 
-十四份提交文件都从 Zod Schema 生成。修改运行时模型后执行 `npm run schema:generate` 更新文件；`npm run schema:check` 会在临时目录重新生成并比较，发现漂移时返回非零退出码。PR CI 使用 Fixture 运行 Topic、Research、风格蒸馏和写作 Lint，不访问真实网页、平台或模型。
+十八份提交文件都从 Zod Schema 生成。修改运行时模型后执行 `npm run schema:generate` 更新文件；`npm run schema:check` 会在临时目录重新生成并比较，发现漂移时返回非零退出码。PR CI 使用 Fixture 运行 Topic、Research、Writing、风格蒸馏和写作 Lint，不访问真实网页、平台或模型。
 
 ## 项目目标
 
@@ -239,6 +250,7 @@ reports/research/YYYY-MM-DD.md      不含正文的研究与实验报告
 21. `docs/21-daily-topic-intelligence.md`
 22. `docs/22-research-and-experiment-packs.md`
 23. `docs/23-style-intelligence-and-writing-skills.md`
+24. `docs/24-evidence-constrained-writing-packs.md`
 
 发生冲突时，真实性与合规规则、人物事实库和产品知识库优先。资料不足时必须标记 `UNKNOWN`，不得自行补全。
 

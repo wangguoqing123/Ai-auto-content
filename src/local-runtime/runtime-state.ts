@@ -28,6 +28,7 @@ export function createEmptyState(date: string): SchedulerState {
       morning: emptyTask(),
       topic_selection: emptyTask(),
       research_pack: emptyTask(),
+      writing_pack: emptyTask(),
     },
   };
 }

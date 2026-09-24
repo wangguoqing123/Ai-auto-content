@@ -11,11 +11,15 @@ export const runtimeTaskStatuses = [
   'unavailable',
   'git_sync_failed',
   'waiting_for_topic',
+  'waiting_for_research',
+  'waiting_for_approved_style',
+  'blocked_by_research',
+  'ready_for_human_review',
 ] as const;
 
 export type RuntimeTaskStatus = typeof runtimeTaskStatuses[number];
 export type CompletedCollectionStatus = 'success' | 'partial_success';
-export type RuntimeTaskName = 'morning' | 'topic_selection' | 'research_pack';
+export type RuntimeTaskName = 'morning' | 'topic_selection' | 'research_pack' | 'writing_pack';
 
 export interface RuntimeScheduleConfig {
   target_time: string;
@@ -30,6 +34,7 @@ export interface LocalRuntimeConfig {
   morning: RuntimeScheduleConfig;
   topic_selection: RuntimeScheduleConfig;
   research_pack: RuntimeScheduleConfig;
+  writing_pack: RuntimeScheduleConfig;
   scheduler: { check_interval_seconds: number };
   runtime: {
     auto_launch_chrome: boolean;
@@ -59,6 +64,7 @@ export const schedulerTaskStateSchema = z.object({
   last_collection_status: z.enum(['success', 'partial_success']).nullable().default(null),
   last_topic_decision: z.enum(['SELECT_TOPIC', 'NO_PUBLISH']).nullable().optional(),
   last_research_decision: z.enum(['READY_FOR_WRITING', 'RESEARCH_INCOMPLETE', 'NO_TOPIC']).nullable().optional(),
+  last_writing_decision: z.enum(['READY_FOR_HUMAN_REVIEW', 'BLOCKED_BY_RESEARCH', 'NO_CONTENT', 'WAITING_FOR_RESEARCH', 'WAITING_FOR_APPROVED_STYLE']).nullable().optional(),
 });
 
 export const schedulerStateSchema = z.object({
@@ -68,6 +74,7 @@ export const schedulerStateSchema = z.object({
     morning: schedulerTaskStateSchema,
     topic_selection: schedulerTaskStateSchema.optional(),
     research_pack: schedulerTaskStateSchema.optional(),
+    writing_pack: schedulerTaskStateSchema.optional(),
   }),
 }).transform((state) => ({
   ...state,
@@ -94,6 +101,18 @@ export const schedulerStateSchema = z.object({
       last_collection_status: null,
       last_topic_decision: null,
       last_research_decision: null,
+    },
+    writing_pack: state.tasks.writing_pack ?? {
+      date: state.tasks.morning.date,
+      attempts: 0,
+      last_attempt_at: null,
+      last_status: 'not_due' as const,
+      last_run_id: '',
+      last_error: null,
+      last_collection_status: null,
+      last_topic_decision: null,
+      last_research_decision: null,
+      last_writing_decision: null,
     },
   },
 }));
@@ -127,4 +146,5 @@ export interface RuntimeExecutionResult {
   topicDecision?: 'SELECT_TOPIC' | 'NO_PUBLISH' | null;
   modelCalls?: number;
   researchDecision?: 'READY_FOR_WRITING' | 'RESEARCH_INCOMPLETE' | 'NO_TOPIC' | null;
+  writingDecision?: 'READY_FOR_HUMAN_REVIEW' | 'BLOCKED_BY_RESEARCH' | 'NO_CONTENT' | 'WAITING_FOR_RESEARCH' | 'WAITING_FOR_APPROVED_STYLE' | null;
 }
