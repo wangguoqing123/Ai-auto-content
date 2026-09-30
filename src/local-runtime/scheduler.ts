@@ -7,9 +7,10 @@ import { runMorningTask } from './morning-task.js';
 import { createRuntimePaths } from './paths.js';
 import { runTopicSelectionTask } from './topic-selection-task.js';
 import { runResearchPackTask } from './research-pack-task.js';
+import { runSimpleWritingTask } from './simple-writing-task.js';
 
 interface CliOptions {
-  command: 'check' | 'morning' | 'topic' | 'research' | 'scheduler';
+  command: 'check' | 'morning' | 'topic' | 'research' | 'writing' | 'scheduler';
   once: boolean;
   dryRun: boolean;
   fixture: boolean;
@@ -18,8 +19,9 @@ interface CliOptions {
 
 function parseCli(args: string[]): CliOptions {
   const command = args[0];
-  if (command !== 'check' && command !== 'morning' && command !== 'topic' && command !== 'research' && command !== 'scheduler') {
-    throw new Error('Expected command: check, morning, topic, research, or scheduler');
+  if (command !== 'check' && command !== 'morning' && command !== 'topic' && command !== 'research'
+    && command !== 'writing' && command !== 'scheduler') {
+    throw new Error('Expected command: check, morning, topic, research, writing, or scheduler');
   }
   let once = false;
   let dryRun = false;
@@ -82,6 +84,14 @@ export async function runLocalRuntimeCli(args: string[], repositoryRoot = proces
       process.stdout.write(`${JSON.stringify({ command: options.command, once: options.once, dry_run: options.dryRun, fixture: options.fixture, execution }, null, 2)}\n`);
       return execution.exitCode;
     }
+    if (options.command === 'writing') {
+      const execution = await runSimpleWritingTask({
+        repositoryRoot, now: options.now, dryRun: options.dryRun, fixture: options.fixture,
+        paths, config, triggerMode: 'manual',
+      });
+      process.stdout.write(`${JSON.stringify({ command: options.command, once: options.once, dry_run: options.dryRun, fixture: options.fixture, execution }, null, 2)}\n`);
+      return execution.exitCode;
+    }
     const morning = await runMorningTask({
       repositoryRoot, now: options.now, dryRun: options.dryRun, fixture: options.fixture,
       paths, config, triggerMode: 'scheduled',
@@ -94,9 +104,19 @@ export async function runLocalRuntimeCli(args: string[], repositoryRoot = proces
       repositoryRoot, now: options.now, dryRun: options.dryRun, fixture: options.fixture,
       paths, config, triggerMode: 'scheduled',
     });
-    const executions = { morning, topic_selection: topicSelection, research_pack: researchPack };
+    const simpleWriting = await runSimpleWritingTask({
+      repositoryRoot, now: options.now, dryRun: options.dryRun, fixture: options.fixture,
+      paths, config, triggerMode: 'scheduled',
+    });
+    const executions = { morning, topic_selection: topicSelection, research_pack: researchPack, simple_writing: simpleWriting };
     process.stdout.write(`${JSON.stringify({ command: options.command, once: options.once, dry_run: options.dryRun, fixture: options.fixture, executions }, null, 2)}\n`);
-    return morning.exitCode !== 0 ? morning.exitCode : topicSelection.exitCode !== 0 ? topicSelection.exitCode : researchPack.exitCode;
+    return morning.exitCode !== 0
+      ? morning.exitCode
+      : topicSelection.exitCode !== 0
+        ? topicSelection.exitCode
+        : researchPack.exitCode !== 0
+          ? researchPack.exitCode
+          : simpleWriting.exitCode;
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
     return 1;
