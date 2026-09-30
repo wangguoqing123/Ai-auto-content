@@ -13,10 +13,28 @@ import { styleDistillationBundleSchema } from '../src/style-intelligence/provide
 import { writingSkillAdaptationMapSchema } from '../src/writing-skills/adaptation-map.js';
 import { styleFeedbackEntrySchema } from '../src/style-intelligence/feedback.js';
 import { entityNamingAuditSchema } from '../src/writing-lint/entity-naming-audit.js';
+import {
+  approvalBindingAttestationSchema,
+  provisionalStyleProfileSchema,
+  styleApprovalReceiptSchema,
+  writingPackSchema,
+} from '../src/writing/schemas.js';
 
 const JSON_SCHEMA_DRAFT = 'https://json-schema.org/draft/2020-12/schema';
 
 const schemas = [
+  {
+    filename: 'writing-pack.schema.json', id: 'https://example.local/schemas/writing-pack.schema.json', title: 'Evidence-constrained Writing Pack', schema: writingPackSchema,
+  },
+  {
+    filename: 'provisional-style-profile.schema.json', id: 'https://example.local/schemas/provisional-style-profile.schema.json', title: 'Provisional Style Profile', schema: provisionalStyleProfileSchema,
+  },
+  {
+    filename: 'style-approval-receipt.schema.json', id: 'https://example.local/schemas/style-approval-receipt.schema.json', title: 'Style Approval Receipt', schema: styleApprovalReceiptSchema,
+  },
+  {
+    filename: 'style-approval-binding-attestation.schema.json', id: 'https://example.local/schemas/style-approval-binding-attestation.schema.json', title: 'Style Approval Binding Attestation', schema: approvalBindingAttestationSchema,
+  },
   {
     filename: 'corpus-document.schema.json', id: 'https://example.local/schemas/corpus-document.schema.json', title: 'Style Corpus Document', schema: corpusDocumentSchema,
   },

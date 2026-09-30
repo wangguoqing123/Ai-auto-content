@@ -7,6 +7,19 @@ status: approved
 
 # MVP 实施路线
 
+## PR #8 状态
+
+- 采集：`production`
+- 产品真相：`production`
+- 每日选题：`production`
+- 研究与实验：`production`
+- 风格智能：`provisional_profile_pending_writing_validation`
+- 写作：`implemented_pending_live_validation`
+- 配图：`not_started`
+- 发布：`not_started`
+
+本阶段完成写作能力与 Synthetic 验证，不自动批准 Provisional Profile，不接公众号草稿箱或 X 发布。下一状态只能由人工检查本机写作效果审阅包后决定；Human Send Gate 不因未来 Style approved 而取消。
+
 ## 原则
 
 项目按每日闭环逐步增加能力，而不是先批量生成内容再补自动化。

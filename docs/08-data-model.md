@@ -7,6 +7,24 @@ status: proposed
 
 # 数据模型
 
+## Writing Pack v1
+
+`writingPackSchema` 保存版本、日期、run/input hash、Research 血缘、Style Chain 与 Recipe 安全摘要、结构化母稿、公众号、单一 X、六类审计、模型计数和 Human Gate。非 READY 决定的三类内容均为 `null`；failed run 的 `decision=null`。
+
+Writer 内部不再把标题、摘要、CTA 和 X 保存为裸字符串。所有公开文本统一建模为 `PublicContentUnit`，包含稳定 `unit_id`、surface、index、text、Claim/Experiment/Product/Persona/Style 元数据和 `is_opinion`。八类 surface 为公众号主标题、备用标题、摘要、Block、CTA，以及 X single post、thread item、debate prompt。
+
+`ContentBlock` 继续保留 `block_id` 与 `block_type`，并通过 Adapter 映射为 `wechat.block.<block_id>` Unit。静态 Markdown 标题不属于模型文本，不进入 Unit；最终 `wechatDraftSchema` / `xDraftSchema` 仍只渲染公开文本，不暴露内部 ID。
+
+Evidence、Experiment、Product、First-person、Style Audit 均逐 Unit 执行，Issue 保存 `unit_id`、surface、Skill 来源与 commit，不再使用拼接后行号作为定位。事实 Unit 必须有 Claim；实验、产品和个人事实分别绑定自己的证据引用。
+
+Repair 使用 `original_sha256` 绑定当前 Unit，并按 `allowed_fields` 应用一次局部 Patch。不能改变 Unit 集合、标题数量、X format/thread 条数、article type 或 block identity；未知 Claim、关闭 Style Rule、结构/格式不匹配等 contract issue 不进入文字 Repair。
+
+Plagiarism Audit 增加 `not_run`：终局 Guard 未执行时两个 detected 字段为 `null`，只有实际 Guard 通过后才写 `pass / false / false`。`READY_FOR_HUMAN_REVIEW` 强制要求五类确定性 Audit 与 Plagiarism Guard 全部为 `pass`。
+
+`wechatDraftSchema` 固定一个主标题和两个备用标题、1200–2400 汉字正文、公开安全 source notes、none/light CTA 与仅规划的 Visual Slots。`xDraftSchema` 确保 single post、4–7 条 thread 或 debate prompt 只有一种非空；这些最终产物由内部 Units 渲染，而不是独立事实源。
+
+新增生成式契约：`writing-pack.schema.json`、`provisional-style-profile.schema.json`、`style-approval-receipt.schema.json`、`style-approval-binding-attestation.schema.json`。
+
 ## 1. 设计目标
 
 数据模型必须回答四个问题：

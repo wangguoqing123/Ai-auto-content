@@ -1,7 +1,7 @@
 import type { ArticleType } from './schemas.js';
 
 export const articleStructures: Record<ArticleType, readonly string[]> = {
-  tutorial: ['task', 'blocker', 'steps', 'deliverable', 'acceptance', 'failure_handling'],
+  tutorial: ['task', 'blocker', 'steps', 'deliverable', 'acceptance', 'failure_handling', 'boundary'],
   analysis: ['judgment', 'evidence', 'mechanism', 'user_impact', 'boundary', 'action'],
   case_breakdown: ['background', 'key_choices', 'process', 'result', 'reusable', 'not_reusable'],
   opinion: ['controversy', 'judgment', 'basis', 'strongest_counterargument', 'boundary', 'next_step'],
