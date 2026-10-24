@@ -6,9 +6,9 @@
 
 > 系统每天运行，但不要求每天发布。没有足够高质量的题目时，后续选题阶段必须允许输出 `NO_PUBLISH`。
 
-## 当前阶段：真实 Provider 已用合成语料验证，等待真实私有语料
+## 当前阶段：Simple Writing v1 已完成离线 Fixture，等待真实草稿验证
 
-产品真相层、素材采集、每日选题和研究已经进入 production。风格智能 v0 固定 human-writing 与 no-ai-slop，并用可审计 Adaptation Map 连接内部规则；本机私有语料具备逐篇来源、权利依据和显式模型处理授权，Style Recipe 的权重会真实改变带来源的 `selected_rules`，Research Quote 只能从 READY_FOR_WRITING Pack 严格解析，公共参考在获准 Distill 时自动生成本机 Protected Transfer Index。2026-08-15 已使用项目自有合成 Owner/Reference 语料完成一次真实本机 Codex Provider 验证；尚未导入七天假与参考作者的真实语料，也没有声称已经学会七天假的风格。本阶段不生成正文、X 内容、图片或发布包。
+产品真相层、素材采集、每日选题和研究已经进入 production。Simple Writing v1 已实现 `Topic → Sources → One Writer → Human Review`，当前只用合成 Fixture 生成临时 Markdown 草稿；本轮没有执行真实 Writing Codex、没有生成图片、没有发布，也没有安装或 reload 生产 Scheduler。风格智能 v0 仍是独立能力，不进入 Simple Writing 主链路；尚未导入七天假与参考作者的真实语料，也没有声称已经学会七天假的风格。
 
 > 本机 Codex CLI 不是离线模型。只有同一 Profile 的全部语料在 CLI 或可信本地 Manifest 中明确 `model_processing=allowed` 才可发送给 Codex 服务；任一文档 denied 时连 Codex CLI 版本、帮助或登录探测都不会触发，也不要求 `STYLE_CODEX_MODEL`。JSONL 正文不能决定或覆盖 rights/consent。Protected Index 只供 Reviewer 使用，绝不进入 Writer。
 
@@ -21,7 +21,7 @@ Corpus Root、Corpus 内文件和 Source File 都拒绝 symlink，并用 `realpa
 | 每日选题 | `production` |
 | 研究与实验 | `production` |
 | 风格智能 | `implemented_live_provider_verified_pending_real_corpus` |
-| 写作 | `not_started` |
+| 写作 | `implemented_fixture_verified_pending_live_draft_validation` |
 | 配图 | `not_started` |
 | 发布 | `not_started` |
 
@@ -31,7 +31,7 @@ Corpus Root、Corpus 内文件和 Source File 都拒绝 symlink，并用 `realpa
 
 验证显式清除 API/GitHub Token 环境，没有访问平台或网页；合成 Corpus、Profile、Index、Codex 结果和临时脚本都没有进入 Git。该结果只把风格智能推进到 `implemented_live_provider_verified_pending_real_corpus`，不是 production，仍等待真实语料及其逐篇来源、权利和模型处理授权。
 
-Cloud Collector 与 Mac Local Runtime 是两个独立运行通道。Cloud 在 GitHub Actions 每天北京时间 09:00 运行；本机 LaunchAgent 每 15 分钟做一次轻量到期检查：07:30—12:00 执行 X/微信公众号 Morning，13:00—18:00 执行 Topic Selection，13:30—21:00 执行 Research Pack。三个任务分别保存状态且每天最多尝试 2 次。
+Cloud Collector 与 Mac Local Runtime 是两个独立运行通道。Cloud 在 GitHub Actions 每天北京时间 09:00 运行；当前生产 LaunchAgent 每 15 分钟检查 Morning、Topic Selection 和 Research Pack。仓库代码新增 14:30—22:00 的 Simple Writing 检查，但本 PR 没有安装、reload 或修改当前生产 Runtime；正式激活要等人工验收后另行决定。
 
 | 模块 | 状态 | 是否每日运行 |
 |---|---|---|
@@ -74,6 +74,7 @@ npm run collect:fixture
 npm run topic:select -- --fixture --date=2026-08-14
 npm run topic:inspect-input -- --date=2026-08-14
 npm run research:build -- --fixture --date=2026-08-14
+npm run simple-writing:build -- --fixture --dry-run --date=2026-08-14
 npm run style:distill -- --fixture
 npm run style:protected:inspect -- --profile-id <id>
 npm run style:lint -- --fixture
@@ -106,12 +107,13 @@ npm run local:check
 npm run local:morning -- --dry-run
 npm run local:topic -- --dry-run
 npm run local:research -- --dry-run
+npm run local:writing -- --fixture --dry-run --now=2026-08-14T06:30:00.000Z
 npm run local:scheduler -- --once
 npm run local:install -- --dry-run
 npm run local:uninstall -- --dry-run
 ```
 
-`local:morning -- --dry-run` 不受调度窗口限制，仍会执行健康检查和真实 X / 公众号 Browser dry-run；`local:topic -- --dry-run` 不访问平台；`local:research -- --dry-run` 只允许访问 Topic 指定的官方 fact_source 并运行文本实验。三者都不写状态、正式数据、报告或 Git。CI 只运行 Fixture，不访问真实 Codex、网页、平台、Chrome 或 Browser Bridge。生产安装必须由用户在 PR 合并后显式执行，并配置模型：
+`local:morning -- --dry-run` 不受调度窗口限制，仍会执行健康检查和真实 X / 公众号 Browser dry-run；`local:topic -- --dry-run` 不访问平台；`local:research -- --dry-run` 只允许访问 Topic 指定的官方 fact_source 并运行文本实验。Simple Writing Fixture 完全离线，只写临时私有目录。CI 只运行 Fixture，不访问真实 Codex、网页、平台、Chrome 或 Browser Bridge。生产安装必须由用户在 PR 合并后显式执行，并配置模型：
 
 ```bash
 export TOPIC_CODEX_MODEL="<explicit model>"
@@ -170,6 +172,7 @@ reports/topics/YYYY-MM-DD.md        单一最终母题或 NO_PUBLISH 日报
 data/research-packs/YYYY-MM-DD/     Research Pack、短引用来源清单与合成实验结果
 data/research-runs/research_*.json  每次研究运行的安全审计记录
 reports/research/YYYY-MM-DD.md      不含正文的研究与实验报告
+~/Library/Application Support/AiAutoContent/simple-writing/YYYY-MM-DD/  0700/0600 本机待人工审核草稿，不进入 Git
 ~/Library/Application Support/AiAutoContent/style-corpus/  0700/0600 本机私有语料、反馈和 Profile 缓存，不进入 Git
 ```
 
@@ -239,6 +242,7 @@ reports/research/YYYY-MM-DD.md      不含正文的研究与实验报告
 21. `docs/21-daily-topic-intelligence.md`
 22. `docs/22-research-and-experiment-packs.md`
 23. `docs/23-style-intelligence-and-writing-skills.md`
+24. `docs/25-simple-writing-v1.md`
 
 发生冲突时，真实性与合规规则、人物事实库和产品知识库优先。资料不足时必须标记 `UNKNOWN`，不得自行补全。
 
@@ -250,5 +254,5 @@ reports/research/YYYY-MM-DD.md      不含正文的研究与实验报告
 - 通过伪造生活细节制造“真人感”。
 - 以规避平台审核、检测或标注要求为目标。
 - 在未经确认时承诺课程权益、更新频率或学习结果。
-- 在当前阶段接入数据库、自动发布或模型驱动正文生产。
+- 把 AI 草稿当成已审核内容，或接入无人审核的自动发布。
 - 在 GitHub-hosted runner 上运行需要真实 Chrome 登录态的采集。
