@@ -43,6 +43,12 @@ describe('writing Skill orchestration and deterministic lint', () => {
     expect(issues.map(({ issue_code }) => issue_code)).toEqual(expect.arrayContaining(['reversal_rhetoric', 'faux_insight']));
   });
 
+  it('reports every reversal occurrence before the single local Repair pass', () => {
+    const text = '这不是摘要，而是执行卡。\n\n这不是补全，而是保留缺口。';
+    expect(lintHumanWriting(text).filter(({ issue_code }) => issue_code === 'reversal_rhetoric')).toHaveLength(2);
+    expect(lintNoAiSlop(text).filter(({ issue_code }) => issue_code === 'binary_contrast')).toHaveLength(2);
+  });
+
   it('recognizes overly uniform sentence lengths and consecutive short sentences', () => {
     const issues = lintHumanWriting('我打开文件。你保存结果。他运行检查。我重新回读。你记录错误。他保留输入。');
     expect(issues.map(({ issue_code }) => issue_code)).toEqual(expect.arrayContaining(['uniform_sentence_length', 'consecutive_short_sentences']));

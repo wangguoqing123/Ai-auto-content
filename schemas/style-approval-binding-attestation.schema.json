@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/style-approval-binding-attestation.schema.json",
+  "title": "Style Approval Binding Attestation",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "number",
+      "const": 1
+    },
+    "type": {
+      "type": "string",
+      "const": "legacy_receipt_profile_binding"
+    },
+    "hash_algorithm": {
+      "type": "string",
+      "const": "sha256"
+    },
+    "source_receipt": {
+      "type": "object",
+      "properties": {
+        "filename": {
+          "type": "string",
+          "const": "approval-receipt.json"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "filename",
+        "sha256"
+      ],
+      "additionalProperties": false
+    },
+    "provisional_profile": {
+      "type": "object",
+      "properties": {
+        "filename": {
+          "type": "string",
+          "const": "provisional-profile-v1.json"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "status": {
+          "type": "string",
+          "const": "provisional_approved_with_pending_items"
+        }
+      },
+      "required": [
+        "filename",
+        "sha256",
+        "status"
+      ],
+      "additionalProperties": false
+    },
+    "approval_summary": {
+      "type": "object",
+      "properties": {
+        "filename": {
+          "type": "string",
+          "const": "provisional-approval-summary.md"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "filename",
+        "sha256"
+      ],
+      "additionalProperties": false
+    },
+    "decision_set_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "decision_count": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+    },
+    "decision_set_canonicalization": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "const": "provisional-profile-v1.json"
+        },
+        "inclusion": {
+          "type": "string",
+          "const": "finalized_decisions_only_excluding_pending"
+        },
+        "sort": {
+          "type": "string",
+          "const": "rule_id_ascending"
+        },
+        "fields": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "string",
+              "const": "rule_id"
+            },
+            {
+              "type": "string",
+              "const": "decision"
+            },
+            {
+              "type": "string",
+              "const": "scope"
+            },
+            {
+              "type": "string",
+              "const": "status"
+            }
+          ]
+        },
+        "object_key_order": {
+          "type": "string",
+          "const": "lexicographic"
+        },
+        "serialization": {
+          "type": "string",
+          "const": "compact_json"
+        },
+        "encoding": {
+          "type": "string",
+          "const": "utf-8"
+        },
+        "status_mapping": {
+          "type": "string",
+          "const": "reject_is_deleted; all_other_finalized_decisions_are_active"
+        }
+      },
+      "required": [
+        "source",
+        "inclusion",
+        "sort",
+        "fields",
+        "object_key_order",
+        "serialization",
+        "encoding",
+        "status_mapping"
+      ],
+      "additionalProperties": false
+    },
+    "closed_rule_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+      }
+    },
+    "deleted_rule_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+      }
+    },
+    "owner_profile_hashes": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "filename",
+          "sha256"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "reference_profile_hashes": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "filename",
+          "sha256"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "semantic_changes": {
+      "type": "boolean",
+      "const": false
+    },
+    "user_reapproval_required": {
+      "type": "boolean",
+      "const": false
+    },
+    "migration_reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+    }
+  },
+  "required": [
+    "version",
+    "type",
+    "hash_algorithm",
+    "source_receipt",
+    "provisional_profile",
+    "approval_summary",
+    "decision_set_sha256",
+    "decision_count",
+    "decision_set_canonicalization",
+    "closed_rule_ids",
+    "deleted_rule_ids",
+    "owner_profile_hashes",
+    "reference_profile_hashes",
+    "semantic_changes",
+    "user_reapproval_required",
+    "migration_reason",
+    "created_at"
+  ],
+  "additionalProperties": false
+}
