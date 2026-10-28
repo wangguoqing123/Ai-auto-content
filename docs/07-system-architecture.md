@@ -7,6 +7,24 @@ status: style_intelligence_implemented_pending_real_corpus
 
 # 系统架构
 
+## Writing Pack v0 补充
+
+```text
+Research Pack
+  → Research Gate（最先执行）
+  → Style Approval Chain Resolver（Receipt v2 或 Legacy + Binding）
+  → 不可伪造 Resolved Writing Style
+  → WeChat / X Style Recipe
+  → Writer（结构化 Blocks）
+  → 代码 Evidence / Experiment / Product / First-person Audit
+  → human-writing Lint + no-ai-slop detect-only + Quality Reviewer
+  → 最多一次局部 Repair
+  → 本地 Plagiarism / Protected Transfer Guard
+  → READY_FOR_HUMAN_REVIEW
+```
+
+Research Gate 前不得读取 Style 文件、模型环境或初始化 Provider。Writer 与 Reviewer 都看不到原始 Style 文件、Reference Corpus 和 Protected Entry；Guard 只在模型调用完成后只读加载这些本机材料。Scheduler 的 Writing 窗口为 14:30—22:00，只接受 approved Style，PR 阶段不安装或 reload。
+
 ## 1. 架构目标
 
 系统不是批量内容工厂，而是一条每天重新感知、判断和学习的闭环：

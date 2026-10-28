@@ -1,0 +1,28 @@
+version: 1
+timezone: Asia/Shanghai
+
+writing:
+  maximum_codex_calls: 3
+  minimum_wechat_chinese_chars: 1200
+  maximum_wechat_chinese_chars: 2400
+  maximum_x_chinese_chars: 240
+  prompt_version: evidence-constrained-writing-v1
+
+source_weights:
+  wechat:
+    owner: 0.65
+    reference: 0.20
+    platform: 0.15
+  x:
+    owner: 1.00
+    reference: 0
+    platform: 0
+
+product:
+  price_in_public_copy: false
+
+schedule:
+  target_time: "14:30"
+  window_start: "14:30"
+  window_end: "22:00"
+  max_attempts: 2

@@ -2,6 +2,42 @@
 
 ## Unreleased
 
+- 增加 Evidence-constrained Writing Pack v0：Research Gate 必须先于 Style 文件和 Codex，业务决定固定为 READY/BLOCKED/NO_CONTENT/WAITING，基础设施与审计故障保持 `status=failed, decision=null`。
+- 增加 Receipt v2 与 Legacy Receipt + Binding Attestation Resolver；只读验证仓库外路径、0600、无 symlink、固定 Hash、28 项决定、Owner/Reference Hash 与关闭/删除规则，并用 WeakMap 输出不可伪造 Resolved Writing Style。
+- 增加 Owner 0.65 / Reference 0.20 / WeChat 0.15 与 X Owner 1.00 双平台 Recipe、动态 article type、结构化 Content Blocks、一篇公众号和一个 X 版本。
+- 增加 Evidence、Experiment、Product、First-person、Style、Plagiarism/Protected Transfer 六类审计；human-writing 分前后阶段、no-ai-slop detect-only、Reviewer 只报问题、Repair 只改命中 Block，总调用最多 3 次。
+- 增加 Human Send Gate 与仅规划不生成的 Visual Slots；Provisional 只允许显式 dry-run/Synthetic READY Fixture，production 与 Scheduler 均拒绝自动消费，不生成图片、不访问平台、不发布。
+- 增加 Writing CLI、18 份生成式 JSON Schema、14:30—22:00 Scheduler 状态结构、项目自有 Synthetic READY Research Fixture 和本机 0700/0600 写作效果审阅包。
+- 完成一次真实 Synthetic READY Codex dry-run：Writer、Reviewer、Repair 共 3 次调用，初稿 1629 个汉字、3 个标题、一个 5 条 thread；四类事实审计通过，但 Style Audit 在 Repair 后发现第二处翻案腔并 fail closed，未生成审阅包或发布。随后离线修复 lint 为单轮报告同类全部命中，未重复真实模型调用，状态保持 `implemented_pending_live_validation`。
+
+### Second authorized Synthetic READY live validation
+
+- 在 Head `63883aadce678f435f78c1e045a27e3d88953887` 上按新授权只执行 1 次真实 writing dry-run；`codex-cli 0.147.0` / `gpt-5.6-sol` 完成 Writer、Reviewer 和一次 Repair，共 3 次调用、143424 ms。
+- 新 Lint 已在 Repair 前一次报告 4 处 reversal；Repair 精确修改 `block_boundary`、`block_step_owner_deadline`、`block_step_acceptance` 3 个命中 Block。修复后为 1567 个公众号汉字、3 个标题、单一 5 条 X thread。
+- Evidence、Experiment、Product、First-person Audit 通过；`output.abstract` 与 `output.x.thread[2]` 不属于 Content Block，仍留下 `reversal_rhetoric` × 2 与 `binary_contrast` × 2，Style Audit fail closed。最终 `status=failed`、`decision=null`、`writing_audit_failed`。
+- 因 Style blocker 未清零，管道未进入 Plagiarism / Protected Transfer Guard，未生成审阅包。未访问平台/网页、未生成图片、未发布、未写正式 Writing 数据，状态继续为 `implemented_pending_live_validation`。
+
+### Public-surface audit and repair hardening
+
+- 统一建模八类 `PublicContentUnit`：公众号主/备用标题、摘要、Block、CTA 与 X single/thread/debate；所有表面携带 Evidence、Experiment、Product、Persona、Style 元数据，最终渲染不暴露内部 ID。
+- 五类 Audit 改为逐 Unit 执行并使用稳定 `unit_id`；保留 human-writing/no-ai-slop 两条 Raw Issue，同时按 Unit 与规范化命中片段分组为单一 Repair Target。
+- Repair 升级为带 `original_sha256` 与 `allowed_fields` 的 `repaired_units` Patch；锁定 Unit 集合、标题数量、X format/thread 条数、article type 和 block identity，并校验所有新增元数据 ID 的 allowlist。
+- 明确区分 repairable text/metadata issue 与 `non_repairable_contract`；format/type/未知 Claim/关闭 Style Rule 等问题直接 fail closed，不再错误映射到任意 Block。
+- Plagiarism Audit 增加 `not_run` 与 null detection fields；READY 必须要求终局 Guard 实际 `pass`。
+- 新增 80 项 Public Unit / Audit / Repair / 第二次失败回归测试；完整离线回归为 68 files / 997 tests，Fixture 一次 Repair 后 Style 与 Plagiarism 均通过并达到 READY。本轮未调用真实 Codex、未访问平台、未生成图片或发布。
+- 修复 Repair completion fail-open：`repaired_units` 必须完整且唯一覆盖所有 Targets，每个 Target 的 allowed fields 必须至少一项真实变化；漏项和原样返回分别以 `repair_target_missing`、`repair_target_unchanged` fail closed。
+- 修复 Reviewer blocker preservation：Repair 前验证 stable Unit 与 exact quoted text；Repair 后只有完整 Target、真实变化、quote 消失和确定性 Audit 全过才 discharge。quote 残留继续 `writing_audit_failed`，终局 Guard 保持 `not_run`。
+- 新增 8 项 Target omission / unchanged / Reviewer quote discharge 回归；完整离线回归更新为 68 files / 1005 tests。本轮未调用真实 Codex、未访问平台、未生成图片或发布。
+
+### Third Synthetic READY audit hardening
+
+- 第三次真实 Synthetic READY Writing 的原始结果保持 `status=failed`、`decision=null`、`error_code=writing_audit_failed`；Evidence 与 Style 已 pass 后，仍错误保留 `factual_unit_without_claim × 16`、`required_disclosure_missing × 3`、`reversal_rhetoric × 6` 共 25 条 Reviewer echo。
+- Reviewer discharge 改为按 `issue_code + unit_id + surface` 独立判断：确定性 Issue 的 Reviewer 回显由 Repair 后对应确定性 Audit 决定；Reviewer-only 文本问题仍要求完整 Target、真实变化与 exact quote 消失。无关 Unit 的 blocker 不再让已解决 echo 复活，Guard 仍只在两类 blocker 都清零后运行。
+- Repair Target 新增逐条 `issue_details`，保留 severity、origin、source commit、quoted text 与 constraint；同 Unit 的多个 quote 和跨 Skill origin 不丢失，仅去重完全相同的 code/origin/quote/constraint。
+- First-person Audit 区分中性教程引导、集体事实、集体观点和 `我(?!们)` 单数边界；中性“我们”不再误报，集体事实仍需 persona evidence，集体观点仍需 `is_opinion=true`。
+- 零模型离线重放清除了上述 25 条 Reviewer echo，但保存稿仍有 `unmarked_first_person_opinion × 19`；只读分类均落在独立“我”，不是“我们”。因此 replay 仍为 `writing_audit_failed`，Plagiarism Guard 保持 `not_run`，不能进入人工写作效果审核。
+- 完整离线回归为 69 files / 1020 tests；本轮没有新模型调用、真实 Writing、平台访问、图片、发布或正式 Writing 数据写入。
+
 - 固定 vendored human-writing 1.1.0（`4fda173f3fef7fb808f3eba991eeb2528ea4b189`）与 no-ai-slop（`d30eddb9e04562234f2070b5ee63ca4649d9a05e`），保留 MIT License、上游 URL、逐文件 SHA-256 和已知可执行文件 allowlist；CI 不联网下载 Skill。
 - 增加本机 0700/0600 私有 style corpus，支持 Markdown、纯文本和 JSONL 导入；完整文章、反馈和 Profile 缓存不进入 Git，也不自动抓取作者内容。
 - 增加严格 Style Profile 与 Style Recipe Schema，分离内容、语言和转化模式，计算确定性节奏指标，并限制 owner/reference/platform 权重与最多两个参考 Profile。

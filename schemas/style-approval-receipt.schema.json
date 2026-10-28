@@ -1,0 +1,510 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/style-approval-receipt.schema.json",
+  "title": "Style Approval Receipt",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "status": {
+          "type": "string",
+          "const": "recorded"
+        },
+        "recorded_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+        },
+        "authorization_phrase_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "input_evidence": {
+          "type": "object",
+          "properties": {
+            "approval_form_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "approval_candidates_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "owner_base_profile_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "reference_base_profile_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "protected_index_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "approval_form_sha256",
+            "approval_candidates_sha256",
+            "owner_base_profile_sha256",
+            "reference_base_profile_sha256",
+            "protected_index_sha256"
+          ],
+          "additionalProperties": false
+        },
+        "normalized_decisions": {
+          "type": "object",
+          "properties": {
+            "owner": {
+              "type": "object",
+              "properties": {
+                "keep": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+                  }
+                },
+                "keep_with_scope": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+                  }
+                },
+                "reject": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+                  }
+                },
+                "pending": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+                  }
+                }
+              },
+              "required": [
+                "keep",
+                "keep_with_scope",
+                "reject",
+                "pending"
+              ],
+              "additionalProperties": false
+            },
+            "reference": {
+              "type": "object",
+              "properties": {
+                "use": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+                  }
+                },
+                "cautious_use": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+                  }
+                },
+                "reject": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+                  }
+                }
+              },
+              "required": [
+                "use",
+                "cautious_use",
+                "reject"
+              ],
+              "additionalProperties": false
+            },
+            "conflicts": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+              },
+              "additionalProperties": {
+                "type": "string",
+                "enum": [
+                  "solution_a",
+                  "solution_b",
+                  "scenario_switch",
+                  "pending"
+                ]
+              }
+            },
+            "blind_feedback": {
+              "type": "object",
+              "properties": {
+                "short_most_like": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 10
+                },
+                "short_least_like": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 10
+                },
+                "directness": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "naturalness": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "tutorial_like": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 30
+                },
+                "wechat_most_readable": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 10
+                },
+                "wechat_most_like_owner": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 10
+                },
+                "wechat_least_like_owner": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 10
+                },
+                "too_fragmented": {
+                  "type": "boolean"
+                },
+                "too_regular": {
+                  "type": "boolean"
+                },
+                "reference_similarity": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 30
+                }
+              },
+              "required": [
+                "short_most_like",
+                "short_least_like",
+                "directness",
+                "naturalness",
+                "tutorial_like",
+                "wechat_most_readable",
+                "wechat_most_like_owner",
+                "wechat_least_like_owner",
+                "too_fragmented",
+                "too_regular",
+                "reference_similarity"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "owner",
+            "reference",
+            "conflicts",
+            "blind_feedback"
+          ],
+          "additionalProperties": false
+        },
+        "blind_mapping_copied": {
+          "type": "boolean",
+          "const": false
+        },
+        "protected_text_copied": {
+          "type": "boolean",
+          "const": false
+        },
+        "production_modified": {
+          "type": "boolean",
+          "const": false
+        }
+      },
+      "required": [
+        "version",
+        "status",
+        "recorded_at",
+        "authorization_phrase_sha256",
+        "input_evidence",
+        "normalized_decisions",
+        "blind_mapping_copied",
+        "protected_text_copied",
+        "production_modified"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "number",
+          "const": 2
+        },
+        "provisional_profile_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "status": {
+          "type": "string",
+          "const": "recorded"
+        },
+        "recorded_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+        },
+        "authorization_phrase_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "input_evidence": {
+          "type": "object",
+          "properties": {
+            "approval_form_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "approval_candidates_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "owner_base_profile_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "reference_base_profile_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "protected_index_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "approval_form_sha256",
+            "approval_candidates_sha256",
+            "owner_base_profile_sha256",
+            "reference_base_profile_sha256",
+            "protected_index_sha256"
+          ],
+          "additionalProperties": false
+        },
+        "normalized_decisions": {
+          "type": "object",
+          "properties": {
+            "owner": {
+              "type": "object",
+              "properties": {
+                "keep": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+                  }
+                },
+                "keep_with_scope": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+                  }
+                },
+                "reject": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+                  }
+                },
+                "pending": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+                  }
+                }
+              },
+              "required": [
+                "keep",
+                "keep_with_scope",
+                "reject",
+                "pending"
+              ],
+              "additionalProperties": false
+            },
+            "reference": {
+              "type": "object",
+              "properties": {
+                "use": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+                  }
+                },
+                "cautious_use": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+                  }
+                },
+                "reject": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+                  }
+                }
+              },
+              "required": [
+                "use",
+                "cautious_use",
+                "reject"
+              ],
+              "additionalProperties": false
+            },
+            "conflicts": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}-\\d{2}$|^PLATFORM-[A-Z0-9-]+$"
+              },
+              "additionalProperties": {
+                "type": "string",
+                "enum": [
+                  "solution_a",
+                  "solution_b",
+                  "scenario_switch",
+                  "pending"
+                ]
+              }
+            },
+            "blind_feedback": {
+              "type": "object",
+              "properties": {
+                "short_most_like": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 10
+                },
+                "short_least_like": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 10
+                },
+                "directness": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "naturalness": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "tutorial_like": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 30
+                },
+                "wechat_most_readable": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 10
+                },
+                "wechat_most_like_owner": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 10
+                },
+                "wechat_least_like_owner": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 10
+                },
+                "too_fragmented": {
+                  "type": "boolean"
+                },
+                "too_regular": {
+                  "type": "boolean"
+                },
+                "reference_similarity": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 30
+                }
+              },
+              "required": [
+                "short_most_like",
+                "short_least_like",
+                "directness",
+                "naturalness",
+                "tutorial_like",
+                "wechat_most_readable",
+                "wechat_most_like_owner",
+                "wechat_least_like_owner",
+                "too_fragmented",
+                "too_regular",
+                "reference_similarity"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "owner",
+            "reference",
+            "conflicts",
+            "blind_feedback"
+          ],
+          "additionalProperties": false
+        },
+        "blind_mapping_copied": {
+          "type": "boolean",
+          "const": false
+        },
+        "protected_text_copied": {
+          "type": "boolean",
+          "const": false
+        },
+        "production_modified": {
+          "type": "boolean",
+          "const": false
+        }
+      },
+      "required": [
+        "version",
+        "provisional_profile_sha256",
+        "status",
+        "recorded_at",
+        "authorization_phrase_sha256",
+        "input_evidence",
+        "normalized_decisions",
+        "blind_mapping_copied",
+        "protected_text_copied",
+        "production_modified"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}
