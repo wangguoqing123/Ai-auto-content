@@ -47,6 +47,9 @@ jobs:
       - name: Run offline research fixture
         run: npm run research:build -- --fixture --date=2026-08-14
 
+      - name: Run offline Simple Writing fixture
+        run: npm run simple-writing:build -- --fixture --dry-run --date=2026-08-14
+
       - name: Run offline Style Profile distillation fixture
         run: npm run style:distill -- --fixture
 
@@ -58,6 +61,9 @@ jobs:
 
       - name: Run offline local research scheduler fixture
         run: npm run local:research -- --fixture --dry-run --now=2026-08-14T05:30:00.000Z
+
+      - name: Run offline local Simple Writing scheduler fixture
+        run: npm run local:writing -- --fixture --dry-run --now=2026-08-14T06:30:00.000Z
 
       - name: Validate LaunchAgent installer dry-run
         run: npm run local:install -- --dry-run
