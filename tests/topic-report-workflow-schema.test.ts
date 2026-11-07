@@ -107,7 +107,9 @@ describe('topic report, JSON Schema, and workflows', () => {
     expect(text).toContain('window_end: "18:00"');
     expect(text).toContain('target_time: "13:30"');
     expect(text).toContain('window_end: "21:00"');
-    expect(text.match(/max_attempts: 2/g)).toHaveLength(3);
+    expect(text).toContain('target_time: "14:30"');
+    expect(text).toContain('window_end: "22:00"');
+    expect(text.match(/max_attempts: 2/g)).toHaveLength(4);
   });
 
   it('retains the 15-minute LaunchAgent due check and passes Codex explicitly', async () => {

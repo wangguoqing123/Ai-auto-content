@@ -54,6 +54,17 @@ function firstMatch(lines: ProseLine[], expression: RegExp): { line: number; val
   return null;
 }
 
+function allMatches(lines: ProseLine[], expression: RegExp): Array<{ line: number; value: string }> {
+  const flags = expression.flags.includes('g') ? expression.flags : `${expression.flags}g`;
+  const global = new RegExp(expression.source, flags);
+  const matches: Array<{ line: number; value: string }> = [];
+  for (const line of lines) {
+    global.lastIndex = 0;
+    for (const match of line.text.matchAll(global)) if (match[0] !== '') matches.push({ line: line.line, value: match[0] });
+  }
+  return matches;
+}
+
 function joinedFromLines(lines: ProseLine[]): string {
   return lines.map(({ text }) => text).join('\n');
 }
@@ -68,8 +79,7 @@ export function lintHumanWriting(markdown: string): WritingIssue[] {
     ['nominalization', '名词化', /(?:完成|实现|进行|达成)了?(?:对|关于)?[^。！？]{1,24}(?:的优化|的提升|的改进|的建设|的赋能)/u, '让动词直接承担动作，并保留可核验结果。'],
   ] as const;
   for (const [code, name, expression, repair] of patterns) {
-    const match = firstMatch(lines, expression);
-    if (match !== null) issues.push(issue(code, name, match.value, match.line, 'blocking_style_issue', repair));
+    for (const match of allMatches(lines, expression)) issues.push(issue(code, name, match.value, match.line, 'blocking_style_issue', repair));
   }
   const hardJargon = firstMatch(lines, /(?:商业闭环|价值闭环|迭代闭环|赋能|组合拳|降本增效|心智占领|占领心智)/u);
   if (hardJargon !== null) issues.push(issue('business_jargon', '商业黑话', hardJargon.value, hardJargon.line, 'blocking_style_issue', '改成具体动作、数字或结果。', 'project'));

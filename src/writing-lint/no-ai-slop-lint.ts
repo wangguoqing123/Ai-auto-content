@@ -39,16 +39,18 @@ export function lintNoAiSlop(markdown: string): WritingIssue[] {
   ] as const;
   const issues: WritingIssue[] = [];
   for (const [code, pattern, expression, repair] of definitions) {
-    const match = expression.exec(text);
-    if (match !== null) issues.push({
-      issue_code: code,
-      pattern,
-      quoted_text: match[0],
-      location: `line ${lineNumber(text, match.index)}`,
-      severity: 'blocking_style_issue',
-      repair_constraint: repair,
-      ...auditFields,
-    });
+    const flags = expression.flags.includes('g') ? expression.flags : `${expression.flags}g`;
+    for (const match of text.matchAll(new RegExp(expression.source, flags))) {
+      issues.push({
+        issue_code: code,
+        pattern,
+        quoted_text: match[0],
+        location: `line ${lineNumber(text, match.index)}`,
+        severity: 'blocking_style_issue',
+        repair_constraint: repair,
+        ...auditFields,
+      });
+    }
   }
   for (const [index, line] of text.split(/\r?\n/u).entries()) {
     const trimmed = line.trim();
